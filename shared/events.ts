@@ -11,6 +11,7 @@ import type {
   GlitchState,
   TimerState,
   DebugState,
+  LevelSummary,
 } from "./types.ts";
 
 // ---- Event Names ----
@@ -31,6 +32,10 @@ export const ClientEvents = {
   // Debug
   TOGGLE_DEBUG: "debug:toggle",
   JUMP_TO_PUZZLE: "debug:jump",
+
+  // Multi-Level
+  LEVEL_LIST_REQUEST: "level:list",
+  LEVEL_SELECT: "level:select",
 } as const;
 
 export const ServerEvents = {
@@ -63,6 +68,10 @@ export const ServerEvents = {
 
   // Debug
   DEBUG_UPDATE: "debug:update",
+
+  // Multi-Level
+  LEVEL_LIST: "level:list_response",
+  LEVEL_SELECTED: "level:selected",
 } as const;
 
 // ---- Client → Server Payloads ----
@@ -77,7 +86,12 @@ export interface JoinRoomPayload {
 }
 
 export interface StartGamePayload {
+  levelId: string;
   startingPuzzleIndex?: number;
+}
+
+export interface LevelSelectPayload {
+  levelId: string;
 }
 
 export interface PuzzleActionPayload {
@@ -111,12 +125,21 @@ export interface PlayerListPayload {
   players: Player[];
 }
 
+export interface LevelListPayload {
+  levels: LevelSummary[];
+}
+
+export interface LevelSelectedPayload {
+  levelId: string;
+}
+
 export interface GameStartedPayload {
   levelId: string;
   levelTitle: string;
   levelStory: string;
   levelIntroAudio?: string;
   backgroundMusic?: string;
+  themeCss: string[];
   totalPuzzles: number;
   timerSeconds: number;
 }

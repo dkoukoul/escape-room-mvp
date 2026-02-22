@@ -20,6 +20,7 @@ import {
   toggleMute, 
   getMuteState 
 } from "./audio/audio-manager.ts";
+import { applyTheme, removeTheme } from "./lib/theme-engine.ts";
 
 let activeBackgroundMusic: string | null = null;
 import { initLobby } from "./screens/lobby.ts";
@@ -125,17 +126,21 @@ async function boot() {
       playBackgroundMusic(activeBackgroundMusic);
     }
     
-    // Stop music on game end
-    if (data.phase === "victory" || data.phase === "defeat") {
+    // Stop music and remove theme on game end
+    if (data.phase === "victory" || data.phase === "defeat" || data.phase === "lobby") {
       stopBackgroundMusic();
       activeBackgroundMusic = null;
+      removeTheme();
     }
   });
 
-  // Handle game start to store music
+  // Handle game start to store music and apply theme
   on(ServerEvents.GAME_STARTED, (data: GameStartedPayload) => {
     if (data.backgroundMusic) {
       activeBackgroundMusic = data.backgroundMusic;
+    }
+    if (data.themeCss) {
+      applyTheme(data.themeCss);
     }
   });
 

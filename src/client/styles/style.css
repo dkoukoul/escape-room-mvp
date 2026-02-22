@@ -31,10 +31,10 @@
     0 0 10px rgba(255, 0, 170, 0.5), 0 0 30px rgba(255, 0, 170, 0.2);
   --glow-gold: 0 0 10px rgba(255, 215, 0, 0.5), 0 0 30px rgba(255, 215, 0, 0.2);
 
-  /* Typography */
-  --font-display: "Orbitron", sans-serif;
-  --font-mono: "Share Tech Mono", monospace;
-  --font-body: "Inter", sans-serif;
+  /* Typography — Defaults (overridden by themes) */
+  --font-display: sans-serif;
+  --font-mono: monospace;
+  --font-body: sans-serif;
 
   /* Spacing */
   --space-xs: 4px;
@@ -369,27 +369,18 @@ body {
   content: " ★";
 }
 
-/* Background animated grid */
+/* Background animated element (each theme defines its own content/animation) */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
-  background-image:
-    linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
-  background-size: 40px 40px;
   pointer-events: none;
   z-index: -1;
-  animation: gridScroll 20s linear infinite;
 }
 
 @keyframes gridScroll {
-  0% {
-    transform: translate(0, 0);
-  }
-  100% {
-    transform: translate(40px, 40px);
-  }
+  0% { transform: translate(0, 0); }
+  100% { transform: translate(40px, 40px); }
 }
 
 /* Utility */

@@ -8,11 +8,13 @@ import {
   createRoom,
   joinRoom,
   leaveRoom,
+  selectLevel,
   getRoom,
   getPlayerRoom,
   getPlayersArray,
   setPlayerConnected,
 } from "./engine/room-manager.ts";
+import { getLevelSummaries } from "./engine/config-loader.ts";
 import { startGame, handlePuzzleAction, getAllPlayerViews, jumpToPuzzle, handlePlayerReady, handleLevelIntroComplete } from "./engine/game-engine.ts";
 import {
   ClientEvents,
@@ -21,6 +23,7 @@ import {
   type JoinRoomPayload,
   type StartGamePayload,
   type PuzzleActionPayload,
+  type LevelSelectPayload,
 } from "../../shared/events.ts";
 
 // Register all puzzle handlers
@@ -106,6 +109,29 @@ io.on("connection", (socket) => {
     }
 
     startGame(io, room, payload?.startingPuzzleIndex);
+  });
+
+  // ---- Level List (Lobby) ----
+  socket.on(ClientEvents.LEVEL_LIST_REQUEST, () => {
+    socket.emit(ServerEvents.LEVEL_LIST, {
+      levels: getLevelSummaries(),
+    });
+  });
+
+  // ---- Level Selection (Host) ----
+  socket.on(ClientEvents.LEVEL_SELECT, (payload: LevelSelectPayload) => {
+    const room = getPlayerRoom(socket.id);
+    if (!room) return;
+
+    const player = room.players.get(socket.id);
+    if (!player?.isHost) return;
+
+    const result = selectLevel(room.code, payload.levelId);
+    if (result.success) {
+      io.to(room.code).emit(ServerEvents.LEVEL_SELECTED, {
+        levelId: payload.levelId,
+      });
+    }
   });
 
   // ---- Puzzle Action ----

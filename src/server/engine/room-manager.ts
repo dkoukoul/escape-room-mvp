@@ -122,6 +122,16 @@ export function leaveRoom(roomCode: string, playerId: string): Room | null {
   return room;
 }
 
+export function selectLevel(roomCode: string, levelId: string): { success: boolean; error?: string } {
+  const room = rooms.get(roomCode);
+  if (!room) return { success: false, error: "Room not found" };
+  if (room.state.phase !== "lobby") return { success: false, error: "Cannot change level now" };
+
+  room.state.levelId = levelId;
+  console.log(`[RoomManager] Room ${roomCode} selected level: ${levelId}`);
+  return { success: true };
+}
+
 export function getRoom(roomCode: string): Room | undefined {
   return rooms.get(roomCode);
 }

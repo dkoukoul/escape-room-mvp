@@ -41,9 +41,17 @@ const roomTimers = new Map<string, GameTimer>();
  * Start the game for a room
  */
 export function startGame(io: Server, room: Room, startingPuzzleIndex: number = 0): void {
-  const level = getDefaultLevel();
+  const levelId = room.state.levelId;
+  if (!levelId) {
+    io.to(room.code).emit(ServerEvents.ROOM_ERROR, {
+      message: "No level selected",
+    });
+    return;
+  }
+
+  const level = getLevel(levelId);
   if (!level) {
-    console.error("[Engine] No level config loaded!");
+    console.error(`[Engine] Level config not found: ${levelId}`);
     return;
   }
 
@@ -82,6 +90,7 @@ export function startGame(io: Server, room: Room, startingPuzzleIndex: number = 
     levelStory: level.story,
     levelIntroAudio: level.audio_cues.intro,
     backgroundMusic: level.audio_cues.background,
+    themeCss: level.theme_css || ["themes/cyberpunk-greek.css"],
     totalPuzzles: level.puzzles.length,
     timerSeconds: level.timer_seconds,
   };

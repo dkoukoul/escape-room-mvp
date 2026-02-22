@@ -1,0 +1,47 @@
+/* ============================================================
+   Theme: Neon Olympus (Cyberpunk Greek)
+   Default theme for Project ODYSSEY
+   ============================================================ */
+
+@import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&family=Share+Tech+Mono&family=Inter:wght@300;400;600&display=swap");
+
+:root {
+  /* Neon palette */
+  --neon-cyan: #00f0ff;
+  --neon-magenta: #ff00aa;
+  --neon-gold: #ffd700;
+  --neon-green: #39ff14;
+  --neon-red: #ff3333;
+
+  /* Backgrounds */
+  --bg-deep: #0a0a12;
+  --bg-dark: #0d0d1a;
+  --bg-panel: rgba(13, 13, 26, 0.85);
+  --bg-card: rgba(20, 20, 40, 0.9);
+
+  /* Text */
+  --text-primary: #e0e0ff;
+  --text-secondary: #8888aa;
+  --text-accent: var(--neon-cyan);
+
+  /* Typography */
+  --font-display: "Orbitron", sans-serif;
+  --font-mono: "Share Tech Mono", monospace;
+  --font-body: "Inter", sans-serif;
+
+  /* Specifics */
+  --bg-grid-color: rgba(0, 240, 255, 0.03);
+}
+
+/* Background animated grid */
+body::before {
+  background-image:
+    linear-gradient(var(--bg-grid-color) 1px, transparent 1px),
+    linear-gradient(90deg, var(--bg-grid-color) 1px, transparent 1px);
+  background-size: 40px 40px;
+  animation: gridScroll 20s linear infinite;
+}
+
+/* Ensure overlays are visible in this theme if desired */
+.scanlines { display: block; opacity: 0.4; }
+.glitch-overlay { display: block; }

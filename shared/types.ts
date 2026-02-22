@@ -92,6 +92,7 @@ export interface LevelConfig {
   timer_seconds: number;
   glitch_max: number;
   glitch_decay_rate: number;
+  theme_css: string[]; // List of CSS files to load (relative to src/client/styles/)
 
   puzzles: PuzzleConfig[];
 
@@ -102,6 +103,17 @@ export interface LevelConfig {
     defeat?: string;
     [key: string]: string | undefined;
   };
+}
+
+export interface LevelSummary {
+  id: string;
+  title: string;
+  story: string;
+  min_players: number;
+  max_players: number;
+  puzzle_count: number;
+  theme_css: string[];
+  estimated_duration_minutes: number;
 }
 
 export interface PuzzleConfig {

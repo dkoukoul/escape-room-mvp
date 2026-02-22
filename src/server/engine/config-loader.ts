@@ -6,7 +6,8 @@ import { readFileSync, readdirSync } from "fs";
 import { join, resolve } from "path";
 import { parse as parseYAML } from "yaml";
 import { watch } from "chokidar";
-import type { LevelConfig } from "../../../shared/types.ts";
+import { validateAll } from "./config-validator.ts";
+import type { LevelConfig, LevelSummary } from "../../../shared/types.ts";
 
 const CONFIG_DIR = resolve(import.meta.dir, "../../../config");
 
@@ -29,6 +30,7 @@ export function loadAllConfigs(): void {
   }
 
   console.log(`[ConfigLoader] Loaded ${levels.size} level(s)`);
+  validateAll(Array.from(levels.values()));
 }
 
 /**
@@ -65,11 +67,13 @@ export function startConfigWatcher(): void {
   watcher.on("change", (filePath) => {
     console.log(`[ConfigLoader] Config changed: ${filePath}`);
     loadConfigFile(filePath);
+    validateAll(Array.from(levels.values()));
   });
 
   watcher.on("add", (filePath) => {
     console.log(`[ConfigLoader] New config detected: ${filePath}`);
     loadConfigFile(filePath);
+    validateAll(Array.from(levels.values()));
   });
 
   watcherReady = true;
@@ -96,4 +100,20 @@ export function getDefaultLevel(): LevelConfig | undefined {
  */
 export function getAllLevelIds(): string[] {
   return Array.from(levels.keys());
+}
+
+/**
+ * Get lightweight summaries of all levels for the lobby
+ */
+export function getLevelSummaries(): LevelSummary[] {
+  return Array.from(levels.values()).map((l) => ({
+    id: l.id,
+    title: l.title,
+    story: l.story,
+    min_players: l.min_players,
+    max_players: l.max_players,
+    puzzle_count: l.puzzles.length,
+    theme_css: l.theme_css || ["themes/cyberpunk-greek.css"], // Fallback for old configs
+    estimated_duration_minutes: Math.ceil((l.timer_seconds || 600) / 60), // Simple estimate
+  }));
 }
