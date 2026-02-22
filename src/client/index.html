@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Project ODYSSEY — A co-op escape room in the digital ruins of Ancient Greece"
+    />
+    <title>⚡ Project ODYSSEY: Cyber-Hoplite Protocol</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&family=Share+Tech+Mono&family=Inter:wght@300;400;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles/style.css" />
+    <link rel="stylesheet" href="./styles/glitch.css" />
+    <link rel="stylesheet" href="./styles/puzzles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <!-- Glitch overlay layer -->
+      <div id="glitch-overlay" class="glitch-overlay"></div>
+
+      <!-- Scanline overlay -->
+      <div class="scanlines"></div>
+
+      <!-- Screens are swapped in/out by the router -->
+      <div id="screen-lobby" class="screen active">
+        <!-- Filled by lobby.ts -->
+      </div>
+      <div id="screen-briefing" class="screen">
+        <!-- Filled by briefing.ts -->
+      </div>
+      <div id="screen-puzzle" class="screen">
+        <!-- Filled by puzzle.ts -->
+      </div>
+      <div id="screen-results" class="screen">
+        <!-- Filled by results.ts -->
+      </div>
+
+      <!-- Persistent HUD (visible during gameplay) -->
+      <div id="hud" class="hud hidden">
+        <div class="hud-timer" id="hud-timer">
+          <span class="hud-label">TIME</span>
+          <span class="hud-value" id="hud-timer-value">30:00</span>
+        </div>
+        <div class="hud-puzzle-progress" id="hud-progress">
+          <span class="hud-label">MISSION</span>
+          <span class="hud-value" id="hud-progress-value">1/5</span>
+        </div>
+        <div class="hud-glitch" id="hud-glitch">
+          <span class="hud-label">GLITCH</span>
+          <div class="glitch-bar">
+            <div class="glitch-bar-fill" id="hud-glitch-fill"></div>
+          </div>
+        </div>
+        <div class="hud-role" id="hud-role">
+          <span class="hud-label">ROLE</span>
+          <span class="hud-value" id="hud-role-value">—</span>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

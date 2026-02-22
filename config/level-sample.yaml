@@ -1,0 +1,56 @@
+# ============================================================
+# Mission 01: The Akropolis Defragmentation
+# ============================================================
+# "The year is 2084. The Chronos Virus is erasing Ancient Greece.
+#  You are Cyber-Hoplites — digital soldiers sent to repair the Glitch."
+
+id: "akropolis_defrag"
+title: "Η Ανασυγκρότηση της Ακρόπολης"
+story: >
+  Το έτος είναι 2084. Η Ελλάδα δεν υπάρχει πια σε χάρτες, αλλά στον Server OLYMPUS. 
+  Όλη η ιστορία, η γλώσσα και οι αναμνήσεις μας είναι αποθηκευμένες εκεί. 
+  Όμως, ένας ιός με το όνομα POSEIDON κατέλαβε το σύστημα. Ο Server καταρρέει. 
+  Τα μάρμαρα γίνονται pixels, η θάλασσα του Αιγαίου γεμίζει "θόρυβο" (static) και οι ήρωες ξεχνιούνται.
+  Εσείς είστε οι Ιθακήσιοι (The Ithacans). Μια ομάδα από hackers που μπαίνει στο simulation με ένα μοναδικό σκοπό:
+  Να φτάσετε στον Κόμβο της Ιθάκης και να κάνετε επανεκκίνηση την ιστορία πριν χαθεί για πάντα στην Ψηφιακή Άβυσσο.
+
+min_players: 2
+max_players: 6
+timer_seconds: 1800 # 30 minutes for the full mission
+glitch_max: 100
+glitch_decay_rate: 0 # No natural decay in MVP
+
+# ----------------------------------------------------------
+# Puzzle 1: The Neon Propylaea (asymmetric_symbols)
+# ----------------------------------------------------------
+puzzles:
+  - id: "neon_propylaea"
+    type: "asymmetric_symbols"
+    title: "Τα Νέον Προπύλαια"
+    briefing: >
+      Η πύλη για την Ακρόπολη έχει μολυνθεί. Θραύσματα αρχαίων λέξεων
+      διαλύονται στο ψηφιακό κενό. Ο Navigator μπορεί ακόμα να διαβάσει
+      τις αρχικές επιγραφές — αλλά οι Decoders πρέπει να πιάσουν τα ιπτάμενα
+      γράμματα πριν χαθούν για πάντα.
+    layout:
+      roles:
+        - name: "Navigator"
+          count: 1
+          description: "You can see the ancient words. Guide your team."
+        - name: "Decoder"
+          count: "remaining"
+          description: "Capture the flying Greek letters to spell the words."
+    data:
+      solution_words:
+        - "ΦΙΛΟΣΟΦΙΑ"
+        - "ΔΗΜΟΚΡΑΤΙΑ"
+        - "ΗΡΩΣ"
+      glitch_speed: "medium"
+      letter_lifetime_ms: 2000
+      spawn_interval_ms: 1000
+      decoy_ratio: 0.2 # 20% of spawned letters are decoys
+    glitch_penalty: 5
+    audio_cues:
+      start: "puzzle_start.mp3"
+      success: "puzzle_success.mp3"
+      fail: "letter_miss.mp3"

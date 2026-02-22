@@ -1,0 +1,105 @@
+// ============================================================
+// Main Entry Point — Project ODYSSEY Client
+// ============================================================
+
+import { connect, on, ServerEvents } from "./lib/socket.ts";
+import { showScreen, showHUD } from "./lib/router.ts";
+import { preloadSounds, playGlitchHit, playTick } from "./audio/audio-manager.ts";
+import { $ } from "./lib/dom.ts";
+import type { GlitchUpdatePayload, TimerUpdatePayload, PhaseChangePayload, PuzzleCompletedPayload } from "@shared/events.ts";
+
+// Initialize screens
+import { initLobby } from "./screens/lobby.ts";
+import { initBriefing } from "./screens/briefing.ts";
+import { initPuzzleScreen } from "./screens/puzzle.ts";
+import { initResults } from "./screens/results.ts";
+
+// ---- Boot ----
+async function boot() {
+  console.log("⚡ Project ODYSSEY — Cyber-Hoplite Protocol");
+  console.log("   Initializing systems...");
+
+  // Connect to server
+  connect();
+
+  // Preload audio (failures are silent)
+  await preloadSounds();
+
+  // Initialize screens
+  initLobby();
+  initBriefing();
+  initPuzzleScreen();
+  initResults();
+
+  // ---- Global HUD updates ----
+
+  // Timer updates
+  on(ServerEvents.TIMER_UPDATE, (data: TimerUpdatePayload) => {
+    const { remainingSeconds } = data.timer;
+    const minutes = Math.floor(remainingSeconds / 60);
+    const seconds = remainingSeconds % 60;
+    const timerEl = $("#hud-timer-value");
+    if (timerEl) {
+      timerEl.textContent = `${minutes}:${String(seconds).padStart(2, "0")}`;
+    }
+
+    // Color warning when low time
+    if (remainingSeconds <= 60) {
+      timerEl?.style.setProperty("color", "var(--neon-red)");
+      if (remainingSeconds <= 10) playTick();
+    }
+  });
+
+  // Glitch updates
+  on(ServerEvents.GLITCH_UPDATE, (data: GlitchUpdatePayload) => {
+    const { value, maxValue } = data.glitch;
+    const percent = (value / maxValue) * 100;
+
+    // Update HUD bar
+    const fill = $("#hud-glitch-fill");
+    if (fill) fill.style.width = `${percent}%`;
+
+    // Update CSS glitch intensity
+    const intensity = value / maxValue;
+    document.documentElement.style.setProperty("--glitch-intensity", String(intensity));
+
+    // Screen shake on glitch increase
+    if (intensity > 0.1) {
+      const app = $("#app");
+      if (app) {
+        app.classList.add("screen-shake");
+        setTimeout(() => app.classList.remove("screen-shake"), 300);
+      }
+      playGlitchHit();
+    }
+  });
+
+  // Phase changes
+  on(ServerEvents.PHASE_CHANGE, (data: PhaseChangePayload) => {
+    // Update puzzle progress in HUD
+    const progressEl = $("#hud-progress-value");
+    if (progressEl) progressEl.textContent = `${data.puzzleIndex + 1}/5`;
+  });
+
+  // Puzzle completed
+  on(ServerEvents.PUZZLE_COMPLETED, (_data: PuzzleCompletedPayload) => {
+    // Brief celebration effect
+    const app = $("#app");
+    if (app) {
+      app.style.transition = "filter 0.5s ease";
+      app.style.filter = "brightness(1.3) saturate(1.5)";
+      setTimeout(() => {
+        app.style.filter = "";
+      }, 800);
+    }
+  });
+
+  // Start on lobby
+  showScreen("lobby");
+  showHUD(false);
+
+  console.log("   Systems online. Ready for deployment.");
+}
+
+// ---- Start ----
+boot().catch(console.error);
