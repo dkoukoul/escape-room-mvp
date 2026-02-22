@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "concurrently \"bun run dev:server\" \"bun run dev:client\"",
-    "dev:server": "bun --watch src/server/index.ts",
-    "dev:client": "vite --port 5173",
+    "dev:server": "NODE_ENV=development bun --watch src/server/index.ts",
+    "dev:client": "NODE_ENV=development vite --port 5173",
     "build": "vite build",
     "start": "NODE_ENV=production bun src/server/index.ts",
     "typecheck": "bunx tsc --noEmit",

@@ -2,11 +2,12 @@
 // Main Entry Point — Project ODYSSEY Client
 // ============================================================
 
-import { connect, on, ServerEvents } from "./lib/socket.ts";
+import { connect, on, emit, ServerEvents } from "./lib/socket.ts";
 import { showScreen, showHUD } from "./lib/router.ts";
 import { preloadSounds, playGlitchHit, playTick } from "./audio/audio-manager.ts";
 import { $ } from "./lib/dom.ts";
 import type { GlitchUpdatePayload, TimerUpdatePayload, PhaseChangePayload, PuzzleCompletedPayload } from "@shared/events.ts";
+import { ClientEvents } from "@shared/events.ts";
 
 // Initialize screens
 import { initLobby } from "./screens/lobby.ts";
@@ -97,6 +98,12 @@ async function boot() {
   // Start on lobby
   showScreen("lobby");
   showHUD(false);
+
+  // ---- Dev Tools ----
+  (window as any).jumpToPuzzle = (index: number) => {
+    emit(ClientEvents.JUMP_TO_PUZZLE, { puzzleIndex: index });
+    console.log(`[Dev] Jumping to puzzle index: ${index}`);
+  };
 
   console.log("   Systems online. Ready for deployment.");
 }

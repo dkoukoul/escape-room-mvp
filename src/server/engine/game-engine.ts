@@ -39,7 +39,7 @@ const roomTimers = new Map<string, GameTimer>();
 /**
  * Start the game for a room
  */
-export function startGame(io: Server, room: Room): void {
+export function startGame(io: Server, room: Room, startingPuzzleIndex: number = 0): void {
   const level = getDefaultLevel();
   if (!level) {
     console.error("[Engine] No level config loaded!");
@@ -58,7 +58,7 @@ export function startGame(io: Server, room: Room): void {
   // TODO: REDIS — persist game state
   room.state.phase = "briefing";
   room.state.levelId = level.id;
-  room.state.currentPuzzleIndex = 0;
+  room.state.currentPuzzleIndex = startingPuzzleIndex;
   room.state.totalPuzzles = level.puzzles.length;
   room.state.glitch = {
     value: 0,
@@ -96,8 +96,8 @@ export function startGame(io: Server, room: Room): void {
   roomTimers.set(room.code, timer);
   timer.start();
 
-  // Start first puzzle briefing
-  startPuzzleBriefing(io, room, level, 0);
+  // Start puzzle briefing
+  startPuzzleBriefing(io, room, level, startingPuzzleIndex);
 }
 
 /**
@@ -129,8 +129,28 @@ function startPuzzleBriefing(io: Server, room: Room, level: LevelConfig, puzzleI
 
   // Auto-advance to puzzle after 8 seconds
   setTimeout(() => {
-    startPuzzle(io, room, level, puzzleIndex);
+    // Only advance if we are still in briefing for the *same* puzzle (in case dev jumps)
+    if (room.state.phase === "briefing" && room.state.currentPuzzleIndex === puzzleIndex) {
+      startPuzzle(io, room, level, puzzleIndex);
+    }
   }, 8000);
+}
+
+/**
+ * Dev utility to jump to a specific puzzle
+ */
+export function jumpToPuzzle(io: Server, room: Room, puzzleIndex: number): void {
+  const level = getLevel(room.state.levelId);
+  if (!level) return;
+
+  if (puzzleIndex < 0 || puzzleIndex >= level.puzzles.length) return;
+
+  console.log(`[Engine] Jumping to puzzle ${puzzleIndex} in room ${room.code}`);
+  
+  // Clear any existing puzzle state
+  room.state.puzzleState = null;
+  
+  startPuzzleBriefing(io, room, level, puzzleIndex);
 }
 
 /**

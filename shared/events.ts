@@ -28,6 +28,7 @@ export const ClientEvents = {
 
   // Debug
   TOGGLE_DEBUG: "debug:toggle",
+  JUMP_TO_PUZZLE: "debug:jump",
 } as const;
 
 export const ServerEvents = {
@@ -72,10 +73,18 @@ export interface JoinRoomPayload {
   playerName: string;
 }
 
+export interface StartGamePayload {
+  startingPuzzleIndex?: number;
+}
+
 export interface PuzzleActionPayload {
   puzzleId: string;
   action: string;       // e.g., "capture_letter", "tap_color", "toggle_switch", etc.
   data: Record<string, unknown>;
+}
+
+export interface JumpToPuzzlePayload {
+  puzzleIndex: number;
 }
 
 // ---- Server → Client Payloads ----

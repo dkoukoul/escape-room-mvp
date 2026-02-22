@@ -13,12 +13,13 @@ import {
   getPlayersArray,
   setPlayerConnected,
 } from "./engine/room-manager.ts";
-import { startGame, handlePuzzleAction, getAllPlayerViews } from "./engine/game-engine.ts";
+import { startGame, handlePuzzleAction, getAllPlayerViews, jumpToPuzzle } from "./engine/game-engine.ts";
 import {
   ClientEvents,
   ServerEvents,
   type CreateRoomPayload,
   type JoinRoomPayload,
+  type StartGamePayload,
   type PuzzleActionPayload,
 } from "../../shared/events.ts";
 
@@ -94,7 +95,7 @@ io.on("connection", (socket) => {
   });
 
   // ---- Start Game ----
-  socket.on(ClientEvents.START_GAME, () => {
+  socket.on(ClientEvents.START_GAME, (payload?: StartGamePayload) => {
     const room = getPlayerRoom(socket.id);
     if (!room) return;
 
@@ -104,7 +105,7 @@ io.on("connection", (socket) => {
       return;
     }
 
-    startGame(io, room);
+    startGame(io, room, payload?.startingPuzzleIndex);
   });
 
   // ---- Puzzle Action ----
@@ -125,6 +126,14 @@ io.on("connection", (socket) => {
       enabled: true,
       allViews,
     });
+  });
+
+  // ---- Jump To Puzzle ----
+  socket.on(ClientEvents.JUMP_TO_PUZZLE, (payload: any) => {
+    const room = getPlayerRoom(socket.id);
+    if (!room) return;
+
+    jumpToPuzzle(io, room, payload.puzzleIndex);
   });
 
   // ---- Disconnect ----

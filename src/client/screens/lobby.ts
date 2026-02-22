@@ -12,6 +12,7 @@ import type {
   PlayerListPayload,
   RoomErrorPayload,
   GameStartedPayload,
+  StartGamePayload,
 } from "@shared/events.ts";
 
 let currentRoomCode: string | null = null;
@@ -80,12 +81,21 @@ function renderRoomView(container: HTMLElement): void {
       ),
       h("div", { className: "flex-row gap-sm mt-xl" },
         isHost
-          ? h("button", {
-              id: "btn-start",
-              className: "btn btn-primary",
-              onClick: handleStart,
-              disabled: players.length < 1, // Debug: allow 1 player
-            }, "⚡ Start Mission")
+          ? h("div", { className: "flex-col gap-sm" },
+              import.meta.env.DEV ? h("select", { id: "select-puzzle", className: "input" },
+                h("option", { value: "0" }, "Puzzle 1: The Neon Propylaea"),
+                h("option", { value: "1" }, "Puzzle 2: The Oracle's Frequency"),
+                h("option", { value: "2" }, "Puzzle 3: The Columns of Logic"),
+                h("option", { value: "3" }, "Puzzle 4: The Philosopher's Cipher"),
+                h("option", { value: "4" }, "Puzzle 5: The Parthenon Reconstruction"),
+              ) : "",
+              h("button", {
+                id: "btn-start",
+                className: "btn btn-primary",
+                onClick: handleStart,
+                disabled: players.length < 1, // Debug: allow 1 player
+              }, "⚡ Start Mission")
+            )
           : h("p", { className: "subtitle pulse" }, "Waiting for host to start..."),
         h("button", {
           className: "btn btn-danger",
@@ -120,7 +130,10 @@ function handleJoin(): void {
 }
 
 function handleStart(): void {
-  emit(ClientEvents.START_GAME);
+  const selectEl = $("#select-puzzle") as HTMLSelectElement | null;
+  const startingPuzzleIndex = selectEl ? parseInt(selectEl.value, 10) : 0;
+  
+  emit(ClientEvents.START_GAME, { startingPuzzleIndex } as StartGamePayload);
 }
 
 function handleLeave(): void {
