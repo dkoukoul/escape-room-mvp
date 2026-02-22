@@ -49,27 +49,30 @@ export async function resumeContext(): Promise<void> {
 /**
  * Load an audio file into the buffer cache
  */
-export async function loadSound(name: string, url?: string): Promise<void> {
-  if (audioBuffers.has(name) || rawBuffers.has(name)) return;
+export async function loadSound(nameOrUrl: string, name?: string): Promise<void> {
+  const soundName = name ?? nameOrUrl;
+  if (audioBuffers.has(soundName) || rawBuffers.has(soundName)) return;
 
-  const fullUrl = url ?? `${ASSETS_PATH}${name}`;
+  const fullUrl = nameOrUrl.startsWith("/") || nameOrUrl.startsWith("http") 
+    ? nameOrUrl 
+    : `${ASSETS_PATH}${nameOrUrl}`;
+    
   try {
     const response = await fetch(fullUrl);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const arrayBuffer = await response.arrayBuffer();
     
     // Store raw buffer for later decoding
-    rawBuffers.set(name, arrayBuffer);
-    console.log(`[Audio] Fetched: ${name}`);
+    rawBuffers.set(soundName, arrayBuffer);
+    console.log(`[Audio] Fetched: ${soundName}`);
 
     // If context is already active, decode immediately
     if (audioContext && audioContext.state === "running") {
       const decoded = await audioContext.decodeAudioData(arrayBuffer.slice(0));
-      audioBuffers.set(name, decoded);
+      audioBuffers.set(soundName, decoded);
     }
   } catch (err) {
-    // Audio files may not exist yet — that's OK for MVP
-    console.warn(`[Audio] Could not load: ${name} from ${fullUrl}`, err);
+    console.warn(`[Audio] Could not load: ${soundName} from ${fullUrl}`, err);
   }
 }
 
@@ -304,6 +307,18 @@ export function getMuteState(): boolean {
 }
 
 /**
+ * Preload all level-specific audio cues
+ */
+export async function preloadLevelAudio(audioCues: Record<string, string | undefined>): Promise<void> {
+  const cues = Object.entries(audioCues)
+    .filter(([_, url]) => !!url) as [string, string][];
+    
+  // Load based on the value (URL/Path) but cache it as the value (the filename/path)
+  // because that's what playSound("file.mp3") expects
+  await Promise.allSettled(cues.map(([_, url]) => loadSound(url)));
+}
+
+/**
  * Preload common SFX
  */
 export async function preloadSounds(): Promise<void> {
@@ -313,11 +328,8 @@ export async function preloadSounds(): Promise<void> {
     "error.mp3",
     "switch_fail.mp3",
     "game_over.mp3",
-    "level-01-briefing.mp3",
-    "Neon Breach Protocol.mp3",
   ];
 
-  // Load in parallel — failures are silent (files may not exist yet)
   await Promise.allSettled(sounds.map((s) => loadSound(s)));
 }
 /**
