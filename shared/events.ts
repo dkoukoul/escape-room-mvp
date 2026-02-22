@@ -26,6 +26,7 @@ export const ClientEvents = {
   PUZZLE_ACTION: "puzzle:action",
   REQUEST_HINT: "puzzle:hint",
   PLAYER_READY: "game:ready",
+  INTRO_COMPLETE: "game:intro_complete",
 
   // Debug
   TOGGLE_DEBUG: "debug:toggle",
@@ -113,6 +114,8 @@ export interface PlayerListPayload {
 export interface GameStartedPayload {
   levelId: string;
   levelTitle: string;
+  levelStory: string;
+  levelIntroAudio?: string;
   totalPuzzles: number;
   timerSeconds: number;
 }

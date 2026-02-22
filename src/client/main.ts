@@ -4,19 +4,29 @@
 
 import { connect, on, emit, ServerEvents } from "./lib/socket.ts";
 import { showScreen, showHUD } from "./lib/router.ts";
-import { preloadSounds, playGlitchHit, playTick } from "./audio/audio-manager.ts";
+import { preloadSounds, playGlitchHit, playTick, resumeContext } from "./audio/audio-manager.ts";
 import { $ } from "./lib/dom.ts";
 import type { GlitchUpdatePayload, TimerUpdatePayload, PhaseChangePayload, PuzzleCompletedPayload } from "@shared/events.ts";
 import { ClientEvents } from "@shared/events.ts";
 
 // Initialize screens
 import { initLobby } from "./screens/lobby.ts";
+import { initLevelIntro } from "./screens/level-intro.ts";
 import { initBriefing } from "./screens/briefing.ts";
 import { initPuzzleScreen } from "./screens/puzzle.ts";
 import { initResults } from "./screens/results.ts";
 
 // ---- Boot ----
 async function boot() {
+  // ---- Global resume on first interaction ----
+  const resume = () => {
+    resumeContext();
+    window.removeEventListener("mousedown", resume);
+    window.removeEventListener("keydown", resume);
+  };
+  window.addEventListener("mousedown", resume);
+  window.addEventListener("keydown", resume);
+
   console.log("⚡ Project ODYSSEY — Cyber-Hoplite Protocol");
   console.log("   Initializing systems...");
 
@@ -28,6 +38,7 @@ async function boot() {
 
   // Initialize screens
   initLobby();
+  initLevelIntro();
   initBriefing();
   initPuzzleScreen();
   initResults();
@@ -106,6 +117,7 @@ async function boot() {
   };
 
   console.log("   Systems online. Ready for deployment.");
+
 }
 
 // ---- Start ----

@@ -3,8 +3,9 @@
 // ============================================================
 
 import { $ } from "./dom.ts";
+import { startMatrixGlitches, stopMatrixGlitches } from "./visual-fx.ts";
 
-export type ScreenName = "lobby" | "briefing" | "puzzle" | "results";
+export type ScreenName = "lobby" | "level-intro" | "briefing" | "puzzle" | "results";
 
 let currentScreen: ScreenName = "lobby";
 
@@ -22,6 +23,13 @@ export function showScreen(name: ScreenName): void {
 
   currentScreen = name;
   console.log(`[Router] Screen: ${name}`);
+
+  // Manage Matrix glitches: only during missions (puzzles)
+  if (name === "puzzle") {
+    startMatrixGlitches();
+  } else {
+    stopMatrixGlitches();
+  }
 }
 
 /**

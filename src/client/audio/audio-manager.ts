@@ -2,98 +2,142 @@
 // Audio Manager — Web Audio API wrapper for SFX
 // ============================================================
 
-const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+let audioContext: AudioContext | null = null;
+const rawBuffers = new Map<string, ArrayBuffer>();
 const audioBuffers = new Map<string, AudioBuffer>();
-const ASSETS_PATH = "/assets/sfx/";
+const ASSETS_PATH = "/assets/audio/";
+import { zzfx } from "zzfx";
+
+/**
+ * Get or create the audio context
+ */
+function getContext(): AudioContext {
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+  }
+  return audioContext;
+}
+
+/**
+ * Resume audio context if suspended (browser autoplay policy)
+ */
+export async function resumeContext(): Promise<void> {
+  const ctx = getContext();
+  if (ctx.state === "suspended") {
+    await ctx.resume();
+  }
+
+  // Defer decoding until we have a context and a user gesture
+  for (const [name, buffer] of rawBuffers.entries()) {
+    if (!audioBuffers.has(name)) {
+      try {
+        // Use a slice to avoid neutering the buffer in the map
+        const decoded = await ctx.decodeAudioData(buffer.slice(0));
+        audioBuffers.set(name, decoded);
+        console.log(`[Audio] Decoded on resume: ${name}`);
+      } catch (err) {
+        console.warn(`[Audio] Failed to decode ${name} on resume:`, err);
+      }
+    }
+  }
+}
 
 /**
  * Load an audio file into the buffer cache
  */
 export async function loadSound(name: string, url?: string): Promise<void> {
-  if (audioBuffers.has(name)) return;
+  if (audioBuffers.has(name) || rawBuffers.has(name)) return;
 
   const fullUrl = url ?? `${ASSETS_PATH}${name}`;
   try {
     const response = await fetch(fullUrl);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const arrayBuffer = await response.arrayBuffer();
-    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-    audioBuffers.set(name, audioBuffer);
-    console.log(`[Audio] Loaded: ${name}`);
+    
+    // Store raw buffer for later decoding
+    rawBuffers.set(name, arrayBuffer);
+    console.log(`[Audio] Fetched: ${name}`);
+
+    // If context is already active, decode immediately
+    if (audioContext && audioContext.state === "running") {
+      const decoded = await audioContext.decodeAudioData(arrayBuffer.slice(0));
+      audioBuffers.set(name, decoded);
+    }
   } catch (err) {
     // Audio files may not exist yet — that's OK for MVP
-    console.warn(`[Audio] Could not load: ${name}`, err);
+    console.warn(`[Audio] Could not load: ${name} from ${fullUrl}`, err);
   }
 }
 
 /**
  * Play a loaded sound effect
  */
-export function playSound(name: string, volume: number = 1.0): void {
+export async function playSound(name: string, volume: number = 1.0): Promise<void> {
+  await resumeContext();
+  const ctx = getContext();
+  
   const buffer = audioBuffers.get(name);
   if (!buffer) {
-    console.warn(`[Audio] Sound not loaded: ${name}`);
+    console.warn(`[Audio] Sound not loaded or decoded: ${name}`);
     return;
   }
 
-  // Resume context if suspended (browser autoplay policy)
-  if (audioContext.state === "suspended") {
-    audioContext.resume();
-  }
-
-  const source = audioContext.createBufferSource();
-  const gainNode = audioContext.createGain();
+  const source = ctx.createBufferSource();
+  const gainNode = ctx.createGain();
 
   source.buffer = buffer;
   gainNode.gain.value = volume;
 
   source.connect(gainNode);
-  gainNode.connect(audioContext.destination);
+  gainNode.connect(ctx.destination);
   source.start(0);
 }
 
 /**
  * Generate a simple procedural beep/glitch sound
  */
-export function playGlitchHit(): void {
-  if (audioContext.state === "suspended") audioContext.resume();
+export async function playGlitchHit(): Promise<void> {
+  await resumeContext();
+  const ctx = getContext();
 
-  const osc = audioContext.createOscillator();
-  const gain = audioContext.createGain();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
 
   osc.type = "sawtooth";
-  osc.frequency.setValueAtTime(200, audioContext.currentTime);
-  osc.frequency.exponentialRampToValueAtTime(50, audioContext.currentTime + 0.15);
+  osc.frequency.setValueAtTime(200, ctx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(50, ctx.currentTime + 0.15);
 
-  gain.gain.setValueAtTime(0.3, audioContext.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.2);
+  gain.gain.setValueAtTime(0.3, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
 
   osc.connect(gain);
-  gain.connect(audioContext.destination);
+  gain.connect(ctx.destination);
 
   osc.start();
-  osc.stop(audioContext.currentTime + 0.2);
+  osc.stop(ctx.currentTime + 0.2);
 }
 
 /**
  * Generate a success chime
  */
-export function playSuccess(): void {
-  if (audioContext.state === "suspended") audioContext.resume();
+export async function playSuccess(): Promise<void> {
+  await resumeContext();
+  const ctx = getContext();
 
   const notes = [523, 659, 784]; // C5, E5, G5
   notes.forEach((freq, i) => {
-    const osc = audioContext.createOscillator();
-    const gain = audioContext.createGain();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
 
     osc.type = "sine";
     osc.frequency.value = freq;
 
-    const startTime = audioContext.currentTime + i * 0.12;
+    const startTime = ctx.currentTime + i * 0.12;
     gain.gain.setValueAtTime(0.25, startTime);
     gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.4);
 
     osc.connect(gain);
-    gain.connect(audioContext.destination);
+    gain.connect(ctx.destination);
 
     osc.start(startTime);
     osc.stop(startTime + 0.4);
@@ -103,45 +147,91 @@ export function playSuccess(): void {
 /**
  * Generate a failure buzz
  */
-export function playFail(): void {
-  if (audioContext.state === "suspended") audioContext.resume();
+export async function playFail(): Promise<void> {
+  await resumeContext();
+  const ctx = getContext();
 
-  const osc = audioContext.createOscillator();
-  const gain = audioContext.createGain();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
 
   osc.type = "square";
-  osc.frequency.setValueAtTime(100, audioContext.currentTime);
+  osc.frequency.setValueAtTime(100, ctx.currentTime);
 
-  gain.gain.setValueAtTime(0.2, audioContext.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.3);
+  gain.gain.setValueAtTime(0.2, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
 
   osc.connect(gain);
-  gain.connect(audioContext.destination);
+  gain.connect(ctx.destination);
 
   osc.start();
-  osc.stop(audioContext.currentTime + 0.3);
+  osc.stop(ctx.currentTime + 0.3);
 }
 
 /**
  * Play a tick sound (for timer)
  */
-export function playTick(): void {
-  if (audioContext.state === "suspended") audioContext.resume();
+export async function playTick(): Promise<void> {
+  await resumeContext();
+  const ctx = getContext();
 
-  const osc = audioContext.createOscillator();
-  const gain = audioContext.createGain();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
 
   osc.type = "sine";
   osc.frequency.value = 880;
 
-  gain.gain.setValueAtTime(0.05, audioContext.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.05);
+  gain.gain.setValueAtTime(0.05, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
 
   osc.connect(gain);
-  gain.connect(audioContext.destination);
+  gain.connect(ctx.destination);
 
   osc.start();
-  osc.stop(audioContext.currentTime + 0.05);
+  osc.stop(ctx.currentTime + 0.05);
+}
+
+/**
+ * Play unique zzfx sounds for puzzle briefings
+ */
+export async function playBriefingIntro(puzzleIndex: number): Promise<void> {
+  await resumeContext();
+  
+  switch (puzzleIndex) {
+    case 0:
+      // High tech beep / power up
+      zzfx(1, 0.05, 1000, 0.05, 0.1, 0.3, 1, 1.5, -5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+      // Mission intro narration
+      playSound("level-01-briefing.mp3");
+      break;
+    case 1:
+      // Low sweep
+      zzfx(1, 0.1, 150, 0.3, 0.3, 0.6, 0, 1, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+      break;
+    case 2:
+      // Glitchy burst
+      zzfx(1, 0.5, 200, 0.01, 0.1, 0.2, 3, 1, -5, 0, 0, 0, 0, 1, 0, 0.4, 0, 0, 0, 0);
+      break;
+    case 3:
+      // Data scan
+      zzfx(1, 0.05, 600, 0.1, 0.1, 0.4, 2, 1.5, 10, 0, 10, 0.1, 0, 0, 0, 0, 0, 0, 0, 0);
+      break;
+    case 4:
+      // Final warning / heavy synth
+      zzfx(1, 0.1, 80, 0.2, 0.4, 1.5, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+      break;
+    default:
+      // Generic transmission
+      zzfx(1, 0.05, 400, 0.1, 0.1, 0.3, 1, 1.5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+  }
+}
+
+/**
+ * Play a typewriter click sound
+ */
+export async function playTypewriterClick(): Promise<void> {
+  await resumeContext();
+  // zzfx(...) - tiny high-pitched click sound
+  zzfx(1, 0.05, 150 + Math.random() * 50, 0, 0.01, 0.02, 1, 1.5, 0, 0, 0, 0, 0, 0, 0, 0.1, 0, 0, 0, 0);
 }
 
 /**
@@ -151,15 +241,43 @@ export async function preloadSounds(): Promise<void> {
   const sounds = [
     "puzzle_start.mp3",
     "puzzle_success.mp3",
-    "letter_miss.mp3",
+    "error.mp3",
     "switch_fail.mp3",
-    "piece_wrong.mp3",
-    "glitch_warning.mp3",
-    "mission_victory.mp3",
-    "mission_defeat.mp3",
-    "athena_welcome.mp3",
+    "game_over.mp3",
+    "level-01-briefing.mp3",
+    "Neon Breach Protocol.mp3",
   ];
 
   // Load in parallel — failures are silent (files may not exist yet)
   await Promise.allSettled(sounds.map((s) => loadSound(s)));
+}
+/**
+ * Play a sound and return a promise that resolves when it finishes
+ */
+export async function playAudioFile(name: string, volume: number = 1.0): Promise<void> {
+  await resumeContext();
+  const ctx = getContext();
+  
+  const buffer = audioBuffers.get(name);
+  if (!buffer) {
+    console.warn(`[Audio] Sound not loaded or decoded: ${name}`);
+    return;
+  }
+
+  return new Promise((resolve) => {
+    const source = ctx.createBufferSource();
+    const gainNode = ctx.createGain();
+
+    source.buffer = buffer;
+    gainNode.gain.value = volume;
+
+    source.connect(gainNode);
+    gainNode.connect(ctx.destination);
+    
+    source.onended = () => {
+      resolve();
+    };
+
+    source.start(0);
+  });
 }

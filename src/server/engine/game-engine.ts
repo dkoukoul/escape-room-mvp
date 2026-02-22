@@ -57,7 +57,7 @@ export function startGame(io: Server, room: Room, startingPuzzleIndex: number = 
 
   // Initialize game state
   // TODO: REDIS — persist game state
-  room.state.phase = "briefing";
+  room.state.phase = "level_intro";
   room.state.levelId = level.id;
   room.state.currentPuzzleIndex = startingPuzzleIndex;
   room.state.totalPuzzles = level.puzzles.length;
@@ -79,6 +79,8 @@ export function startGame(io: Server, room: Room, startingPuzzleIndex: number = 
   const startPayload: GameStartedPayload = {
     levelId: level.id,
     levelTitle: level.title,
+    levelStory: level.story,
+    levelIntroAudio: level.audio_cues.intro,
     totalPuzzles: level.puzzles.length,
     timerSeconds: level.timer_seconds,
   };
@@ -98,8 +100,27 @@ export function startGame(io: Server, room: Room, startingPuzzleIndex: number = 
   roomTimers.set(room.code, timer);
   timer.start();
 
-  // Start puzzle briefing
-  startPuzzleBriefing(io, room, level, startingPuzzleIndex);
+  // No initial briefing call — we wait for level_intro to finish
+}
+
+/**
+ * Handle a player finishing the level intro
+ */
+export function handleLevelIntroComplete(io: Server, room: Room, playerId: string): void {
+  if (room.state.phase !== "level_intro") return;
+
+  if (!room.state.readyPlayers.includes(playerId)) {
+    room.state.readyPlayers.push(playerId);
+  }
+
+  const players = getPlayersArray(room);
+  if (room.state.readyPlayers.length >= players.length) {
+    const level = getLevel(room.state.levelId);
+    if (!level) return;
+
+    room.state.readyPlayers = [];
+    startPuzzleBriefing(io, room, level, room.state.currentPuzzleIndex);
+  }
 }
 
 /**

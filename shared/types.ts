@@ -25,6 +25,7 @@ export interface Room {
 
 export type GamePhase =
   | "lobby"
+  | "level_intro"
   | "briefing"
   | "playing"
   | "puzzle_transition"

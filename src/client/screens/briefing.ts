@@ -6,7 +6,7 @@ import { h, $, mount } from "../lib/dom.ts";
 import { on, emit, ServerEvents, ClientEvents } from "../lib/socket.ts";
 import { showScreen } from "../lib/router.ts";
 import type { BriefingPayload, PlayerReadyUpdatePayload } from "@shared/events.ts";
-import { zzfx } from "zzfx";
+import { playBriefingIntro, playTypewriterClick } from "../audio/audio-manager.ts";
 
 let typewriterTimer: ReturnType<typeof setInterval> | null = null;
 let readyButtonEl: HTMLButtonElement | null = null;
@@ -41,7 +41,7 @@ function renderBriefing(data: BriefingPayload): void {
     onclick: () => {
       if (!isPlayerReady) {
         isPlayerReady = true;
-        zzfx(1, 0.05, 800, 0, 0.05, 0.1, 1, 1.5, 0, 0, 0, 0, 0, 0, 0, 0.1, 0, 0, 0, 0); // Click sound
+        playTypewriterClick(); // Click sound
         emit(ClientEvents.PLAYER_READY);
         if (readyButtonEl) {
           readyButtonEl.textContent = "WAITING FOR OTHERS...";
@@ -87,8 +87,7 @@ function typewriterEffect(el: HTMLElement, text: string, readyBtn: HTMLElement):
       
       // Play a quick, slightly randomized high-pitched click for a cyberpunk feel
       if (text[index] !== ' ' && text[index] !== '\n') {
-        // zzfx(...) - tiny click sound
-        zzfx(1, 0.05, 150 + Math.random() * 50, 0, 0.01, 0.02, 1, 1.5, 0, 0, 0, 0, 0, 0, 0, 0.1, 0, 0, 0, 0);
+        playTypewriterClick();
       }
 
       index++;
