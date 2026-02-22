@@ -22,18 +22,32 @@ export const rhythmTapHandler: PuzzleHandler = {
   init(players: Player[], config: PuzzleConfig): PuzzleState {
     const data = config.data as {
       sequences: string[][];
-      rounds_to_win: number;
+      rounds_to_win?: number;
+      rounds_to_play?: number;
     };
 
+    let allSequences = [...data.sequences];
+    // Shuffle sequences
+    for (let i = allSequences.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const temp = allSequences[i]!;
+      allSequences[i] = allSequences[j]!;
+      allSequences[j] = temp;
+    }
+
+    const roundsToPlay = data.rounds_to_play || allSequences.length;
+    const selectedSequences = allSequences.slice(0, roundsToPlay);
+    const roundsToWin = data.rounds_to_win || selectedSequences.length;
+
     const puzzleData: RhythmData = {
-      sequences: data.sequences,
+      sequences: selectedSequences,
       currentRound: 0,
-      roundsToWin: data.rounds_to_win,
+      roundsToWin: roundsToWin,
       playerTaps: {},
       playerReady: {},
       totalPlayers: players.length,
       roundResults: [],
-      currentSequence: data.sequences[0] ?? [],
+      currentSequence: selectedSequences[0] ?? [],
       showingSequence: true,
     };
 

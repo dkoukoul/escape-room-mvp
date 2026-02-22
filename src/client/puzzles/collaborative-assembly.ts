@@ -13,10 +13,47 @@ export function renderCollaborativeAssembly(container: HTMLElement, view: Player
   const data = view.viewData as Record<string, unknown>;
   const gridCols = data.gridCols as number;
   const gridRows = data.gridRows as number;
-  const myPieces = data.myPieces as { id: number; label: string }[];
-  const placedPieces = data.placedPieces as { id: number; col: number; row: number }[];
   const totalPieces = data.totalPieces as number;
   const placedCorrectly = data.placedCorrectly as number;
+  const isArchitect = !!data.blueprint;
+
+  if (isArchitect) {
+    const blueprint = data.blueprint as { id: number; col: number; row: number; rotation: number }[];
+    const cells: HTMLElement[] = [];
+    for (let row = 0; row < gridRows; row++) {
+        for (let col = 0; col < gridCols; col++) {
+            const bp = blueprint.find(p => p.col === col && p.row === row);
+            cells.push(
+                h("div", { className: "blueprint-cell" },
+                    ...(bp ? [
+                        h("span", { className: "blueprint-id" }, `#${bp.id + 1}`),
+                        h("span", { className: "blueprint-rotation" }, `${bp.rotation}°`)
+                    ] : [])
+                )
+            );
+        }
+    }
+
+    mount(
+      container,
+      h("div", { className: "puzzle-header" },
+        h("h2", { className: "title-lg" }, "The Parthenon Reconstruction"),
+        h("div", { className: "puzzle-role-badge" }, view.role),
+      ),
+      h("p", { className: "subtitle mt-md" }, "Guide your team! Tell them which ID goes where and at what rotation."),
+      h("p", { id: "assembly-progress", className: "subtitle mt-sm" },
+        `Placed: ${placedCorrectly} / ${totalPieces}`),
+      h("div", {
+        className: "assembly-blueprint mt-lg",
+        style: `grid-template-columns: repeat(${gridCols}, 1fr); grid-template-rows: repeat(${gridRows}, 1fr);`,
+      }, ...cells)
+    );
+    return;
+  }
+
+  // Builder View
+  const myPieces = data.myPieces as { id: number; label: string; rotation: number }[];
+  const placedPieces = data.placedPieces as { id: number; col: number; row: number; rotation: number }[];
 
   const gridCells: HTMLElement[] = [];
   for (let row = 0; row < gridRows; row++) {
@@ -28,8 +65,11 @@ export function renderCollaborativeAssembly(container: HTMLElement, view: Player
         "data-row": row,
         "data-col": col,
         onDragover: (e: Event) => (e as DragEvent).preventDefault(),
-        onDrop: (e: Event) => handleDrop(e as DragEvent, row, col),
-      }, placed ? `#${placed.id + 1}` : "");
+        onDrop: (e: Event) => handleDrop(e as DragEvent, row, col, view.puzzleId),
+      }, placed ? h("div", { 
+          className: `assembly-piece rotated-${placed.rotation}`,
+          style: "width: 100%; height: 100%; pointer-events: none;"
+      }, `#${placed.id + 1}`) : "");
       gridCells.push(cell);
     }
   }
@@ -38,9 +78,9 @@ export function renderCollaborativeAssembly(container: HTMLElement, view: Player
     container,
     h("div", { className: "puzzle-header" },
       h("h2", { className: "title-lg" }, "The Parthenon Reconstruction"),
-      h("div", { className: "puzzle-role-badge" }, "Builder"),
+      h("div", { className: "puzzle-role-badge" }, view.role),
     ),
-    h("p", { className: "subtitle mt-md" }, "Drag your pieces to the correct positions!"),
+    h("p", { className: "subtitle mt-md" }, "Coach with the Architect to find the correct assembly!"),
     h("p", { id: "assembly-progress", className: "subtitle mt-sm" },
       `Placed: ${placedCorrectly} / ${totalPieces}`),
 
@@ -55,13 +95,19 @@ export function renderCollaborativeAssembly(container: HTMLElement, view: Player
       h("p", { className: "hud-label text-center" }, "YOUR FRAGMENTS"),
       h("div", { id: "piece-tray", className: "assembly-piece-tray mt-sm" },
         ...myPieces.map((piece) =>
-          h("div", {
-            className: "assembly-piece",
-            draggable: "true",
-            id: `piece-${piece.id}`,
-            "data-piece-id": piece.id,
-            onDragstart: (e: Event) => handleDragStart(e as DragEvent, piece.id),
-          }, piece.label)
+          h("div", { className: "assembly-piece-container" },
+              h("div", {
+                className: `assembly-piece rotated-${piece.rotation}`,
+                draggable: "true",
+                id: `piece-${piece.id}`,
+                "data-piece-id": piece.id,
+                onDragstart: (e: Event) => handleDragStart(e as DragEvent, piece.id),
+              }, piece.label),
+              h("button", {
+                  className: "btn-rotate mt-xs",
+                  onClick: () => emit(ClientEvents.PUZZLE_ACTION, { puzzleId: view.puzzleId, action: "rotate_piece", data: { pieceId: piece.id } })
+              }, "Rotate")
+          )
         ),
         myPieces.length === 0
           ? h("p", { className: "subtitle" }, "All your pieces are placed!")
@@ -76,13 +122,13 @@ function handleDragStart(e: DragEvent, pieceId: number): void {
   e.dataTransfer?.setData("text/plain", String(pieceId));
 }
 
-function handleDrop(e: DragEvent, row: number, col: number): void {
+function handleDrop(e: DragEvent, row: number, col: number, puzzleId: string): void {
   e.preventDefault();
   const pieceId = currentDragPieceId;
   if (pieceId === null) return;
 
   emit(ClientEvents.PUZZLE_ACTION, {
-    puzzleId: "",
+    puzzleId,
     action: "place_piece",
     data: { pieceId, col, row },
   });
@@ -92,50 +138,18 @@ function handleDrop(e: DragEvent, row: number, col: number): void {
 
 export function updateCollaborativeAssembly(view: PlayerView): void {
   const data = view.viewData as Record<string, unknown>;
-  const placedPieces = data.placedPieces as { id: number; col: number; row: number }[];
-  const placedCorrectly = data.placedCorrectly as number;
-  const totalPieces = data.totalPieces as number;
-  const myPieces = data.myPieces as { id: number; label: string }[];
-
-  // Update progress
-  const progressEl = $("#assembly-progress");
-  if (progressEl) progressEl.textContent = `Placed: ${placedCorrectly} / ${totalPieces}`;
-
-  // Update grid cells
-  const cells = $$(".assembly-cell");
-  cells.forEach((cell) => {
-    const row = parseInt(cell.dataset.row ?? "0");
-    const col = parseInt(cell.dataset.col ?? "0");
-    const placed = placedPieces.find((p) => p.col === col && p.row === row);
-    if (placed) {
-      cell.classList.add("filled");
-      cell.classList.remove("drop-target");
-      cell.textContent = `#${placed.id + 1}`;
-    }
-  });
-
-  // Update piece tray
-  const tray = $("#piece-tray");
-  if (tray) {
-    clear(tray);
-    if (myPieces.length === 0) {
-      tray.appendChild(h("p", { className: "subtitle" }, "All your pieces are placed!"));
-    } else {
-      myPieces.forEach((piece) => {
-        tray.appendChild(
-          h("div", {
-            className: "assembly-piece",
-            draggable: "true",
-            id: `piece-${piece.id}`,
-            "data-piece-id": piece.id,
-            onDragstart: (e: Event) => handleDragStart(e as DragEvent, piece.id),
-          }, piece.label)
-        );
-      });
-    }
+  const isArchitect = !!data.blueprint;
+  
+  // For simplicity in MVP, if there's a big change (like role change or grid change) 
+  // we could re-render, but usually we just update dynamic parts.
+  // Given the complexity of the new view, let's just re-render if it's the first time 
+  // or if we want to keep it simple.
+  const container = $("#puzzle-arena");
+  if (container) {
+      renderCollaborativeAssembly(container, view);
   }
 
-  if (placedCorrectly === totalPieces) {
+  if (data.placedCorrectly === data.totalPieces) {
     playSuccess();
   }
 }

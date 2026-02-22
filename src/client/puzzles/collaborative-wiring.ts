@@ -15,6 +15,8 @@ export function renderCollaborativeWiring(container: HTMLElement, view: PlayerVi
   const switchStates = data.switchStates as boolean[];
   const attempts = data.attempts as number;
   const maxAttempts = data.maxAttempts as number;
+  const currentRound = (data.currentRound as number ?? 0) + 1;
+  const roundsToPlay = data.roundsToPlay as number ?? 1;
 
   mount(
     container,
@@ -22,7 +24,10 @@ export function renderCollaborativeWiring(container: HTMLElement, view: PlayerVi
       h("h2", { className: "title-lg" }, "The Columns of Logic"),
       h("div", { className: "puzzle-role-badge" }, "Engineer"),
     ),
-    h("p", { className: "subtitle mt-md" }, "Toggle your switches to light ALL columns"),
+    h("div", { className: "flex-row justify-between items-center mt-md" },
+      h("p", { className: "subtitle" }, "Toggle your switches to light ALL columns"),
+      h("p", { id: "wiring-rounds", className: "badge" }, `Board ${currentRound}/${roundsToPlay}`),
+    ),
 
     // Columns display
     h("div", { className: "wiring-board mt-lg" },
@@ -101,6 +106,12 @@ export function updateCollaborativeWiring(view: PlayerView): void {
   // Update attempts
   const attemptsEl = $("#wiring-attempts");
   if (attemptsEl) attemptsEl.textContent = `Attempts: ${attempts}/${maxAttempts}`;
+
+  // Update rounds
+  const roundsEl = $("#wiring-rounds");
+  const currentRound = (data.currentRound as number ?? 0) + 1;
+  const roundsToPlay = data.roundsToPlay as number ?? 1;
+  if (roundsEl) roundsEl.textContent = `Board ${currentRound}/${roundsToPlay}`;
 
   // Check if all lit
   if (columnsLit.every(Boolean)) {

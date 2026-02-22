@@ -11,6 +11,8 @@ interface PieceState {
   ownerId: string;
   correctCol: number;
   correctRow: number;
+  correctRotation: number; // 0, 90, 180, 270
+  currentRotation: number;
   placedCol: number | null;
   placedRow: number | null;
   isPlaced: boolean;
@@ -36,17 +38,27 @@ export const collaborativeAssemblyHandler: PuzzleHandler = {
     const totalPieces = data.total_pieces;
     const pieces: PieceState[] = [];
 
-    // Generate pieces and distribute among players
+    // Distribute pieces only to players who will be "Builders"
+    const builders = players.filter(p => (p.role?.toLowerCase() ?? "builder") !== "architect");
+    // If no builders (e.g. debugging/misconfig), fallback to all players
+    const activeBuilders = builders.length > 0 ? builders : players;
+    
     let pieceId = 0;
     for (let row = 0; row < data.grid_rows; row++) {
       for (let col = 0; col < data.grid_cols; col++) {
         if (pieceId >= totalPieces) break;
-        const ownerIndex = pieceId % players.length;
+        
+        // Random rotation: 0, 90, 180, 270
+        const correctRotation = Math.floor(Math.random() * 4) * 90;
+        
+        const ownerIndex = pieceId % activeBuilders.length;
         pieces.push({
           id: pieceId,
-          ownerId: players[ownerIndex]!.id,
+          ownerId: activeBuilders[ownerIndex]!.id,
           correctCol: col,
           correctRow: row,
+          correctRotation,
+          currentRotation: 0, // Everyone starts at 0
           placedCol: null,
           placedRow: null,
           isPlaced: false,
@@ -92,7 +104,8 @@ export const collaborativeAssemblyHandler: PuzzleHandler = {
       // Only the owner can place their piece
       if (piece.ownerId !== playerId) return { state, glitchDelta: 0 };
 
-      if (col === piece.correctCol && row === piece.correctRow) {
+      // Check position AND rotation
+      if (col === piece.correctCol && row === piece.correctRow && piece.currentRotation === piece.correctRotation) {
         // Correct placement!
         piece.isPlaced = true;
         piece.placedCol = col;
@@ -103,6 +116,12 @@ export const collaborativeAssemblyHandler: PuzzleHandler = {
         puzzleData.wrongPlacements++;
         glitchDelta = 2;
       }
+    } else if (action === "rotate_piece") {
+        const pieceId = data.pieceId as number;
+        const piece = puzzleData.pieces.find((p) => p.id === pieceId);
+        if (!piece || piece.ownerId !== playerId || piece.isPlaced) return { state, glitchDelta: 0 };
+
+        piece.currentRotation = (piece.currentRotation + 90) % 360;
     } else if (action === "remove_piece") {
       const pieceId = data.pieceId as number;
       const piece = puzzleData.pieces.find((p) => p.id === pieceId);
@@ -130,14 +149,49 @@ export const collaborativeAssemblyHandler: PuzzleHandler = {
   ): PlayerView {
     const data = state.data as unknown as AssemblyData;
 
-    // Each player sees only their own unplaced pieces, but all placed pieces
+    // Architect vs Builder view
+    if (playerRole.toLowerCase() === "architect") {
+        // Architect sees the solution blueprint
+        const blueprint = data.pieces.map(p => ({
+            id: p.id,
+            col: p.correctCol,
+            row: p.correctRow,
+            rotation: p.correctRotation
+        }));
+
+        return {
+            playerId,
+            role: playerRole,
+            puzzleId: state.puzzleId,
+            puzzleType: state.type,
+            puzzleTitle: config.title,
+            viewData: {
+                gridCols: data.gridCols,
+                gridRows: data.gridRows,
+                blueprint,
+                totalPieces: data.totalPieces,
+                placedCorrectly: data.placedCorrectly,
+            }
+        };
+    }
+
+    // Builders see their pieces and progress
     const myPieces = data.pieces
       .filter((p) => p.ownerId === playerId && !p.isPlaced)
-      .map((p) => ({ id: p.id, label: `Fragment ${p.id + 1}` }));
+      .map((p) => ({ 
+          id: p.id, 
+          label: `Fragment ${p.id + 1}`,
+          rotation: p.currentRotation 
+      }));
 
     const placedPieces = data.pieces
       .filter((p) => p.isPlaced)
-      .map((p) => ({ id: p.id, col: p.placedCol, row: p.placedRow }));
+      .map((p) => ({ 
+          id: p.id, 
+          col: p.placedCol, 
+          row: p.placedRow,
+          rotation: p.currentRotation
+      }));
 
     return {
       playerId,

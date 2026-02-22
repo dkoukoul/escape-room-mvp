@@ -20,11 +20,24 @@ export const cipherDecodeHandler: PuzzleHandler = {
     const data = config.data as {
       cipher_key: Record<string, string>;
       sentences: { encrypted: string; decoded: string; hint: string }[];
+      rounds_to_play?: number;
     };
+
+    let allSentences = [...data.sentences];
+    // Shuffle sentences
+    for (let i = allSentences.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const temp = allSentences[i]!;
+      allSentences[i] = allSentences[j]!;
+      allSentences[j] = temp;
+    }
+
+    const roundsToPlay = data.rounds_to_play || allSentences.length;
+    const selectedSentences = allSentences.slice(0, roundsToPlay);
 
     const puzzleData: CipherData = {
       cipherKey: data.cipher_key,
-      sentences: data.sentences,
+      sentences: selectedSentences,
       currentSentenceIndex: 0,
       completedSentences: 0,
       wrongSubmissions: 0,

@@ -19,12 +19,25 @@ export const asymmetricSymbolsHandler: PuzzleHandler = {
   init(players: Player[], config: PuzzleConfig): PuzzleState {
     const data = config.data as {
       solution_words: string[];
+      rounds_to_play?: number;
     };
 
+    let words = [...data.solution_words];
+    // Shuffle words
+    for (let i = words.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const temp = words[i]!;
+      words[i] = words[j]!;
+      words[j] = temp;
+    }
+
+    const roundsToPlay = data.rounds_to_play || words.length;
+    const selectedWords = words.slice(0, roundsToPlay);
+
     const puzzleData: SymbolsData = {
-      solutionWords: data.solution_words,
+      solutionWords: selectedWords,
       currentWordIndex: 0,
-      capturedLetters: data.solution_words.length > 0 ? Array(data.solution_words[0]?.length || 0).fill("_") : [],
+      capturedLetters: selectedWords.length > 0 ? (selectedWords[0] || "").split("").map(() => "_") : [],
       capturedBy: {},
       wrongCaptures: 0,
       completedWords: [],

@@ -45,6 +45,7 @@ puzzles:
         - "ΦΙΛΟΣΟΦΙΑ"
         - "ΔΗΜΟΚΡΑΤΙΑ"
         - "ΗΡΩΣ"
+      rounds_to_play: 2
       glitch_speed: "medium"
       letter_lifetime_ms: 2000
       spawn_interval_ms: 1000

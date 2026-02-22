@@ -9,11 +9,15 @@ import type { Player, PuzzleConfig, PuzzleState, PlayerView } from "../../../sha
 interface WiringData {
   gridSize: number;                        // Number of columns
   switchStates: boolean[];                 // Current state of all switches
-  solutionMatrix: boolean[][];             // Which columns each switch powers
+  allSolutionMatrices: boolean[][][];      // Pool of matrices
+  solutionMatrix: boolean[][];             // Active matrix
   switchAssignments: Record<string, number[]>; // playerId -> switch indices
   columnsLit: boolean[];                   // Current column states
   attempts: number;
   maxAttempts: number;
+  currentRound: number;
+  roundsToPlay: number;
+  boardsSolved: number;
 }
 
 export const collaborativeWiringHandler: PuzzleHandler = {
@@ -21,11 +25,27 @@ export const collaborativeWiringHandler: PuzzleHandler = {
     const data = config.data as {
       grid_size: number;
       switches_per_player: number;
-      solution_matrix: boolean[][];
+      solution_matrix?: boolean[][];
+      solution_matrices?: boolean[][][];
+      rounds_to_play?: number;
       max_attempts: number;
     };
 
-    const totalSwitches = data.solution_matrix.length;
+    let matrices: boolean[][][] = data.solution_matrices || (data.solution_matrix ? [data.solution_matrix] : []);
+    
+    // Shuffle matrices
+    for (let i = matrices.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const temp = matrices[i]!;
+      matrices[i] = matrices[j]!;
+      matrices[j] = temp;
+    }
+
+    const roundsToPlay = data.rounds_to_play || 1;
+    const selectedMatrices = matrices.slice(0, roundsToPlay);
+    const initialMatrix = selectedMatrices[0] || [];
+
+    const totalSwitches = initialMatrix.length;
     const switchStates = new Array(totalSwitches).fill(false);
 
     // Distribute switches among players
@@ -43,18 +63,24 @@ export const collaborativeWiringHandler: PuzzleHandler = {
     // Any remaining switches distributed round-robin
     while (switchIndex < totalSwitches) {
       const player = players[switchIndex % players.length]!;
-      switchAssignments[player.id]!.push(switchIndex);
+      const assigned = switchAssignments[player.id] || [];
+      assigned.push(switchIndex);
+      switchAssignments[player.id] = assigned;
       switchIndex++;
     }
 
     const puzzleData: WiringData = {
       gridSize: data.grid_size,
       switchStates,
-      solutionMatrix: data.solution_matrix,
+      allSolutionMatrices: selectedMatrices,
+      solutionMatrix: initialMatrix,
       switchAssignments,
-      columnsLit: computeColumns(switchStates, data.solution_matrix, data.grid_size),
+      columnsLit: computeColumns(switchStates, initialMatrix, data.grid_size),
       attempts: 0,
       maxAttempts: data.max_attempts,
+      currentRound: 0,
+      roundsToPlay: roundsToPlay,
+      boardsSolved: 0,
     };
 
     return {
@@ -92,7 +118,20 @@ export const collaborativeWiringHandler: PuzzleHandler = {
     } else if (action === "check_solution") {
       puzzleData.attempts++;
       const allLit = puzzleData.columnsLit.every(Boolean);
-      if (!allLit) {
+      if (allLit) {
+        puzzleData.boardsSolved++;
+        if (puzzleData.boardsSolved < puzzleData.roundsToPlay) {
+          // Move to next board
+          puzzleData.currentRound++;
+          puzzleData.solutionMatrix = puzzleData.allSolutionMatrices[puzzleData.currentRound] || [];
+          puzzleData.switchStates = new Array(puzzleData.solutionMatrix.length).fill(false);
+          puzzleData.columnsLit = computeColumns(
+            puzzleData.switchStates,
+            puzzleData.solutionMatrix,
+            puzzleData.gridSize
+          );
+        }
+      } else {
         glitchDelta = 4;
       }
     }
@@ -102,7 +141,7 @@ export const collaborativeWiringHandler: PuzzleHandler = {
 
   checkWin(state: PuzzleState): boolean {
     const data = state.data as unknown as WiringData;
-    return data.columnsLit.every(Boolean);
+    return data.boardsSolved >= data.roundsToPlay;
   },
 
   getPlayerView(
@@ -126,6 +165,9 @@ export const collaborativeWiringHandler: PuzzleHandler = {
         switchStates: data.switchStates,
         attempts: data.attempts,
         maxAttempts: data.maxAttempts,
+        currentRound: data.currentRound,
+        roundsToPlay: data.roundsToPlay,
+        boardsSolved: data.boardsSolved,
       },
     };
   },
