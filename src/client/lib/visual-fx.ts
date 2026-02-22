@@ -3,6 +3,7 @@
 // ============================================================
 
 import { $ } from "./dom.ts";
+import { playGlitchHit } from "../audio/audio-manager.ts";
 
 let glitchTimeout: ReturnType<typeof setTimeout> | null = null;
 let isActive = false;
@@ -54,6 +55,7 @@ function triggerGlitch(): void {
   const duration = Math.random() * 1500 + 500;
 
   app.classList.add("matrix-glitch-active");
+  playGlitchHit();
 
   setTimeout(() => {
     app.classList.remove("matrix-glitch-active");

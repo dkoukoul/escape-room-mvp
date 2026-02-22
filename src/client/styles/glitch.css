@@ -192,11 +192,11 @@
     clip-path: inset(0 0 0 0);
   }
   10% {
-    transform: translate(-5px, -2px);
+    transform: translate(-5px, -2px) scale(1.02) skewX(1deg);
     clip-path: inset(10% 0 85% 0);
   }
   20% {
-    transform: translate(5px, 2px);
+    transform: translate(5px, 2px) scale(0.98) skewX(-1deg);
     clip-path: inset(80% 0 5% 0);
   }
   30% {
