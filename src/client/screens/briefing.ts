@@ -86,9 +86,7 @@ function typewriterEffect(el: HTMLElement, text: string, readyBtn: HTMLElement):
       el.textContent += text[index];
       
       // Play a quick, slightly randomized high-pitched click for a cyberpunk feel
-      if (text[index] !== ' ' && text[index] !== '\n') {
-        playTypewriterClick();
-      }
+      playTypewriterClick();
 
       index++;
     } else {

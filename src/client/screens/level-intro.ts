@@ -80,9 +80,7 @@ async function typewriterEffect(el: HTMLElement, text: string): Promise<void> {
       if (index < text.length) {
         el.textContent += text[index];
         
-        if (text[index] !== ' ' && text[index] !== '\n') {
-          playTypewriterClick();
-        }
+        playTypewriterClick();
         
         index++;
       } else {

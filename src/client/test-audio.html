@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>⚡ ZZFX Audio Lab | Project ODYSSEY</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&family=Share+Tech+Mono&family=Inter:wght@300;400;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles/style.css" />
+    <link rel="stylesheet" href="./styles/glitch.css" />
+    <style>
+      body {
+        overflow-y: auto !important;
+        background: radial-gradient(circle at center, #1a1a2e 0%, #0a0a12 100%);
+        padding: 40px 20px;
+      }
+      .test-container {
+        max-width: 900px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 30px;
+      }
+      .test-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 16px;
+      }
+      .sound-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-glow);
+        padding: 20px;
+        border-radius: var(--radius-md);
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        transition: all 0.2s ease;
+      }
+      .sound-card:hover {
+        border-color: var(--neon-cyan);
+        box-shadow: var(--glow-cyan);
+        transform: translateY(-4px);
+      }
+      .sound-code {
+        font-family: var(--font-mono);
+        font-size: 0.7rem;
+        color: var(--text-secondary);
+        background: rgba(0,0,0,0.3);
+        padding: 8px;
+        border-radius: 4px;
+        word-break: break-all;
+        height: 80px;
+        overflow-y: auto;
+      }
+      .custom-lab {
+        background: var(--bg-panel);
+        border: 2px solid var(--neon-magenta);
+        padding: 30px;
+        border-radius: var(--radius-lg);
+        box-shadow: var(--glow-magenta);
+      }
+      textarea {
+        width: 100%;
+        height: 100px;
+        background: #000;
+        color: var(--neon-green);
+        font-family: var(--font-mono);
+        padding: 15px;
+        border: 1px solid var(--border-dim);
+        border-radius: 4px;
+        margin: 10px 0;
+        resize: none;
+      }
+      .header {
+        text-align: center;
+        margin-bottom: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="test-container">
+      <div class="header">
+        <h1 class="title-xl">ZZFX AUDIO LAB</h1>
+        <p class="subtitle">PROTOPLASTIC SFX GENERATOR V1.3.2</p>
+      </div>
+
+      <div class="panel">
+        <h2 class="title-lg mb-md">System Presets</h2>
+        <div id="presets-grid" class="test-grid">
+          <!-- Dynamic content -->
+        </div>
+      </div>
+
+      <div class="custom-lab">
+        <h2 class="title-lg" style="color: var(--neon-magenta); text-shadow: var(--glow-magenta);">Custom Generator</h2>
+        <p class="subtitle mt-sm">Paste ZzFX array parameters here to test them</p>
+        <textarea id="custom-params" placeholder="[1, .5, 1000, .05, .1, .3, 1, 1.5, -5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]"></textarea>
+        <div class="flex-row gap-md">
+          <button id="play-custom" class="btn btn-primary" style="flex: 1;">▶ RUN SEQUENCE</button>
+          <button id="random-gen" class="btn" style="border-color: var(--neon-magenta); color: var(--neon-magenta);">⚡ RANDOMIZE</button>
+        </div>
+      </div>
+
+      <div class="text-center mt-xl">
+        <a href="/" class="btn">← BACK TO TERMINAL</a>
+      </div>
+    </div>
+
+    <script type="module" src="./test-audio.ts"></script>
+  </body>
+</html>

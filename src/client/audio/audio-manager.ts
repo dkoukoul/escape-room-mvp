@@ -3,6 +3,10 @@
 // ============================================================
 
 let audioContext: AudioContext | null = null;
+let backgroundMusicSource: AudioBufferSourceNode | null = null;
+let backgroundMusicGain: GainNode | null = null;
+let isMuted = localStorage.getItem("odyssey_muted") === "true";
+
 const rawBuffers = new Map<string, ArrayBuffer>();
 const audioBuffers = new Map<string, AudioBuffer>();
 const ASSETS_PATH = "/assets/audio/";
@@ -230,8 +234,73 @@ export async function playBriefingIntro(puzzleIndex: number): Promise<void> {
  */
 export async function playTypewriterClick(): Promise<void> {
   await resumeContext();
-  // zzfx(...) - tiny high-pitched click sound
-  zzfx(1, 0.05, 150 + Math.random() * 50, 0, 0.01, 0.02, 1, 1.5, 0, 0, 0, 0, 0, 0, 0, 0.1, 0, 0, 0, 0);
+  // zzfx(...) - quick mechanical click
+  // volume, randomness, frequency, attack, sustain, release, shape, shapeCurve, slide, deltaSlide, pitchJump, pitchJumpTime, repeatTime, noise, modulation, bitCrush, delay, sustain, decay, tremolo
+  zzfx(0.4, 0.1, 900 + Math.random() * 300, 0, 0.01, 0.01, 1, 0.3, 0, 0, 0, 0, 0, 0, 0, 0.1, 0, 0, 0, 0);
+}
+
+/**
+ * Play continuous background music
+ */
+export async function playBackgroundMusic(name: string, volume: number = 0.4): Promise<void> {
+  await resumeContext();
+  const ctx = getContext();
+
+  const buffer = audioBuffers.get(name);
+  if (!buffer) {
+    console.warn(`[Audio] Music not loaded: ${name}`);
+    await loadSound(name);
+    return;
+  }
+
+  // Stop existing if any
+  stopBackgroundMusic();
+
+  backgroundMusicSource = ctx.createBufferSource();
+  backgroundMusicGain = ctx.createGain();
+
+  backgroundMusicSource.buffer = buffer;
+  backgroundMusicSource.loop = true;
+  backgroundMusicGain.gain.value = isMuted ? 0 : volume;
+
+  backgroundMusicSource.connect(backgroundMusicGain);
+  backgroundMusicGain.connect(ctx.destination);
+  backgroundMusicSource.start(0);
+
+  console.log(`[Audio] Started BGM: ${name}`);
+}
+
+/**
+ * Stop background music
+ */
+export function stopBackgroundMusic(): void {
+  if (backgroundMusicSource) {
+    try {
+      backgroundMusicSource.stop();
+    } catch (e) {}
+    backgroundMusicSource = null;
+  }
+}
+
+/**
+ * Toggle global mute state
+ */
+export function toggleMute(): boolean {
+  isMuted = !isMuted;
+  localStorage.setItem("odyssey_muted", String(isMuted));
+
+  if (backgroundMusicGain) {
+    backgroundMusicGain.gain.setTargetAtTime(isMuted ? 0 : 0.4, getContext().currentTime, 0.1);
+  }
+
+  return isMuted;
+}
+
+/**
+ * Get current mute state
+ */
+export function getMuteState(): boolean {
+  return isMuted;
 }
 
 /**

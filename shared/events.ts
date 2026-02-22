@@ -116,6 +116,7 @@ export interface GameStartedPayload {
   levelTitle: string;
   levelStory: string;
   levelIntroAudio?: string;
+  backgroundMusic?: string;
   totalPuzzles: number;
   timerSeconds: number;
 }

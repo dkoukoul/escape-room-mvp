@@ -6,10 +6,22 @@ import { connect, on, emit, ServerEvents } from "./lib/socket.ts";
 import { showScreen, showHUD } from "./lib/router.ts";
 import { preloadSounds, playGlitchHit, playTick, resumeContext } from "./audio/audio-manager.ts";
 import { $ } from "./lib/dom.ts";
-import type { GlitchUpdatePayload, TimerUpdatePayload, PhaseChangePayload, PuzzleCompletedPayload } from "@shared/events.ts";
+import type { 
+  GlitchUpdatePayload, 
+  TimerUpdatePayload, 
+  PhaseChangePayload, 
+  PuzzleCompletedPayload,
+  GameStartedPayload 
+} from "@shared/events.ts";
 import { ClientEvents } from "@shared/events.ts";
+import { 
+  playBackgroundMusic, 
+  stopBackgroundMusic, 
+  toggleMute, 
+  getMuteState 
+} from "./audio/audio-manager.ts";
 
-// Initialize screens
+let activeBackgroundMusic: string | null = null;
 import { initLobby } from "./screens/lobby.ts";
 import { initLevelIntro } from "./screens/level-intro.ts";
 import { initBriefing } from "./screens/briefing.ts";
@@ -42,6 +54,22 @@ async function boot() {
   initBriefing();
   initPuzzleScreen();
   initResults();
+
+  // ---- Mute Toggle ----
+  const muteBtn = $("#hud-mute-btn");
+  if (muteBtn) {
+    const updateIcon = (muted: boolean) => {
+      muteBtn.textContent = muted ? "🔇" : "🔊";
+      muteBtn.classList.toggle("muted", muted);
+    };
+    
+    updateIcon(getMuteState());
+    
+    muteBtn.onclick = () => {
+      const isMuted = toggleMute();
+      updateIcon(isMuted);
+    };
+  }
 
   // ---- Global HUD updates ----
 
@@ -91,6 +119,24 @@ async function boot() {
     // Update puzzle progress in HUD
     const progressEl = $("#hud-progress-value");
     if (progressEl) progressEl.textContent = `${data.puzzleIndex + 1}/5`;
+
+    // Play background music when first puzzle starts (if not already playing)
+    if (data.phase === "playing" && activeBackgroundMusic) {
+      playBackgroundMusic(activeBackgroundMusic);
+    }
+    
+    // Stop music on game end
+    if (data.phase === "victory" || data.phase === "defeat") {
+      stopBackgroundMusic();
+      activeBackgroundMusic = null;
+    }
+  });
+
+  // Handle game start to store music
+  on(ServerEvents.GAME_STARTED, (data: GameStartedPayload) => {
+    if (data.backgroundMusic) {
+      activeBackgroundMusic = data.backgroundMusic;
+    }
   });
 
   // Puzzle completed

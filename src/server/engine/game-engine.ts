@@ -81,6 +81,7 @@ export function startGame(io: Server, room: Room, startingPuzzleIndex: number = 
     levelTitle: level.title,
     levelStory: level.story,
     levelIntroAudio: level.audio_cues.intro,
+    backgroundMusic: level.audio_cues.background,
     totalPuzzles: level.puzzles.length,
     timerSeconds: level.timer_seconds,
   };
