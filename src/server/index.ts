@@ -13,7 +13,7 @@ import {
   getPlayersArray,
   setPlayerConnected,
 } from "./engine/room-manager.ts";
-import { startGame, handlePuzzleAction, getAllPlayerViews, jumpToPuzzle } from "./engine/game-engine.ts";
+import { startGame, handlePuzzleAction, getAllPlayerViews, jumpToPuzzle, handlePlayerReady } from "./engine/game-engine.ts";
 import {
   ClientEvents,
   ServerEvents,
@@ -114,6 +114,14 @@ io.on("connection", (socket) => {
     if (!room) return;
 
     handlePuzzleAction(io, room, socket.id, payload.action, payload.data);
+  });
+
+  // ---- Player Ready ----
+  socket.on(ClientEvents.PLAYER_READY, () => {
+    const room = getPlayerRoom(socket.id);
+    if (!room) return;
+    
+    handlePlayerReady(io, room, socket.id);
   });
 
   // ---- Debug Mode Toggle ----

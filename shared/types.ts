@@ -42,6 +42,7 @@ export interface GameState {
   roleAssignments: RoleAssignment[];
   startedAt: number | null;
   completedPuzzles: string[];
+  readyPlayers: string[]; // Players who pressed "Ready"
   // TODO: REDIS — persist GameState for crash recovery
 }
 

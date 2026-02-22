@@ -13,6 +13,11 @@ const GREEK_LETTERS = "ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ".split("
 let spawnInterval: ReturnType<typeof setInterval> | null = null;
 let currentView: PlayerView | null = null;
 
+// Track active spawner settings so we can restart it if the server config changes
+let activeSpawnMs = 0;
+let activeLifetimeMs = 0;
+let activeDecoyRatio = 0;
+
 // Simple seeded PRNG to sync letter generation between clients
 let prngSeed = 1234567;
 function prng() {
@@ -63,6 +68,10 @@ function renderNavigatorView(container: HTMLElement, data: Record<string, unknow
     h("div", { id: "nav-arena", className: "decoder-arena mt-md navigator-arena" }) // Read-only arena
   );
 
+  activeSpawnMs = spawnMs;
+  activeLifetimeMs = lifetimeMs;
+  activeDecoyRatio = decoyRatio;
+
   startLetterSpawner("nav-arena", spawnMs, lifetimeMs, decoyRatio, false);
 }
 
@@ -86,6 +95,10 @@ function renderDecoderView(container: HTMLElement, data: Record<string, unknown>
     ),
     h("div", { id: "decoder-arena", className: "decoder-arena mt-md" }),
   );
+
+  activeSpawnMs = spawnMs;
+  activeLifetimeMs = lifetimeMs;
+  activeDecoyRatio = decoyRatio;
 
   // Start spawning letters
   startLetterSpawner("decoder-arena", spawnMs, lifetimeMs, decoyRatio, true);
@@ -149,6 +162,21 @@ export function updateAsymmetricSymbols(view: PlayerView): void {
   currentView = view;
   const data = view.viewData as Record<string, unknown>;
 
+  const spawnMs = (data.spawnIntervalMs as number) ?? 800;
+  const lifetimeMs = (data.letterLifetimeMs as number) ?? 4000;
+  const decoyRatio = (data.decoyRatio as number) ?? 0.3;
+
+  // Restart spawner if config changed (e.g. hot reload)
+  if (spawnMs !== activeSpawnMs || lifetimeMs !== activeLifetimeMs || decoyRatio !== activeDecoyRatio) {
+    activeSpawnMs = spawnMs;
+    activeLifetimeMs = lifetimeMs;
+    activeDecoyRatio = decoyRatio;
+
+    const isDecoder = view.role !== "Navigator";
+    const arenaId = isDecoder ? "decoder-arena" : "nav-arena";
+    startLetterSpawner(arenaId, spawnMs, lifetimeMs, decoyRatio, isDecoder);
+  }
+
   if (view.role === "Navigator") {
     const words = data.solutionWords as string[];
     const currentIdx = data.currentWordIndex as number;
@@ -180,6 +208,7 @@ export function updateAsymmetricSymbols(view: PlayerView): void {
     if (capturedEl) capturedEl.textContent = `Captured: ${captured.join("")}`;
   }
 }
+
 
 // Cleanup on unmount
 export function cleanupAsymmetricSymbols(): void {

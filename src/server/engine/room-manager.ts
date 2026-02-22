@@ -42,6 +42,7 @@ function createInitialGameState(): GameState {
     roleAssignments: [],
     startedAt: null,
     completedPuzzles: [],
+    readyPlayers: [],
   };
 }
 

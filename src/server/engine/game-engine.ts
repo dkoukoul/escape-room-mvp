@@ -25,6 +25,7 @@ import {
   type VictoryPayload,
   type DefeatPayload,
   type GameStartedPayload,
+  type PlayerReadyUpdatePayload,
 } from "../../../shared/events.ts";
 import { getLevel, getDefaultLevel } from "./config-loader.ts";
 import { assignRoles } from "./role-assigner.ts";
@@ -72,6 +73,7 @@ export function startGame(io: Server, room: Room, startingPuzzleIndex: number = 
   };
   room.state.startedAt = Date.now();
   room.state.completedPuzzles = [];
+  room.state.readyPlayers = [];
 
   // Notify all players
   const startPayload: GameStartedPayload = {
@@ -112,12 +114,16 @@ function startPuzzleBriefing(io: Server, room: Room, level: LevelConfig, puzzleI
 
   room.state.phase = "briefing";
   room.state.currentPuzzleIndex = puzzleIndex;
+  room.state.readyPlayers = [];
+
+  const players = getPlayersArray(room);
 
   const briefingPayload: BriefingPayload = {
     puzzleTitle: puzzle.title,
     briefingText: puzzle.briefing,
     puzzleIndex,
     totalPuzzles: level.puzzles.length,
+    totalRoomPlayers: players.length,
   };
 
   io.to(room.code).emit(ServerEvents.PHASE_CHANGE, {
@@ -126,14 +132,35 @@ function startPuzzleBriefing(io: Server, room: Room, level: LevelConfig, puzzleI
   } as PhaseChangePayload);
 
   io.to(room.code).emit(ServerEvents.BRIEFING, briefingPayload);
+}
 
-  // Auto-advance to puzzle after 8 seconds
-  setTimeout(() => {
-    // Only advance if we are still in briefing for the *same* puzzle (in case dev jumps)
-    if (room.state.phase === "briefing" && room.state.currentPuzzleIndex === puzzleIndex) {
-      startPuzzle(io, room, level, puzzleIndex);
-    }
-  }, 8000);
+/**
+ * Handle a player marking themselves as ready
+ */
+export function handlePlayerReady(io: Server, room: Room, playerId: string): void {
+  // Only matters during the briefing phase
+  if (room.state.phase !== "briefing") return;
+
+  if (!room.state.readyPlayers.includes(playerId)) {
+    room.state.readyPlayers.push(playerId);
+  }
+
+  const players = getPlayersArray(room);
+  
+  io.to(room.code).emit(ServerEvents.PLAYER_READY_UPDATE, {
+    readyCount: room.state.readyPlayers.length,
+    totalPlayers: players.length,
+  } as PlayerReadyUpdatePayload);
+
+  if (room.state.readyPlayers.length >= players.length) {
+    const level = getLevel(room.state.levelId);
+    if (!level) return;
+    
+    // Clear ready players list
+    room.state.readyPlayers = [];
+    
+    startPuzzle(io, room, level, room.state.currentPuzzleIndex);
+  }
 }
 
 /**

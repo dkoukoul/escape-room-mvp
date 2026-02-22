@@ -3,15 +3,25 @@
 // ============================================================
 
 import { h, $, mount } from "../lib/dom.ts";
-import { on, ServerEvents } from "../lib/socket.ts";
+import { on, emit, ServerEvents, ClientEvents } from "../lib/socket.ts";
 import { showScreen } from "../lib/router.ts";
-import type { BriefingPayload } from "@shared/events.ts";
+import type { BriefingPayload, PlayerReadyUpdatePayload } from "@shared/events.ts";
+import { zzfx } from "zzfx";
 
 let typewriterTimer: ReturnType<typeof setInterval> | null = null;
+let readyButtonEl: HTMLButtonElement | null = null;
+let isPlayerReady = false;
 
 export function initBriefing(): void {
   on(ServerEvents.BRIEFING, (data: BriefingPayload) => {
+    isPlayerReady = false;
     renderBriefing(data);
+  });
+
+  on(ServerEvents.PLAYER_READY_UPDATE, (data: PlayerReadyUpdatePayload) => {
+    if (readyButtonEl && isPlayerReady) {
+      readyButtonEl.textContent = `WAITING FOR OTHERS (${data.readyCount}/${data.totalPlayers})`;
+    }
   });
 }
 
@@ -25,6 +35,26 @@ function renderBriefing(data: BriefingPayload): void {
     style: "max-width: 600px; line-height: 1.8; min-height: 100px; font-size: 1rem;",
   });
 
+  const readyBtn = h("button", {
+    className: "btn btn-primary mt-lg fade-in px-lg py-sm",
+    style: "display: none; font-size: 1.2rem; min-width: 250px;",
+    onclick: () => {
+      if (!isPlayerReady) {
+        isPlayerReady = true;
+        zzfx(1, 0.05, 800, 0, 0.05, 0.1, 1, 1.5, 0, 0, 0, 0, 0, 0, 0, 0.1, 0, 0, 0, 0); // Click sound
+        emit(ClientEvents.PLAYER_READY);
+        if (readyButtonEl) {
+          readyButtonEl.textContent = "WAITING FOR OTHERS...";
+          readyButtonEl.classList.add("disabled");
+          readyButtonEl.style.opacity = "0.7";
+          readyButtonEl.style.pointerEvents = "none";
+        }
+      }
+    }
+  }, "READY");
+  
+  readyButtonEl = readyBtn as HTMLButtonElement;
+
   mount(
     screen,
     h("div", { className: "panel flex-col items-center gap-md text-center fade-in", style: "max-width: 700px;" },
@@ -37,14 +67,15 @@ function renderBriefing(data: BriefingPayload): void {
         className: "subtitle pulse mt-lg",
         style: "font-size: 0.8rem;",
       }, "Incoming transmission..."),
+      readyBtn
     ),
   );
 
   // Typewriter effect
-  typewriterEffect(textEl, data.briefingText.trim());
+  typewriterEffect(textEl, data.briefingText.trim(), readyBtn);
 }
 
-function typewriterEffect(el: HTMLElement, text: string): void {
+function typewriterEffect(el: HTMLElement, text: string, readyBtn: HTMLElement): void {
   if (typewriterTimer) clearInterval(typewriterTimer);
 
   let index = 0;
@@ -53,9 +84,18 @@ function typewriterEffect(el: HTMLElement, text: string): void {
   typewriterTimer = setInterval(() => {
     if (index < text.length) {
       el.textContent += text[index];
+      
+      // Play a quick, slightly randomized high-pitched click for a cyberpunk feel
+      if (text[index] !== ' ' && text[index] !== '\n') {
+        // zzfx(...) - tiny click sound
+        zzfx(1, 0.05, 150 + Math.random() * 50, 0, 0.01, 0.02, 1, 1.5, 0, 0, 0, 0, 0, 0, 0, 0.1, 0, 0, 0, 0);
+      }
+
       index++;
     } else {
       if (typewriterTimer) clearInterval(typewriterTimer);
+      // Show ready button when transmission finishes
+      readyBtn.style.display = "block";
     }
   }, 25);
 }

@@ -25,6 +25,7 @@ export const ClientEvents = {
   // Gameplay
   PUZZLE_ACTION: "puzzle:action",
   REQUEST_HINT: "puzzle:hint",
+  PLAYER_READY: "game:ready",
 
   // Debug
   TOGGLE_DEBUG: "debug:toggle",
@@ -47,6 +48,7 @@ export const ServerEvents = {
   PUZZLE_UPDATE: "puzzle:update",
   PUZZLE_COMPLETED: "puzzle:completed",
   PUZZLE_TRANSITION: "puzzle:transition",
+  PLAYER_READY_UPDATE: "game:ready_update",
 
   // Shared State
   ROLES_ASSIGNED: "roles:assigned",
@@ -125,6 +127,12 @@ export interface BriefingPayload {
   briefingText: string;
   puzzleIndex: number;
   totalPuzzles: number;
+  totalRoomPlayers: number;
+}
+
+export interface PlayerReadyUpdatePayload {
+  readyCount: number;
+  totalPlayers: number;
 }
 
 export interface PuzzleStartPayload {
