@@ -115,5 +115,6 @@ export function getLevelSummaries(): LevelSummary[] {
     puzzle_count: l.puzzles.length,
     theme_css: l.theme_css || ["themes/cyberpunk-greek.css"], // Fallback for old configs
     estimated_duration_minutes: Math.ceil((l.timer_seconds || 600) / 60), // Simple estimate
+    puzzles: l.puzzles.map(p => ({ id: p.id, title: p.title })),
   }));
 }

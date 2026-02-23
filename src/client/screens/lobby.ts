@@ -23,11 +23,35 @@ let isHost = false;
 let players: Player[] = [];
 let availableLevels: LevelSummary[] = [];
 let selectedLevelId: string | null = null;
+let selectedPuzzleIndex: number | null = null;
 
 export function initLobby(): void {
   const screen = $("#screen-lobby")!;
   renderJoinView(screen);
   setupSocketListeners();
+
+  // Auto-restore session from localStorage
+  setTimeout(() => {
+    const savedName = localStorage.getItem("odyssey_player_name");
+    const savedRoom = localStorage.getItem("odyssey_room_code");
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    // Fill input fields if saved
+    if (savedName) {
+      const nameInput = $("#input-name") as HTMLInputElement;
+      if (nameInput) nameInput.value = savedName;
+    }
+    if (savedRoom) {
+      const roomInput = $("#input-room") as HTMLInputElement;
+      if (roomInput) roomInput.value = savedRoom;
+    }
+
+    // Auto-join if we have both and NO query params (or if we want to support it with query params)
+    if (savedName && savedRoom && !currentRoomCode) {
+      console.log(`[Lobby] Attempting auto-join: ${savedRoom}`);
+      emit(ClientEvents.JOIN_ROOM, { roomCode: savedRoom, playerName: savedName });
+    }
+  }, 100);
 }
 
 function renderJoinView(container: HTMLElement): void {
@@ -105,7 +129,25 @@ function renderRoomView(container: HTMLElement): void {
         h("p", { className: "subtitle", style: "font-size: 0.7rem;" }, 
           `${selectedLevel.puzzle_count} PUZZLES | ${selectedLevel.min_players}-${selectedLevel.max_players} PLAYERS`
         ),
-        h("p", { className: "subtitle", style: "opacity: 0.7; font-size: 0.8rem; line-height: 1.4;" }, selectedLevel.story)
+        h("p", { className: "subtitle", style: "opacity: 0.7; font-size: 0.8rem; line-height: 1.4;" }, selectedLevel.story),
+        
+        // Puzzle Selection for Host (Dev Mode)
+        isHost ? h("div", { className: "mt-sm pt-sm", style: "border-top: 1px dashed rgba(0, 240, 255, 0.2);" },
+          h("p", { className: "subtitle mb-xs", style: "font-size: 0.7rem; color: var(--neon-cyan);" }, "START AT PUZZLE (DEV ONLY)"),
+          h("select", {
+            className: "input w-full",
+            style: "font-size: 0.8rem; height: 2rem; padding: 0 0.5rem;",
+            onChange: (e: any) => { 
+              const val = e.target.value;
+              selectedPuzzleIndex = val === "" ? null : parseInt(val); 
+            }
+          },
+            h("option", { value: "", selected: selectedPuzzleIndex === null }, "Normal Start (With Intro)"),
+            ...selectedLevel.puzzles.map((p, idx) => 
+               h("option", { value: String(idx), selected: idx === selectedPuzzleIndex }, `Jump to ${idx + 1}. ${p.title}`)
+            )
+          )
+        ) : ""
       ) : "",
 
       h("p", { className: "subtitle mt-xl" }, `${players.length} HOPLITE${players.length !== 1 ? "S" : ""} CONNECTED`),
@@ -138,6 +180,7 @@ function handleCreate(): void {
     showError("Enter your callsign, Hoplite.");
     return;
   }
+  localStorage.setItem("odyssey_player_name", name);
   emit(ClientEvents.CREATE_ROOM, { playerName: name });
 }
 
@@ -152,17 +195,26 @@ function handleJoin(): void {
     showError("Enter a room code.");
     return;
   }
+  localStorage.setItem("odyssey_player_name", name);
+  localStorage.setItem("odyssey_room_code", code);
   emit(ClientEvents.JOIN_ROOM, { roomCode: code, playerName: name });
 }
 
 function handleLevelSelect(levelId: string): void {
   if (!levelId) return;
+  selectedPuzzleIndex = null;
   emit(ClientEvents.LEVEL_SELECT, { levelId });
 }
 
 function handleStart(): void {
   if (!selectedLevelId) return;
-  emit(ClientEvents.START_GAME, { levelId: selectedLevelId } as StartGamePayload);
+  const payload: StartGamePayload = { 
+    levelId: selectedLevelId 
+  };
+  if (selectedPuzzleIndex !== null) {
+    payload.startingPuzzleIndex = selectedPuzzleIndex;
+  }
+  emit(ClientEvents.START_GAME, payload);
 }
 
 function handleLeave(): void {
@@ -172,6 +224,7 @@ function handleLeave(): void {
   players = [];
   availableLevels = [];
   selectedLevelId = null;
+  localStorage.removeItem("odyssey_room_code");
   const screen = $("#screen-lobby")!;
   renderJoinView(screen);
 }
@@ -184,6 +237,7 @@ function showError(msg: string): void {
 function setupSocketListeners(): void {
   on(ServerEvents.ROOM_CREATED, (data: RoomCreatedPayload) => {
     currentRoomCode = data.roomCode;
+    localStorage.setItem("odyssey_room_code", data.roomCode);
     isHost = true;
     players = [data.player];
     emit(ClientEvents.LEVEL_LIST_REQUEST);

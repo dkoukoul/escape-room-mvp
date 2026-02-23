@@ -109,12 +109,14 @@ export interface JumpToPuzzlePayload {
 export interface RoomCreatedPayload {
   roomCode: string;
   player: Player;
+  gameState: GameState;
 }
 
 export interface RoomJoinedPayload {
   roomCode: string;
   player: Player;
   players: Player[];
+  gameState: GameState;
 }
 
 export interface RoomErrorPayload {
@@ -142,6 +144,7 @@ export interface GameStartedPayload {
   themeCss: string[];
   totalPuzzles: number;
   timerSeconds: number;
+  isJumpStart?: boolean;
 }
 
 export interface PhaseChangePayload {

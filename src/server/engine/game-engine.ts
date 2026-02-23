@@ -65,9 +65,11 @@ export function startGame(io: Server, room: Room, startingPuzzleIndex: number = 
 
   // Initialize game state
   // TODO: REDIS — persist game state
-  room.state.phase = "level_intro";
+  const isJumping = startingPuzzleIndex !== undefined && startingPuzzleIndex >= 0;
+  
+  room.state.phase = isJumping ? "briefing" : "level_intro";
   room.state.levelId = level.id;
-  room.state.currentPuzzleIndex = startingPuzzleIndex;
+  room.state.currentPuzzleIndex = startingPuzzleIndex ?? 0;
   room.state.totalPuzzles = level.puzzles.length;
   room.state.glitch = {
     value: 0,
@@ -93,6 +95,7 @@ export function startGame(io: Server, room: Room, startingPuzzleIndex: number = 
     themeCss: level.theme_css || ["themes/cyberpunk-greek.css"],
     totalPuzzles: level.puzzles.length,
     timerSeconds: level.timer_seconds,
+    isJumpStart: isJumping,
   };
   io.to(room.code).emit(ServerEvents.GAME_STARTED, startPayload);
 
@@ -110,7 +113,11 @@ export function startGame(io: Server, room: Room, startingPuzzleIndex: number = 
   roomTimers.set(room.code, timer);
   timer.start();
 
-  // No initial briefing call — we wait for level_intro to finish
+  // If jumping, send the briefing immediately
+  if (isJumping) {
+    startPuzzleBriefing(io, room, level, room.state.currentPuzzleIndex);
+  }
+  // Otherwise, no initial briefing call — we wait for level_intro to finish
 }
 
 /**
@@ -439,6 +446,70 @@ function cleanupRoom(roomCode: string): void {
   if (timer) {
     timer.destroy();
     roomTimers.delete(roomCode);
+  }
+}
+
+/**
+ * Sync all necessary state to a re-joining or late-joining player
+ */
+export function syncPlayer(io: Server, room: Room, socket: Socket): void {
+  const level = getLevel(room.state.levelId);
+  if (!level) return;
+
+  // 1. Mission context
+  socket.emit(ServerEvents.GAME_STARTED, {
+    levelId: level.id,
+    levelTitle: level.title,
+    levelStory: level.story,
+    levelIntroAudio: level.audio_cues?.intro,
+    backgroundMusic: level.audio_cues?.background,
+    themeCss: level.theme_css || ["themes/cyberpunk-greek.css"],
+    totalPuzzles: level.puzzles.length,
+    timerSeconds: level.timer_seconds,
+  } as GameStartedPayload);
+
+  // 2. Current phase
+  socket.emit(ServerEvents.PHASE_CHANGE, {
+    phase: room.state.phase,
+    puzzleIndex: room.state.currentPuzzleIndex,
+  } as PhaseChangePayload);
+
+  // 3. Phase-specific data
+  if (room.state.phase === "briefing") {
+    const puzzle = level.puzzles[room.state.currentPuzzleIndex];
+    if (puzzle) {
+      socket.emit(ServerEvents.BRIEFING, {
+        puzzleTitle: puzzle.title,
+        briefingText: puzzle.briefing,
+        puzzleIndex: room.state.currentPuzzleIndex,
+        totalPuzzles: level.puzzles.length,
+        totalRoomPlayers: room.players.size,
+      } as BriefingPayload);
+    }
+  }
+
+  if (room.state.phase === "playing" && room.state.puzzleState) {
+    const puzzleConfig = level.puzzles[room.state.currentPuzzleIndex];
+    const handler = puzzleConfig ? getPuzzleHandler(puzzleConfig.type) : null;
+    const role = room.state.roleAssignments.find((r) => r.playerId === socket.id);
+
+    if (puzzleConfig && handler && role) {
+      const playerView = handler.getPlayerView(
+        room.state.puzzleState,
+        socket.id,
+        role.role,
+        puzzleConfig
+      );
+
+      socket.emit(ServerEvents.PUZZLE_START, {
+        puzzleId: puzzleConfig.id,
+        puzzleType: puzzleConfig.type,
+        puzzleTitle: puzzleConfig.title,
+        roles: room.state.roleAssignments,
+        playerView,
+        backgroundMusic: (puzzleConfig.audio_cues?.background || level.audio_cues?.background) as string,
+      } as PuzzleStartPayload);
+    }
   }
 }
 

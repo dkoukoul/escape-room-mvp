@@ -10,6 +10,10 @@ import { playSound, playAudioFile, playTypewriterClick, loadSound } from "../aud
 
 export function initLevelIntro(): void {
   on(ServerEvents.GAME_STARTED, (data: GameStartedPayload) => {
+    if (data.isJumpStart) {
+      console.log("[Intro] Skipping intro due to jump start");
+      return;
+    }
     renderLevelIntro(data);
   });
 }

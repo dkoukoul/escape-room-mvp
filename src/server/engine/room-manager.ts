@@ -78,7 +78,24 @@ export function joinRoom(
 ): { room: Room; player: Player } | { error: string } {
   const room = rooms.get(roomCode);
   if (!room) return { error: "Room not found" };
-  if (room.state.phase !== "lobby") return { error: "Game already in progress" };
+  
+  // Reconnection logic: check if someone with this name is already in the room but disconnected
+  const existing = Array.from(room.players.values()).find(p => p.name === playerName);
+  if (existing) {
+    if (existing.connected) {
+      return { error: "Name already taken in this room" };
+    }
+    // Reclaim the spot
+    room.players.delete(existing.id);
+    existing.id = playerId;
+    existing.connected = true;
+    room.players.set(playerId, existing);
+    if (existing.isHost) room.hostId = playerId;
+    
+    console.log(`[RoomManager] ${playerName} reconnected to ${roomCode}`);
+    return { room, player: existing };
+  }
+
   if (room.players.size >= 6) return { error: "Room is full (max 6 players)" };
 
   const player: Player = {
@@ -86,12 +103,13 @@ export function joinRoom(
     name: playerName,
     roomCode: roomCode,
     role: null,
-    isHost: false,
+    isHost: room.players.size === 0, // Fallback if host left
     connected: true,
   };
 
-  // TODO: REDIS — persist player join
   room.players.set(playerId, player);
+  if (player.isHost) room.hostId = playerId;
+  
   console.log(`[RoomManager] ${playerName} joined room ${roomCode}`);
   return { room, player };
 }

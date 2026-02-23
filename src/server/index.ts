@@ -15,7 +15,7 @@ import {
   setPlayerConnected,
 } from "./engine/room-manager.ts";
 import { getLevelSummaries } from "./engine/config-loader.ts";
-import { startGame, handlePuzzleAction, getAllPlayerViews, jumpToPuzzle, handlePlayerReady, handleLevelIntroComplete } from "./engine/game-engine.ts";
+import { startGame, handlePuzzleAction, getAllPlayerViews, jumpToPuzzle, handlePlayerReady, handleLevelIntroComplete, syncPlayer } from "./engine/game-engine.ts";
 import {
   ClientEvents,
   ServerEvents,
@@ -62,6 +62,7 @@ io.on("connection", (socket) => {
     socket.emit(ServerEvents.ROOM_CREATED, {
       roomCode: room.code,
       player,
+      gameState: room.state,
     });
 
     socket.emit(ServerEvents.PLAYER_LIST_UPDATE, {
@@ -84,7 +85,13 @@ io.on("connection", (socket) => {
       roomCode: result.room.code,
       player: result.player,
       players: getPlayersArray(result.room),
+      gameState: result.room.state,
     });
+
+    // Sync player if game already in progress
+    if (result.room.state.phase !== "lobby") {
+      syncPlayer(io, result.room, socket);
+    }
 
     // Notify all other players
     io.to(result.room.code).emit(ServerEvents.PLAYER_LIST_UPDATE, {
@@ -188,14 +195,12 @@ function handleDisconnect(socket: any): void {
   const room = getPlayerRoom(socket.id);
   if (!room) return;
 
-  socket.leave(room.code);
-  const updatedRoom = leaveRoom(room.code, socket.id);
+  setPlayerConnected(room.code, socket.id, false);
 
-  if (updatedRoom) {
-    io.to(updatedRoom.code).emit(ServerEvents.PLAYER_LIST_UPDATE, {
-      players: getPlayersArray(updatedRoom),
-    });
-  }
+  // Notify others that someone dropped (but stay in the room list for a while)
+  io.to(room.code).emit(ServerEvents.PLAYER_LIST_UPDATE, {
+    players: getPlayersArray(room),
+  });
 
-  console.log(`[Socket] Disconnected: ${socket.id}`);
+  console.log(`[Socket] Disconnected (marked inactive): ${socket.id}`);
 }

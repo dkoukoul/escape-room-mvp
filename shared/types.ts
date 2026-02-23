@@ -114,6 +114,7 @@ export interface LevelSummary {
   puzzle_count: number;
   theme_css: string[];
   estimated_duration_minutes: number;
+  puzzles: { id: string; title: string }[];
 }
 
 export interface PuzzleConfig {

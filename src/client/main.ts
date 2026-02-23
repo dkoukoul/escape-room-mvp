@@ -183,14 +183,24 @@ async function boot() {
     if (puzzleStr) {
       const puzzleIndex = parseInt(puzzleStr) - 1;
       if (!isNaN(puzzleIndex)) {
-        console.log(`[Dev] URL detected puzzle jump to: ${puzzleIndex + 1}`);
-        emit(ClientEvents.JUMP_TO_PUZZLE, { puzzleIndex });
+        // Wait until we are actually in a room before sending the jump
+        const waitForRoom = setInterval(() => {
+          const roomCode = localStorage.getItem("odyssey_room_code");
+          if (roomCode) {
+            clearInterval(waitForRoom);
+            console.log(`[Dev] URL detected puzzle jump to: ${puzzleIndex + 1} (Room: ${roomCode})`);
+            emit(ClientEvents.JUMP_TO_PUZZLE, { puzzleIndex });
+          }
+        }, 500);
+        
+        // Timeout after 10s if no room found
+        setTimeout(() => clearInterval(waitForRoom), 10000);
       }
     }
   };
 
-  // Check on boot
-  setTimeout(checkUrlForJump, 1000); // Give socket time to connect
+  // Check on boot with a delay to allow auto-join
+  setTimeout(checkUrlForJump, 2000);
 
   // Check on hash change (without reload)
   window.addEventListener("hashchange", checkUrlForJump);
