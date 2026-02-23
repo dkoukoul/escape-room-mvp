@@ -245,6 +245,16 @@ function setupSocketListeners(): void {
     renderRoomView(screen);
   });
 
+  // Re-join on socket reconnection
+  on("connect", () => {
+    const savedName = localStorage.getItem("odyssey_player_name");
+    const savedRoom = localStorage.getItem("odyssey_room_code");
+    if (savedName && savedRoom) {
+      console.log(`[Lobby] Socket reconnected, re-joining room: ${savedRoom}`);
+      emit(ClientEvents.JOIN_ROOM, { roomCode: savedRoom, playerName: savedName });
+    }
+  });
+
   on(ServerEvents.ROOM_JOINED, (data: RoomJoinedPayload) => {
     currentRoomCode = data.roomCode;
     isHost = data.player.isHost;

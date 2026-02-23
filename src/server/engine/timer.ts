@@ -69,6 +69,10 @@ export class GameTimer {
     return this.state.remainingSeconds;
   }
 
+  setRemainingSeconds(seconds: number): void {
+    this.state.remainingSeconds = seconds;
+  }
+
   destroy(): void {
     this.stop();
   }

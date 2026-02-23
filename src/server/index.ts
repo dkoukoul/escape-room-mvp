@@ -13,9 +13,12 @@ import {
   getPlayerRoom,
   getPlayersArray,
   setPlayerConnected,
+  loadAllRooms,
 } from "./engine/room-manager.ts";
 import { getLevelSummaries } from "./engine/config-loader.ts";
-import { startGame, handlePuzzleAction, getAllPlayerViews, jumpToPuzzle, handlePlayerReady, handleLevelIntroComplete, syncPlayer } from "./engine/game-engine.ts";
+import { startGame, handlePuzzleAction, getAllPlayerViews, jumpToPuzzle, handlePlayerReady, handleLevelIntroComplete, syncPlayer, resumeRoomTimers } from "./engine/game-engine.ts";
+import Redis from "ioredis";
+import { createAdapter } from "@socket.io/redis-adapter";
 import {
   ClientEvents,
   ServerEvents,
@@ -29,11 +32,11 @@ import {
 // Register all puzzle handlers
 import "./puzzles/register.ts";
 
-// ---- Load configs ----
-loadAllConfigs();
-startConfigWatcher();
+// ---- Redis Setup for Multi-instance sync ----
+const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
+const pubClient = new Redis(REDIS_URL);
+const subClient = pubClient.duplicate();
 
-// ---- Create HTTP server + Socket.io ----
 const PORT = parseInt(process.env.SERVER_PORT || "3000");
 
 const io = new Server(PORT, {
@@ -41,10 +44,15 @@ const io = new Server(PORT, {
     origin: `http://localhost:${process.env.CLIENT_PORT || "5173"}`,
     methods: ["GET", "POST"],
   },
-  // TODO: REDIS — add Redis adapter for multi-instance:
-  // import { createAdapter } from "@socket.io/redis-adapter";
-  // io.adapter(createAdapter(pubClient, subClient));
 });
+
+io.adapter(createAdapter(pubClient, subClient));
+
+// ---- Load existing rooms and configs ----
+await loadAllRooms();
+resumeRoomTimers(io);
+loadAllConfigs();
+startConfigWatcher();
 
 console.log(`\n⚡ Project ODYSSEY Server running on port ${PORT}`);
 console.log(`   Waiting for Cyber-Hoplites...\n`);
@@ -54,8 +62,8 @@ io.on("connection", (socket) => {
   console.log(`[Socket] Connected: ${socket.id}`);
 
   // ---- Create Room ----
-  socket.on(ClientEvents.CREATE_ROOM, (payload: CreateRoomPayload) => {
-    const room = createRoom(socket.id, payload.playerName);
+  socket.on(ClientEvents.CREATE_ROOM, async (payload: CreateRoomPayload) => {
+    const room = await createRoom(socket.id, payload.playerName);
     socket.join(room.code);
 
     const player = room.players.get(socket.id)!;
@@ -71,8 +79,8 @@ io.on("connection", (socket) => {
   });
 
   // ---- Join Room ----
-  socket.on(ClientEvents.JOIN_ROOM, (payload: JoinRoomPayload) => {
-    const result = joinRoom(payload.roomCode.toLowerCase(), socket.id, payload.playerName);
+  socket.on(ClientEvents.JOIN_ROOM, async (payload: JoinRoomPayload) => {
+    const result = await joinRoom(payload.roomCode.toLowerCase(), socket.id, payload.playerName);
 
     if ("error" in result) {
       socket.emit(ServerEvents.ROOM_ERROR, { message: result.error });
@@ -126,14 +134,14 @@ io.on("connection", (socket) => {
   });
 
   // ---- Level Selection (Host) ----
-  socket.on(ClientEvents.LEVEL_SELECT, (payload: LevelSelectPayload) => {
+  socket.on(ClientEvents.LEVEL_SELECT, async (payload: LevelSelectPayload) => {
     const room = getPlayerRoom(socket.id);
     if (!room) return;
 
     const player = room.players.get(socket.id);
     if (!player?.isHost) return;
 
-    const result = selectLevel(room.code, payload.levelId);
+    const result = await selectLevel(room.code, payload.levelId);
     if (result.success) {
       io.to(room.code).emit(ServerEvents.LEVEL_SELECTED, {
         levelId: payload.levelId,
@@ -186,16 +194,16 @@ io.on("connection", (socket) => {
   });
 
   // ---- Disconnect ----
-  socket.on("disconnect", () => {
-    handleDisconnect(socket);
+  socket.on("disconnect", async () => {
+    await handleDisconnect(socket);
   });
 });
 
-function handleDisconnect(socket: any): void {
+async function handleDisconnect(socket: any): Promise<void> {
   const room = getPlayerRoom(socket.id);
   if (!room) return;
 
-  setPlayerConnected(room.code, socket.id, false);
+  await setPlayerConnected(room.code, socket.id, false);
 
   // Notify others that someone dropped (but stay in the room list for a while)
   io.to(room.code).emit(ServerEvents.PLAYER_LIST_UPDATE, {

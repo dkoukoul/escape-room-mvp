@@ -3,6 +3,7 @@
 // ============================================================
 
 import type { Room, Player, GameState, GlitchState, TimerState } from "../../../shared/types.ts";
+import { RedisService } from "./redis-service.ts";
 
 // TODO: REDIS — move room storage to Redis for multi-instance deployment
 const rooms = new Map<string, Room>();
@@ -46,7 +47,7 @@ function createInitialGameState(): GameState {
   };
 }
 
-export function createRoom(hostId: string, hostName: string): Room {
+export async function createRoom(hostId: string, hostName: string): Promise<Room> {
   const code = generateRoomCode();
   const host: Player = {
     id: hostId,
@@ -65,18 +66,28 @@ export function createRoom(hostId: string, hostName: string): Room {
     createdAt: Date.now(),
   };
 
-  // TODO: REDIS — persist room to Redis
   rooms.set(code, room);
+  await RedisService.saveRoom(room);
   console.log(`[RoomManager] Room created: ${code} by ${hostName}`);
   return room;
 }
 
-export function joinRoom(
+export async function joinRoom(
   roomCode: string,
   playerId: string,
   playerName: string
-): { room: Room; player: Player } | { error: string } {
-  const room = rooms.get(roomCode);
+): Promise<{ room: Room; player: Player } | { error: string }> {
+  let room = rooms.get(roomCode);
+  
+  // If not in memory, try loading from Redis
+  if (!room) {
+    room = await RedisService.getRoom(roomCode);
+    if (room) {
+      rooms.set(roomCode, room);
+      console.log(`[RoomManager] Restored room ${roomCode} from Redis`);
+    }
+  }
+
   if (!room) return { error: "Room not found" };
   
   // Reconnection logic: check if someone with this name is already in the room but disconnected
@@ -93,6 +104,7 @@ export function joinRoom(
     if (existing.isHost) room.hostId = playerId;
     
     console.log(`[RoomManager] ${playerName} reconnected to ${roomCode}`);
+    await RedisService.saveRoom(room);
     return { room, player: existing };
   }
 
@@ -110,11 +122,12 @@ export function joinRoom(
   room.players.set(playerId, player);
   if (player.isHost) room.hostId = playerId;
   
+  await RedisService.saveRoom(room);
   console.log(`[RoomManager] ${playerName} joined room ${roomCode}`);
   return { room, player };
 }
 
-export function leaveRoom(roomCode: string, playerId: string): Room | null {
+export async function leaveRoom(roomCode: string, playerId: string): Promise<Room | null> {
   const room = rooms.get(roomCode);
   if (!room) return null;
 
@@ -123,8 +136,8 @@ export function leaveRoom(roomCode: string, playerId: string): Room | null {
 
   // If room is empty, destroy it
   if (room.players.size === 0) {
-    // TODO: REDIS — remove room from Redis
     rooms.delete(roomCode);
+    await RedisService.deleteRoom(roomCode);
     console.log(`[RoomManager] Room ${roomCode} destroyed (empty)`);
     return null;
   }
@@ -137,15 +150,17 @@ export function leaveRoom(roomCode: string, playerId: string): Room | null {
     console.log(`[RoomManager] New host: ${newHost.name}`);
   }
 
+  await RedisService.saveRoom(room);
   return room;
 }
 
-export function selectLevel(roomCode: string, levelId: string): { success: boolean; error?: string } {
+export async function selectLevel(roomCode: string, levelId: string): Promise<{ success: boolean; error?: string }> {
   const room = rooms.get(roomCode);
   if (!room) return { success: false, error: "Room not found" };
   if (room.state.phase !== "lobby") return { success: false, error: "Cannot change level now" };
 
   room.state.levelId = levelId;
+  await RedisService.saveRoom(room);
   console.log(`[RoomManager] Room ${roomCode} selected level: ${levelId}`);
   return { success: true };
 }
@@ -165,12 +180,31 @@ export function getPlayersArray(room: Room): Player[] {
   return Array.from(room.players.values());
 }
 
-export function setPlayerConnected(roomCode: string, playerId: string, connected: boolean): void {
+export function getAllRooms(): Room[] {
+  return Array.from(rooms.values());
+}
+
+export async function setPlayerConnected(roomCode: string, playerId: string, connected: boolean): Promise<void> {
   const room = rooms.get(roomCode);
   if (!room) return;
   const player = room.players.get(playerId);
   if (player) {
     player.connected = connected;
-    // TODO: REDIS — update player connection status
+    await RedisService.saveRoom(room);
   }
+}
+
+export async function persistRoom(room: Room): Promise<void> {
+  await RedisService.saveRoom(room);
+}
+
+export async function loadAllRooms(): Promise<void> {
+  const codes = await RedisService.getAllRoomCodes();
+  for (const code of codes) {
+    const room = await RedisService.getRoom(code);
+    if (room) {
+      rooms.set(code, room);
+    }
+  }
+  console.log(`[RoomManager] Loaded ${rooms.size} rooms from Redis`);
 }

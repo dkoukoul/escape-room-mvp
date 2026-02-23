@@ -31,7 +31,7 @@ import { getLevel, getDefaultLevel } from "./config-loader.ts";
 import { assignRoles } from "./role-assigner.ts";
 import { GameTimer } from "./timer.ts";
 import { getPuzzleHandler } from "../puzzles/puzzle-handler.ts";
-import { getPlayersArray } from "./room-manager.ts";
+import { getPlayersArray, persistRoom, getAllRooms } from "./room-manager.ts";
 
 // Active timers per room
 // TODO: REDIS — store timer state in Redis for crash recovery
@@ -85,6 +85,9 @@ export function startGame(io: Server, room: Room, startingPuzzleIndex: number = 
   room.state.completedPuzzles = [];
   room.state.readyPlayers = [];
 
+  // Persist initial game state
+  persistRoom(room);
+
   // Notify all players
   const startPayload: GameStartedPayload = {
     levelId: level.id,
@@ -136,6 +139,7 @@ export function handleLevelIntroComplete(io: Server, room: Room, playerId: strin
     if (!level) return;
 
     room.state.readyPlayers = [];
+    persistRoom(room);
     startPuzzleBriefing(io, room, level, room.state.currentPuzzleIndex);
   }
 }
@@ -153,6 +157,8 @@ function startPuzzleBriefing(io: Server, room: Room, level: LevelConfig, puzzleI
   room.state.phase = "briefing";
   room.state.currentPuzzleIndex = puzzleIndex;
   room.state.readyPlayers = [];
+  
+  persistRoom(room);
 
   const players = getPlayersArray(room);
 
@@ -181,6 +187,7 @@ export function handlePlayerReady(io: Server, room: Room, playerId: string): voi
 
   if (!room.state.readyPlayers.includes(playerId)) {
     room.state.readyPlayers.push(playerId);
+    persistRoom(room);
   }
 
   const players = getPlayersArray(room);
@@ -214,6 +221,7 @@ export function jumpToPuzzle(io: Server, room: Room, puzzleIndex: number): void 
   
   // Clear any existing puzzle state
   room.state.puzzleState = null;
+  persistRoom(room);
   
   startPuzzleBriefing(io, room, level, puzzleIndex);
 }
@@ -242,7 +250,7 @@ function startPuzzle(io: Server, room: Room, level: LevelConfig, puzzleIndex: nu
   room.state.puzzleState = puzzleState;
   room.state.phase = "playing";
 
-  // TODO: REDIS — persist puzzle state
+  persistRoom(room);
 
   // Send each player their role-specific view
   io.to(room.code).emit(ServerEvents.PHASE_CHANGE, {
@@ -298,8 +306,8 @@ export function handlePuzzleAction(
   // Process the action
   const result = handler.handleAction(room.state.puzzleState, playerId, action, data);
   room.state.puzzleState = result.state;
-
-  // TODO: REDIS — persist updated puzzle state
+  
+  persistRoom(room);
 
   // Apply glitch penalty
   if (result.glitchDelta > 0) {
@@ -342,6 +350,8 @@ function handlePuzzleComplete(io: Server, room: Room, level: LevelConfig): void 
   if (puzzleConfig) {
     room.state.completedPuzzles.push(puzzleConfig.id);
   }
+  
+  persistRoom(room);
 
   const nextIndex = room.state.currentPuzzleIndex + 1;
 
@@ -357,6 +367,8 @@ function handlePuzzleComplete(io: Server, room: Room, level: LevelConfig): void 
     phase: "puzzle_transition",
     puzzleIndex: room.state.currentPuzzleIndex,
   } as PhaseChangePayload);
+
+  persistRoom(room);
 
   setTimeout(() => {
     if (nextIndex >= level.puzzles.length) {
@@ -376,7 +388,7 @@ function addGlitch(io: Server, room: Room, delta: number): void {
     room.state.glitch.maxValue
   );
 
-  // TODO: REDIS — persist glitch state
+  persistRoom(room);
 
   io.to(room.code).emit(ServerEvents.GLITCH_UPDATE, {
     glitch: room.state.glitch,
@@ -393,6 +405,7 @@ function addGlitch(io: Server, room: Room, delta: number): void {
  */
 function handleVictory(io: Server, room: Room): void {
   room.state.phase = "victory";
+  persistRoom(room);
   const timer = roomTimers.get(room.code);
   timer?.stop();
 
@@ -420,6 +433,7 @@ function handleVictory(io: Server, room: Room): void {
  */
 function handleDefeat(io: Server, room: Room, reason: "timer" | "glitch"): void {
   room.state.phase = "defeat";
+  persistRoom(room);
   const timer = roomTimers.get(room.code);
   timer?.stop();
 
@@ -446,6 +460,33 @@ function cleanupRoom(roomCode: string): void {
   if (timer) {
     timer.destroy();
     roomTimers.delete(roomCode);
+  }
+}
+
+/**
+ * Resume timers for all rooms (called on server startup)
+ */
+export function resumeRoomTimers(io: Server): void {
+  const rooms = getAllRooms();
+
+  for (const room of rooms) {
+    if (room.state.timer.running && room.state.timer.remainingSeconds > 0) {
+      console.log(`[Engine] Resuming timer for room ${room.code} (${room.state.timer.remainingSeconds}s left)`);
+      
+      const timer = new GameTimer(
+        room.state.timer.totalSeconds,
+        (timerState) => {
+          room.state.timer = timerState;
+          io.to(room.code).emit(ServerEvents.TIMER_UPDATE, { timer: timerState } as TimerUpdatePayload);
+        },
+        (_timerState) => {
+          handleDefeat(io, room, "timer");
+        }
+      );
+      timer.setRemainingSeconds(room.state.timer.remainingSeconds);
+      roomTimers.set(room.code, timer);
+      timer.start();
+    }
   }
 }
 

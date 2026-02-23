@@ -14,7 +14,9 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@socket.io/redis-adapter": "^8.3.0",
     "chokidar": "^4.0.3",
+    "ioredis": "^5.9.3",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
     "yaml": "^2.7.0",
