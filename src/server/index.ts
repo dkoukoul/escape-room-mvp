@@ -34,11 +34,11 @@ loadAllConfigs();
 startConfigWatcher();
 
 // ---- Create HTTP server + Socket.io ----
-const PORT = parseInt(process.env.PORT || "3000");
+const PORT = parseInt(process.env.SERVER_PORT || "3000");
 
 const io = new Server(PORT, {
   cors: {
-    origin: process.env.CLIENT_ORIGIN || "http://localhost:5173",
+    origin: `http://localhost:${process.env.CLIENT_PORT || "5173"}`,
     methods: ["GET", "POST"],
   },
   // TODO: REDIS — add Redis adapter for multi-instance:

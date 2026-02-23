@@ -5,9 +5,10 @@
   "scripts": {
     "dev": "concurrently \"bun run dev:server\" \"bun run dev:client\"",
     "dev:server": "NODE_ENV=development bun --watch src/server/index.ts",
-    "dev:client": "NODE_ENV=development vite --port 5173",
+    "dev:client": "NODE_ENV=development vite",
     "build": "vite build",
-    "start": "NODE_ENV=production bun src/server/index.ts",
+    "start:server": "NODE_ENV=production bun src/server/index.ts",
+    "start:client": "NODE_ENV=production vite",
     "typecheck": "bunx tsc --noEmit",
     "test": "bun test"
   },
