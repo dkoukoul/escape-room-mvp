@@ -11,14 +11,16 @@ import type {
   TimerUpdatePayload, 
   PhaseChangePayload, 
   PuzzleCompletedPayload,
-  GameStartedPayload 
+  GameStartedPayload,
+  PuzzleStartPayload
 } from "@shared/events.ts";
 import { ClientEvents } from "@shared/events.ts";
 import { 
   playBackgroundMusic, 
   stopBackgroundMusic, 
   toggleMute, 
-  getMuteState 
+  getMuteState,
+  loadSound
 } from "./audio/audio-manager.ts";
 import { applyTheme, removeTheme } from "./lib/theme-engine.ts";
 
@@ -138,9 +140,18 @@ async function boot() {
   on(ServerEvents.GAME_STARTED, (data: GameStartedPayload) => {
     if (data.backgroundMusic) {
       activeBackgroundMusic = data.backgroundMusic;
+      loadSound(data.backgroundMusic).catch(console.warn);
     }
     if (data.themeCss) {
       applyTheme(data.themeCss);
+    }
+  });
+
+  // Handle per-puzzle music updates
+  on(ServerEvents.PUZZLE_START, (data: PuzzleStartPayload) => {
+    if (data.backgroundMusic) {
+      activeBackgroundMusic = data.backgroundMusic;
+      playBackgroundMusic(data.backgroundMusic);
     }
   });
 
@@ -161,7 +172,29 @@ async function boot() {
   showScreen("lobby");
   showHUD(false);
 
-  // ---- Dev Tools ----
+  // ---- Dev Tools — URL Jumping ----
+  const checkUrlForJump = () => {
+    const params = new URLSearchParams(window.location.search);
+    const hash = window.location.hash;
+    
+    // Try ?puzzle=N or #puzzle=N (1-indexed for humans)
+    let puzzleStr = params.get("puzzle") || (hash.startsWith("#puzzle=") ? hash.replace("#puzzle=", "") : null);
+    
+    if (puzzleStr) {
+      const puzzleIndex = parseInt(puzzleStr) - 1;
+      if (!isNaN(puzzleIndex)) {
+        console.log(`[Dev] URL detected puzzle jump to: ${puzzleIndex + 1}`);
+        emit(ClientEvents.JUMP_TO_PUZZLE, { puzzleIndex });
+      }
+    }
+  };
+
+  // Check on boot
+  setTimeout(checkUrlForJump, 1000); // Give socket time to connect
+
+  // Check on hash change (without reload)
+  window.addEventListener("hashchange", checkUrlForJump);
+
   (window as any).jumpToPuzzle = (index: number) => {
     emit(ClientEvents.JUMP_TO_PUZZLE, { puzzleIndex: index });
     console.log(`[Dev] Jumping to puzzle index: ${index}`);

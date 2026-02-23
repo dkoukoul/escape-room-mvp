@@ -168,6 +168,7 @@ export interface PuzzleStartPayload {
   puzzleTitle: string;
   roles: RoleAssignment[];
   playerView: PlayerView;
+  backgroundMusic?: string;
 }
 
 export interface PuzzleUpdatePayload {

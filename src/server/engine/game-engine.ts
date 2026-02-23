@@ -259,6 +259,7 @@ function startPuzzle(io: Server, room: Room, level: LevelConfig, puzzleIndex: nu
         puzzleTitle: puzzleConfig.title,
         roles,
         playerView,
+        backgroundMusic: puzzleConfig.audio_cues?.background || level.audio_cues?.background,
       } as PuzzleStartPayload);
     }
   }

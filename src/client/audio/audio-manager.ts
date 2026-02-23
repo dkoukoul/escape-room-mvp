@@ -242,17 +242,26 @@ export async function playTypewriterClick(): Promise<void> {
   zzfx(0.4, 0.1, 900 + Math.random() * 300, 0, 0.01, 0.01, 1, 0.3, 0, 0, 0, 0, 0, 0, 0, 0.1, 0, 0, 0, 0);
 }
 
+let currentMusicName: string | null = null;
+
 /**
  * Play continuous background music
  */
 export async function playBackgroundMusic(name: string, volume: number = 0.4): Promise<void> {
+  if (currentMusicName === name && backgroundMusicSource) return;
+
   await resumeContext();
   const ctx = getContext();
 
-  const buffer = audioBuffers.get(name);
+  let buffer = audioBuffers.get(name);
   if (!buffer) {
-    console.warn(`[Audio] Music not loaded: ${name}`);
+    console.log(`[Audio] Music not in cache, loading: ${name}`);
     await loadSound(name);
+    buffer = audioBuffers.get(name);
+  }
+
+  if (!buffer) {
+    console.warn(`[Audio] Failed to load background music: ${name}`);
     return;
   }
 
@@ -270,6 +279,7 @@ export async function playBackgroundMusic(name: string, volume: number = 0.4): P
   backgroundMusicGain.connect(ctx.destination);
   backgroundMusicSource.start(0);
 
+  currentMusicName = name;
   console.log(`[Audio] Started BGM: ${name}`);
 }
 
