@@ -453,3 +453,46 @@ body::before {
 .pulse {
   animation: pulse 2s ease infinite;
 }
+
+/* ---- Level Intro Specifics ---- */
+.level-intro-panel {
+  border-left: 4px solid var(--neon-cyan);
+  border-right: 4px solid var(--neon-cyan);
+  background: linear-gradient(180deg, rgba(13, 13, 26, 0.95) 0%, rgba(10, 10, 18, 0.98) 100%);
+  box-shadow: 0 0 50px rgba(0, 240, 255, 0.1);
+}
+
+.mission-brand {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--neon-magenta);
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  margin-bottom: var(--space-sm);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mission-brand::before,
+.mission-brand::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: var(--neon-magenta);
+  opacity: 0.3;
+}
+
+.story-text {
+  color: var(--text-primary);
+  text-shadow: 0 0 8px rgba(0, 240, 255, 0.2);
+}
+
+.status-line {
+  font-family: var(--font-mono);
+  border-top: 1px solid rgba(0, 240, 255, 0.1);
+  padding-top: var(--space-md);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  letter-spacing: 1px;
+}

@@ -18,10 +18,10 @@ export default defineConfig(({ mode }) => {
       port: parseInt(env.CLIENT_PORT || "5173"),
       proxy: {
         "/socket.io": {
-        target: `http://localhost:${env.SERVER_PORT || "3000"}`,
-        ws: true,
+          target: `http://localhost:${env.SERVER_PORT || "3000"}`,
+          ws: true,
+        },
       },
-    },
     },
     build: {
     outDir: resolve(__dirname, "dist/client"),

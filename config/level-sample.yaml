@@ -55,3 +55,7 @@ puzzles:
       start: "puzzle_start.mp3"
       success: "puzzle_success.mp3"
       fail: "letter_miss.mp3"
+
+audio_cues:
+  intro: "level-01-briefing.mp3"
+  background: "Neon Breach Protocol.mp3"

@@ -233,6 +233,6 @@ function setupSocketListeners(): void {
 
   on(ServerEvents.GAME_STARTED, (_data: GameStartedPayload) => {
     showHUD(true);
-    // Briefing screen will be shown by briefing.ts
+    // Level intro screen will be shown by level-intro.ts
   });
 }
