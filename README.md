@@ -1,8 +1,10 @@
-# ⚡ Project ODYSSEY: Cyber-Hoplite Protocol
+# ⚡ Project ODYSSEY: A platform for online co-op escape rooms
 
 **Project ODYSSEY** is an open-source, high-performance co-op escape room engine built for the web. It is designed for **2 to 6 players** to solve asymmetric, logic-based puzzles in a high-stakes, "glitching" environment.
 
 The first mission: **The Akropolis Defragmentation.**
+
+Try it out at: [odyssey.kpopgenerator.cloud](https://odyssey.kpopgenerator.cloud)
 
 ---
 
@@ -60,7 +62,7 @@ audio_cues:
 
 ---
 
-## 🕹️ Game Mechanics for 12yos
+## 🕹️ Game Mechanics
 * **Role Randomization:** Every time a game starts, players are assigned roles (e.g., *The Strategos*, *The Tech-Oracle*, *The Engineer*).
 * **Asymmetric Views:** If `player.role === 'Navigator'`, they see the map. Everyone else sees static. They *must* talk to survive.
 * **The Glitch Meter:** A shared global state. If someone makes a mistake, the `glitch_value` increases, causing the screen to shake and colors to distort for **everyone**.
@@ -90,7 +92,7 @@ audio_cues:
 ### To start the server:
 ```bash
 bun install
-bun run src/server/index.ts
+bun run dev:server
 ```
 
 ### To create a new puzzle:
