@@ -64,7 +64,7 @@ export function stopRandomFX(): void {
 function scheduleNextFX(): void {
   if (!isCycleActive || activePool.length === 0) return;
 
-  const delay = Math.random() * 7000 + 3000;
+  const delay = Math.random() * 7000 + 10000;
   randomCycleTimeout = setTimeout(() => {
     const randomId = activePool[Math.floor(Math.random() * activePool.length)];
     if (randomId) triggerFX(randomId);

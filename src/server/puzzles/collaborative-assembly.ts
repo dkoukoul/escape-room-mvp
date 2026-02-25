@@ -5,6 +5,7 @@
 
 import type { PuzzleHandler } from "./puzzle-handler.ts";
 import type { Player, PuzzleConfig, PuzzleState, PlayerView } from "../../../shared/types.ts";
+import logger from "../logger.ts";
 
 interface PieceState {
   id: number;
@@ -34,7 +35,7 @@ export const collaborativeAssemblyHandler: PuzzleHandler = {
       grid_rows: number;
       total_pieces: number;
     };
-
+    logger.debug(`[CollaborativeAssembly] Initializing puzzle for ${players.length} players`);
     const totalPieces = data.total_pieces;
     const pieces: PieceState[] = [];
 
@@ -92,7 +93,7 @@ export const collaborativeAssemblyHandler: PuzzleHandler = {
   ): { state: PuzzleState; glitchDelta: number } {
     const puzzleData = state.data as unknown as AssemblyData;
     let glitchDelta = 0;
-
+    logger.debug(`[CollaborativeAssembly] Handling action: ${action} for player ${playerId}`);
     if (action === "place_piece") {
       const pieceId = data.pieceId as number;
       const col = data.col as number;
