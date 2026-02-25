@@ -2,11 +2,13 @@
 // Level Intro Screen — Narrative story + Audio intro
 // ============================================================
 
-import { h, $, mount } from "../lib/dom.ts";
+import { h, $, mount, clear } from "../lib/dom.ts";
 import { on, emit, ServerEvents, ClientEvents } from "../lib/socket.ts";
 import { showScreen } from "../lib/router.ts";
 import type { GameStartedPayload } from "@shared/events.ts";
-import { playSound, playAudioFile, playTypewriterClick, loadSound } from "../audio/audio-manager.ts";
+import { playSound, playAudioFile, playTypewriterClick, loadSound, stopAllActiveAudio } from "../audio/audio-manager.ts";
+
+let isSkipping = false;
 
 export function initLevelIntro(): void {
   on(ServerEvents.GAME_STARTED, (data: GameStartedPayload) => {
@@ -14,6 +16,7 @@ export function initLevelIntro(): void {
       console.log("[Intro] Skipping intro due to jump start");
       return;
     }
+    isSkipping = false;
     renderLevelIntro(data);
   });
 }
@@ -38,6 +41,24 @@ async function renderLevelIntro(data: GameStartedPayload): Promise<void> {
     }
   }, "INITIALIZE MISSION");
 
+  const skipBtn = h("button", {
+    className: "btn btn-outline",
+    style: "position: absolute; bottom: 20px; right: 20px; font-size: 0.7rem; opacity: 0.5; border-color: rgba(0, 240, 255, 0.3);",
+    onclick: () => {
+      isSkipping = true;
+      stopAllActiveAudio();
+      skipBtn.style.display = "none";
+    }
+  }, "SKIP SEQUENCE [SPACE]");
+
+  // Add spacebar listener for skipping
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.code === "Space" && skipBtn.style.display !== "none") {
+      skipBtn.click();
+    }
+  };
+  window.addEventListener("keydown", handleKeyDown, { once: true });
+
   mount(
     screen,
     h("div", { className: "panel level-intro-panel flex-col items-center gap-md text-center fade-in", style: "max-width: 800px; position: relative;" },
@@ -53,7 +74,8 @@ async function renderLevelIntro(data: GameStartedPayload): Promise<void> {
         id: "intro-status",
         className: "status-line pulse mt-xl",
       }, "Synchronizing transmission..."),
-      continueBtn
+      continueBtn,
+      skipBtn
     ),
   );
 
@@ -79,12 +101,20 @@ async function renderLevelIntro(data: GameStartedPayload): Promise<void> {
   // Wait for both to finish (or at least the typewriter if audio fails/is missing)
   await Promise.all([typewriterPromise, audioPromise]);
 
+  // Clean up listener if not skipped
+  window.removeEventListener("keydown", handleKeyDown);
+
   // Show the continue button after both are done
   if (statusEl) {
     statusEl.textContent = "Transmission complete. Awaiting manual override.";
     statusEl.classList.remove("pulse");
   }
   continueBtn.style.display = "block";
+  skipBtn.style.display = "none";
+
+  // If we skipped, we might want to automatically trigger the continue button?
+  // User says "add a skip button", usually it just bypasses the animation.
+  // I'll leave the button there so they still have to confirm readiness.
 }
 
 function completeIntro() {
@@ -98,6 +128,13 @@ async function typewriterEffect(el: HTMLElement, text: string): Promise<void> {
 
   return new Promise((resolve) => {
     const timer = setInterval(() => {
+      if (isSkipping) {
+        el.textContent = text;
+        clearInterval(timer);
+        resolve();
+        return;
+      }
+
       if (index < text.length) {
         el.textContent += text[index];
         

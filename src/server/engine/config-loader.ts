@@ -52,6 +52,10 @@ function loadConfigFile(filePath: string): void {
       return;
     }
 
+    if (levels.has(config.id)) {
+      logger.warn(`[ConfigLoader] Overwriting level ID '${config.id}' (previously loaded from another file)`);
+    }
+
     levels.set(config.id, config);
     logger.info(`[ConfigLoader] Loaded level: ${config.id} (${config.title})`);
   } catch (err) {

@@ -6,15 +6,17 @@ import { h, $, mount } from "../lib/dom.ts";
 import { on, emit, ServerEvents, ClientEvents } from "../lib/socket.ts";
 import { showScreen } from "../lib/router.ts";
 import type { BriefingPayload, PlayerReadyUpdatePayload } from "@shared/events.ts";
-import { playBriefingIntro, playTypewriterClick } from "../audio/audio-manager.ts";
+import { playBriefingIntro, playTypewriterClick, stopAllActiveAudio } from "../audio/audio-manager.ts";
 
 let typewriterTimer: ReturnType<typeof setInterval> | null = null;
 let readyButtonEl: HTMLButtonElement | null = null;
 let isPlayerReady = false;
+let isSkipping = false;
 
 export function initBriefing(): void {
   on(ServerEvents.BRIEFING, (data: BriefingPayload) => {
     isPlayerReady = false;
+    isSkipping = false;
     renderBriefing(data);
   });
 
@@ -55,33 +57,66 @@ function renderBriefing(data: BriefingPayload): void {
   
   readyButtonEl = readyBtn as HTMLButtonElement;
 
+  const skipBtn = h("button", {
+    className: "btn btn-outline",
+    style: "position: absolute; bottom: 20px; right: 20px; font-size: 0.7rem; opacity: 0.5; border-color: rgba(0, 240, 255, 0.3);",
+    onclick: () => {
+      isSkipping = true;
+      stopAllActiveAudio();
+      skipBtn.style.display = "none";
+    }
+  }, "SKIP SEQUENCE [SPACE]");
+
+  // Add spacebar listener for skipping
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.code === "Space" && skipBtn.style.display !== "none") {
+      skipBtn.click();
+    }
+  };
+  window.addEventListener("keydown", handleKeyDown, { once: true });
+
   mount(
     screen,
-    h("div", { className: "panel flex-col items-center gap-md text-center fade-in", style: "max-width: 700px;" },
+    h("div", { className: "panel flex-col items-center gap-md text-center fade-in", style: "max-width: 700px; position: relative;" },
       h("p", { className: "subtitle" }, `MISSION ${data.puzzleIndex + 1} / ${data.totalPuzzles}`),
       h("h2", { className: "title-lg mt-sm" }, data.puzzleTitle),
       h("div", { className: "mt-lg", style: "border-left: 2px solid var(--neon-cyan); padding-left: var(--space-md);" },
         textEl,
       ),
       h("p", {
+        id: "briefing-status",
         className: "subtitle pulse mt-lg",
         style: "font-size: 0.8rem;",
       }, "Incoming transmission..."),
-      readyBtn
+      readyBtn,
+      skipBtn
     ),
   );
 
   // Typewriter effect
-  typewriterEffect(textEl, data.briefingText.trim(), readyBtn);
+  typewriterEffect(textEl, data.briefingText.trim(), readyBtn, () => {
+     const statusEl = $("#briefing-status");
+     if (statusEl) statusEl.style.display = "none";
+     skipBtn.style.display = "none";
+     window.removeEventListener("keydown", handleKeyDown);
+  });
 }
 
-function typewriterEffect(el: HTMLElement, text: string, readyBtn: HTMLElement): void {
+function typewriterEffect(el: HTMLElement, text: string, readyBtn: HTMLElement, onComplete: () => void): void {
   if (typewriterTimer) clearInterval(typewriterTimer);
 
   let index = 0;
   el.textContent = "";
 
   typewriterTimer = setInterval(() => {
+    if (isSkipping) {
+        el.textContent = text;
+        clearInterval(typewriterTimer!);
+        readyBtn.style.display = "block";
+        onComplete();
+        return;
+    }
+
     if (index < text.length) {
       el.textContent += text[index];
       
@@ -93,6 +128,7 @@ function typewriterEffect(el: HTMLElement, text: string, readyBtn: HTMLElement):
       if (typewriterTimer) clearInterval(typewriterTimer);
       // Show ready button when transmission finishes
       readyBtn.style.display = "block";
+      onComplete();
     }
   }, 25);
 }

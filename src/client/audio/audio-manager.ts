@@ -2,6 +2,8 @@
 // Audio Manager — Web Audio API wrapper for SFX
 // ============================================================
 
+let activeAudioSources: AudioBufferSourceNode[] = [];
+
 let audioContext: AudioContext | null = null;
 let backgroundMusicSource: AudioBufferSourceNode | null = null;
 let backgroundMusicGain: GainNode | null = null;
@@ -98,6 +100,12 @@ export async function playSound(name: string, volume: number = 1.0): Promise<voi
 
   source.connect(gainNode);
   gainNode.connect(ctx.destination);
+  
+  source.onended = () => {
+    activeAudioSources = activeAudioSources.filter(s => s !== source);
+  };
+  activeAudioSources.push(source);
+  
   source.start(0);
 }
 
@@ -367,9 +375,24 @@ export async function playAudioFile(name: string, volume: number = 1.0): Promise
     gainNode.connect(ctx.destination);
     
     source.onended = () => {
+      activeAudioSources = activeAudioSources.filter(s => s !== source);
       resolve();
     };
 
+    activeAudioSources.push(source);
     source.start(0);
+  });
+}
+
+/**
+ * Stop all active sound effects and narrations (excluding background music)
+ */
+export function stopAllActiveAudio(): void {
+  const sources = [...activeAudioSources];
+  activeAudioSources = [];
+  sources.forEach(source => {
+    try {
+      source.stop();
+    } catch (e) {}
   });
 }
