@@ -17,20 +17,26 @@ const levels = new Map<string, LevelConfig>();
 
 let watcherReady = false;
 
+import logger from "../logger.ts";
+
 /**
  * Load all YAML files from the config directory
  */
 export function loadAllConfigs(): void {
-  const files = readdirSync(CONFIG_DIR).filter(
-    (f) => f.endsWith(".yaml") || f.endsWith(".yml")
-  );
+  try {
+    const files = readdirSync(CONFIG_DIR).filter(
+      (f) => f.endsWith(".yaml") || f.endsWith(".yml")
+    );
 
-  for (const file of files) {
-    loadConfigFile(join(CONFIG_DIR, file));
+    for (const file of files) {
+      loadConfigFile(join(CONFIG_DIR, file));
+    }
+
+    logger.info(`[ConfigLoader] Loaded ${levels.size} level(s)`);
+    validateAll(Array.from(levels.values()));
+  } catch (err) {
+    logger.error("[ConfigLoader] Failed to load all configs", { err });
   }
-
-  console.log(`[ConfigLoader] Loaded ${levels.size} level(s)`);
-  validateAll(Array.from(levels.values()));
 }
 
 /**
@@ -42,14 +48,14 @@ function loadConfigFile(filePath: string): void {
     const config = parseYAML(raw) as LevelConfig;
 
     if (!config.id) {
-      console.warn(`[ConfigLoader] Skipping ${filePath} — missing 'id' field`);
+      logger.warn(`[ConfigLoader] Skipping ${filePath} — missing 'id' field`);
       return;
     }
 
     levels.set(config.id, config);
-    console.log(`[ConfigLoader] Loaded level: ${config.id} (${config.title})`);
+    logger.info(`[ConfigLoader] Loaded level: ${config.id} (${config.title})`);
   } catch (err) {
-    console.error(`[ConfigLoader] Failed to parse ${filePath}:`, err);
+    logger.error(`[ConfigLoader] Failed to parse ${filePath}:`, { err });
   }
 }
 
@@ -59,25 +65,29 @@ function loadConfigFile(filePath: string): void {
 export function startConfigWatcher(): void {
   if (watcherReady) return;
 
-  const watcher = watch(CONFIG_DIR, {
-    ignoreInitial: true,
-    awaitWriteFinish: { stabilityThreshold: 300 },
-  });
+  try {
+    const watcher = watch(CONFIG_DIR, {
+      ignoreInitial: true,
+      awaitWriteFinish: { stabilityThreshold: 300 },
+    });
 
-  watcher.on("change", (filePath) => {
-    console.log(`[ConfigLoader] Config changed: ${filePath}`);
-    loadConfigFile(filePath);
-    validateAll(Array.from(levels.values()));
-  });
+    watcher.on("change", (filePath) => {
+      logger.info(`[ConfigLoader] Config changed: ${filePath}`);
+      loadConfigFile(filePath);
+      validateAll(Array.from(levels.values()));
+    });
 
-  watcher.on("add", (filePath) => {
-    console.log(`[ConfigLoader] New config detected: ${filePath}`);
-    loadConfigFile(filePath);
-    validateAll(Array.from(levels.values()));
-  });
+    watcher.on("add", (filePath) => {
+      logger.info(`[ConfigLoader] New config detected: ${filePath}`);
+      loadConfigFile(filePath);
+      validateAll(Array.from(levels.values()));
+    });
 
-  watcherReady = true;
-  console.log(`[ConfigLoader] Watching ${CONFIG_DIR} for changes`);
+    watcherReady = true;
+    logger.info(`[ConfigLoader] Watching ${CONFIG_DIR} for changes`);
+  } catch (err) {
+    logger.error("[ConfigLoader] Failed to start config watcher", { err });
+  }
 }
 
 /**

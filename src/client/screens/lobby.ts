@@ -17,6 +17,7 @@ import type {
   LevelSelectedPayload,
 } from "@shared/events.ts";
 import type { LevelSummary } from "@shared/types.ts";
+import { logger } from "../logger.ts";
 
 let currentRoomCode: string | null = null;
 let isHost = false;
@@ -48,7 +49,7 @@ export function initLobby(): void {
 
     // Auto-join if we have both and NO query params (or if we want to support it with query params)
     if (savedName && savedRoom && !currentRoomCode) {
-      console.log(`[Lobby] Attempting auto-join: ${savedRoom}`);
+      logger.info(`[Lobby] Attempting auto-join: ${savedRoom}`);
       emit(ClientEvents.JOIN_ROOM, { roomCode: savedRoom, playerName: savedName });
     }
   }, 100);
@@ -175,29 +176,37 @@ function renderRoomView(container: HTMLElement): void {
 }
 
 function handleCreate(): void {
-  const name = ($("#input-name") as HTMLInputElement)?.value.trim();
-  if (!name) {
-    showError("Enter your callsign, Hoplite.");
-    return;
+  try {
+    const name = ($("#input-name") as HTMLInputElement)?.value.trim();
+    if (!name) {
+      showError("Enter your callsign, Hoplite.");
+      return;
+    }
+    localStorage.setItem("odyssey_player_name", name);
+    emit(ClientEvents.CREATE_ROOM, { playerName: name });
+  } catch (err) {
+    logger.error("Error creating room", { err });
   }
-  localStorage.setItem("odyssey_player_name", name);
-  emit(ClientEvents.CREATE_ROOM, { playerName: name });
 }
 
 function handleJoin(): void {
-  const name = ($("#input-name") as HTMLInputElement)?.value.trim();
-  const code = ($("#input-room") as HTMLInputElement)?.value.trim().toLowerCase();
-  if (!name) {
-    showError("Enter your callsign, Hoplite.");
-    return;
+  try {
+    const name = ($("#input-name") as HTMLInputElement)?.value.trim();
+    const code = ($("#input-room") as HTMLInputElement)?.value.trim().toLowerCase();
+    if (!name) {
+      showError("Enter your callsign, Hoplite.");
+      return;
+    }
+    if (!code) {
+      showError("Enter a room code.");
+      return;
+    }
+    localStorage.setItem("odyssey_player_name", name);
+    localStorage.setItem("odyssey_room_code", code);
+    emit(ClientEvents.JOIN_ROOM, { roomCode: code, playerName: name });
+  } catch (err) {
+    logger.error("Error joining room", { err });
   }
-  if (!code) {
-    showError("Enter a room code.");
-    return;
-  }
-  localStorage.setItem("odyssey_player_name", name);
-  localStorage.setItem("odyssey_room_code", code);
-  emit(ClientEvents.JOIN_ROOM, { roomCode: code, playerName: name });
 }
 
 function handleLevelSelect(levelId: string): void {
@@ -207,26 +216,34 @@ function handleLevelSelect(levelId: string): void {
 }
 
 function handleStart(): void {
-  if (!selectedLevelId) return;
-  const payload: StartGamePayload = { 
-    levelId: selectedLevelId 
-  };
-  if (selectedPuzzleIndex !== null) {
-    payload.startingPuzzleIndex = selectedPuzzleIndex;
+  try {
+    if (!selectedLevelId) return;
+    const payload: StartGamePayload = { 
+      levelId: selectedLevelId 
+    };
+    if (selectedPuzzleIndex !== null) {
+      payload.startingPuzzleIndex = selectedPuzzleIndex;
+    }
+    emit(ClientEvents.START_GAME, payload);
+  } catch (err) {
+    logger.error("Error starting game", { err });
   }
-  emit(ClientEvents.START_GAME, payload);
 }
 
 function handleLeave(): void {
-  emit(ClientEvents.LEAVE_ROOM);
-  currentRoomCode = null;
-  isHost = false;
-  players = [];
-  availableLevels = [];
-  selectedLevelId = null;
-  localStorage.removeItem("odyssey_room_code");
-  const screen = $("#screen-lobby")!;
-  renderJoinView(screen);
+  try {
+    emit(ClientEvents.LEAVE_ROOM);
+    currentRoomCode = null;
+    isHost = false;
+    players = [];
+    availableLevels = [];
+    selectedLevelId = null;
+    localStorage.removeItem("odyssey_room_code");
+    const screen = $("#screen-lobby")!;
+    renderJoinView(screen);
+  } catch (err) {
+    logger.error("Error leaving room", { err });
+  }
 }
 
 function showError(msg: string): void {
@@ -235,68 +252,76 @@ function showError(msg: string): void {
 }
 
 function setupSocketListeners(): void {
-  on(ServerEvents.ROOM_CREATED, (data: RoomCreatedPayload) => {
-    currentRoomCode = data.roomCode;
-    localStorage.setItem("odyssey_room_code", data.roomCode);
-    isHost = true;
-    players = [data.player];
-    emit(ClientEvents.LEVEL_LIST_REQUEST);
-    const screen = $("#screen-lobby")!;
-    renderRoomView(screen);
-  });
-
-  // Re-join on socket reconnection
-  on("connect", () => {
-    const savedName = localStorage.getItem("odyssey_player_name");
-    const savedRoom = localStorage.getItem("odyssey_room_code");
-    if (savedName && savedRoom) {
-      console.log(`[Lobby] Socket reconnected, re-joining room: ${savedRoom}`);
-      emit(ClientEvents.JOIN_ROOM, { roomCode: savedRoom, playerName: savedName });
-    }
-  });
-
-  on(ServerEvents.ROOM_JOINED, (data: RoomJoinedPayload) => {
-    currentRoomCode = data.roomCode;
-    isHost = data.player.isHost;
-    players = data.players;
-    emit(ClientEvents.LEVEL_LIST_REQUEST);
-    const screen = $("#screen-lobby")!;
-    renderRoomView(screen);
-  });
-
-  on(ServerEvents.PLAYER_LIST_UPDATE, (data: PlayerListPayload) => {
-    players = data.players;
-    const myId = getPlayerId();
-    const me = players.find((p) => p.id === myId);
-    if (me) isHost = me.isHost;
-    if (currentRoomCode) {
+  try {
+    on(ServerEvents.ROOM_CREATED, (data: RoomCreatedPayload) => {
+      currentRoomCode = data.roomCode;
+      localStorage.setItem("odyssey_room_code", data.roomCode);
+      isHost = true;
+      players = [data.player];
+      emit(ClientEvents.LEVEL_LIST_REQUEST);
       const screen = $("#screen-lobby")!;
       renderRoomView(screen);
-    }
-  });
+    });
 
-  on(ServerEvents.ROOM_ERROR, (data: RoomErrorPayload) => {
-    showError(data.message);
-  });
+    // Re-join on socket reconnection
+    on("connect", () => {
+      try {
+        const savedName = localStorage.getItem("odyssey_player_name");
+        const savedRoom = localStorage.getItem("odyssey_room_code");
+        if (savedName && savedRoom) {
+          logger.info(`[Lobby] Socket reconnected, re-joining room: ${savedRoom}`);
+          emit(ClientEvents.JOIN_ROOM, { roomCode: savedRoom, playerName: savedName });
+        }
+      } catch (err) {
+        logger.warn("Failed to re-join after reconnect", { err });
+      }
+    });
 
-  on(ServerEvents.LEVEL_LIST, (data: LevelListPayload) => {
-    availableLevels = data.levels;
-    if (currentRoomCode) {
+    on(ServerEvents.ROOM_JOINED, (data: RoomJoinedPayload) => {
+      currentRoomCode = data.roomCode;
+      isHost = data.player.isHost;
+      players = data.players;
+      emit(ClientEvents.LEVEL_LIST_REQUEST);
       const screen = $("#screen-lobby")!;
       renderRoomView(screen);
-    }
-  });
+    });
 
-  on(ServerEvents.LEVEL_SELECTED, (data: LevelSelectedPayload) => {
-    selectedLevelId = data.levelId;
-    if (currentRoomCode) {
-      const screen = $("#screen-lobby")!;
-      renderRoomView(screen);
-    }
-  });
+    on(ServerEvents.PLAYER_LIST_UPDATE, (data: PlayerListPayload) => {
+      players = data.players;
+      const myId = getPlayerId();
+      const me = players.find((p) => p.id === myId);
+      if (me) isHost = me.isHost;
+      if (currentRoomCode) {
+        const screen = $("#screen-lobby")!;
+        renderRoomView(screen);
+      }
+    });
 
-  on(ServerEvents.GAME_STARTED, (_data: GameStartedPayload) => {
-    showHUD(true);
-    // Level intro screen will be shown by level-intro.ts
-  });
+    on(ServerEvents.ROOM_ERROR, (data: RoomErrorPayload) => {
+      showError(data.message);
+    });
+
+    on(ServerEvents.LEVEL_LIST, (data: LevelListPayload) => {
+      availableLevels = data.levels;
+      if (currentRoomCode) {
+        const screen = $("#screen-lobby")!;
+        renderRoomView(screen);
+      }
+    });
+
+    on(ServerEvents.LEVEL_SELECTED, (data: LevelSelectedPayload) => {
+      selectedLevelId = data.levelId;
+      if (currentRoomCode) {
+        const screen = $("#screen-lobby")!;
+        renderRoomView(screen);
+      }
+    });
+
+    on(ServerEvents.GAME_STARTED, (_data: GameStartedPayload) => {
+      showHUD(true);
+      // Level intro screen will be shown by level-intro.ts
+    });
+  } catch (err) {
+    logger.error("Error setting up socket listeners in lobby", { err });
+  }
 }

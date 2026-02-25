@@ -1,15 +1,17 @@
 import Redis from "ioredis";
 import type { Room, Player } from "../../../shared/types.ts";
 
+import logger from "../logger.ts";
+
 const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
 const redis = new Redis(REDIS_URL);
 
 redis.on("error", (err) => {
-  console.error("[Redis] Error:", err.message);
+  logger.error("[Redis] Error:", { message: err.message });
 });
 
 redis.on("connect", () => {
-  console.log("[Redis] Connected:", REDIS_URL);
+  logger.info("[Redis] Connected to Redis server");
 });
 
 /**
@@ -38,7 +40,7 @@ export const RedisService = {
   async saveRoom(room: Room): Promise<void> {
     const key = `room:${room.code}`;
     await redis.set(key, serializeRoom(room), "EX", 86400); // 24h TTL
-    console.log(`[Redis] Saved room: ${room.code}`);
+    logger.debug(`[Redis] Saved room: ${room.code}`);
   },
 
   async getRoom(roomCode: string): Promise<Room | undefined> {
@@ -49,7 +51,7 @@ export const RedisService = {
 
   async deleteRoom(roomCode: string): Promise<void> {
     await redis.del(`room:${roomCode}`);
-    console.log(`[Redis] Deleted room: ${roomCode}`);
+    logger.info(`[Redis] Deleted room: ${roomCode}`);
   },
 
   async getAllRoomCodes(): Promise<string[]> {

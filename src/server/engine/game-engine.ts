@@ -32,115 +32,124 @@ import { assignRoles } from "./role-assigner.ts";
 import { GameTimer } from "./timer.ts";
 import { getPuzzleHandler } from "../puzzles/puzzle-handler.ts";
 import { getPlayersArray, persistRoom, getAllRooms } from "./room-manager.ts";
+import logger from "../logger.ts";
 
 // Active timers per room
-// TODO: REDIS — store timer state in Redis for crash recovery
+// TODO: REDIS - store timer state in Redis for crash recovery
 const roomTimers = new Map<string, GameTimer>();
 
 /**
  * Start the game for a room
  */
 export function startGame(io: Server, room: Room, startingPuzzleIndex: number = 0): void {
-  const levelId = room.state.levelId;
-  if (!levelId) {
-    io.to(room.code).emit(ServerEvents.ROOM_ERROR, {
-      message: "No level selected",
-    });
-    return;
-  }
-
-  const level = getLevel(levelId);
-  if (!level) {
-    console.error(`[Engine] Level config not found: ${levelId}`);
-    return;
-  }
-
-  const players = getPlayersArray(room);
-  if (players.length < level.min_players) {
-    io.to(room.code).emit(ServerEvents.ROOM_ERROR, {
-      message: `Need at least ${level.min_players} players (have ${players.length})`,
-    });
-    return;
-  }
-
-  // Initialize game state
-  // TODO: REDIS — persist game state
-  const isJumping = startingPuzzleIndex !== undefined && startingPuzzleIndex >= 0;
-  
-  room.state.phase = isJumping ? "briefing" : "level_intro";
-  room.state.levelId = level.id;
-  room.state.currentPuzzleIndex = startingPuzzleIndex ?? 0;
-  room.state.totalPuzzles = level.puzzles.length;
-  room.state.glitch = {
-    value: 0,
-    maxValue: level.glitch_max,
-    decayRate: level.glitch_decay_rate,
-  };
-  room.state.timer = {
-    totalSeconds: level.timer_seconds,
-    remainingSeconds: level.timer_seconds,
-    running: false,
-  };
-  room.state.startedAt = Date.now();
-  room.state.completedPuzzles = [];
-  room.state.readyPlayers = [];
-
-  // Persist initial game state
-  persistRoom(room);
-
-  // Notify all players
-  const startPayload: GameStartedPayload = {
-    levelId: level.id,
-    levelTitle: level.title,
-    levelStory: level.story,
-    levelIntroAudio: level.audio_cues?.intro,
-    backgroundMusic: level.audio_cues?.background,
-    themeCss: level.theme_css || ["themes/cyberpunk-greek.css"],
-    totalPuzzles: level.puzzles.length,
-    timerSeconds: level.timer_seconds,
-    isJumpStart: isJumping,
-  };
-  io.to(room.code).emit(ServerEvents.GAME_STARTED, startPayload);
-
-  // Start the global timer
-  const timer = new GameTimer(
-    level.timer_seconds,
-    (timerState) => {
-      room.state.timer = timerState;
-      io.to(room.code).emit(ServerEvents.TIMER_UPDATE, { timer: timerState } as TimerUpdatePayload);
-    },
-    (_timerState) => {
-      handleDefeat(io, room, "timer");
+  try {
+    const levelId = room.state.levelId;
+    if (!levelId) {
+      io.to(room.code).emit(ServerEvents.ROOM_ERROR, {
+        message: "No level selected",
+      });
+      return;
     }
-  );
-  roomTimers.set(room.code, timer);
-  timer.start();
 
-  // If jumping, send the briefing immediately
-  if (isJumping) {
-    startPuzzleBriefing(io, room, level, room.state.currentPuzzleIndex);
+    const level = getLevel(levelId);
+    if (!level) {
+      logger.error(`[Engine] Level config not found: ${levelId}`);
+      return;
+    }
+
+    const players = getPlayersArray(room);
+    if (players.length < level.min_players) {
+      io.to(room.code).emit(ServerEvents.ROOM_ERROR, {
+        message: `Need at least ${level.min_players} players (have ${players.length})`,
+      });
+      return;
+    }
+
+    // Initialize game state
+    // TODO: REDIS - persist game state
+    const isJumping = startingPuzzleIndex !== undefined && startingPuzzleIndex >= 0;
+    
+    room.state.phase = isJumping ? "briefing" : "level_intro";
+    room.state.levelId = level.id;
+    room.state.currentPuzzleIndex = startingPuzzleIndex ?? 0;
+    room.state.totalPuzzles = level.puzzles.length;
+    room.state.glitch = {
+      value: 0,
+      maxValue: level.glitch_max,
+      decayRate: level.glitch_decay_rate,
+    };
+    room.state.timer = {
+      totalSeconds: level.timer_seconds,
+      remainingSeconds: level.timer_seconds,
+      running: false,
+    };
+    room.state.startedAt = Date.now();
+    room.state.completedPuzzles = [];
+    room.state.readyPlayers = [];
+
+    // Persist initial game state
+    persistRoom(room).catch(err => logger.error("Failed to persist room on start", { err, roomCode: room.code }));
+
+    // Notify all players
+    const startPayload: GameStartedPayload = {
+      levelId: level.id,
+      levelTitle: level.title,
+      levelStory: level.story,
+      levelIntroAudio: level.audio_cues?.intro,
+      backgroundMusic: level.audio_cues?.background,
+      themeCss: level.theme_css || ["themes/cyberpunk-greek.css"],
+      totalPuzzles: level.puzzles.length,
+      timerSeconds: level.timer_seconds,
+      isJumpStart: isJumping,
+    };
+    io.to(room.code).emit(ServerEvents.GAME_STARTED, startPayload);
+
+    // Start the global timer
+    const timer = new GameTimer(
+      level.timer_seconds,
+      (timerState) => {
+        room.state.timer = timerState;
+        io.to(room.code).emit(ServerEvents.TIMER_UPDATE, { timer: timerState } as TimerUpdatePayload);
+      },
+      (_timerState) => {
+        handleDefeat(io, room, "timer");
+      }
+    );
+    roomTimers.set(room.code, timer);
+    timer.start();
+
+    // If jumping, send the briefing immediately
+    if (isJumping) {
+      startPuzzleBriefing(io, room, level, room.state.currentPuzzleIndex);
+    }
+    // Otherwise, no initial briefing call — we wait for level_intro to finish
+  } catch (err) {
+    logger.error("Error starting game", { err, roomCode: room.code });
   }
-  // Otherwise, no initial briefing call — we wait for level_intro to finish
 }
 
 /**
  * Handle a player finishing the level intro
  */
 export function handleLevelIntroComplete(io: Server, room: Room, playerId: string): void {
-  if (room.state.phase !== "level_intro") return;
+  try {
+    if (room.state.phase !== "level_intro") return;
 
-  if (!room.state.readyPlayers.includes(playerId)) {
-    room.state.readyPlayers.push(playerId);
-  }
+    if (!room.state.readyPlayers.includes(playerId)) {
+      room.state.readyPlayers.push(playerId);
+    }
 
-  const players = getPlayersArray(room);
-  if (room.state.readyPlayers.length >= players.length) {
-    const level = getLevel(room.state.levelId);
-    if (!level) return;
+    const players = getPlayersArray(room);
+    if (room.state.readyPlayers.length >= players.length) {
+      const level = getLevel(room.state.levelId);
+      if (!level) return;
 
-    room.state.readyPlayers = [];
-    persistRoom(room);
-    startPuzzleBriefing(io, room, level, room.state.currentPuzzleIndex);
+      room.state.readyPlayers = [];
+      persistRoom(room).catch(err => logger.error("Failed to persist room on intro complete", { err, roomCode: room.code }));
+      startPuzzleBriefing(io, room, level, room.state.currentPuzzleIndex);
+    }
+  } catch (err) {
+    logger.error("Error handling level intro complete", { err, roomCode: room.code, playerId });
   }
 }
 
@@ -148,63 +157,71 @@ export function handleLevelIntroComplete(io: Server, room: Room, playerId: strin
  * Show briefing text before a puzzle starts
  */
 function startPuzzleBriefing(io: Server, room: Room, level: LevelConfig, puzzleIndex: number): void {
-  const puzzle = level.puzzles[puzzleIndex];
-  if (!puzzle) {
-    handleVictory(io, room);
-    return;
+  try {
+    const puzzle = level.puzzles[puzzleIndex];
+    if (!puzzle) {
+      handleVictory(io, room);
+      return;
+    }
+
+    room.state.phase = "briefing";
+    room.state.currentPuzzleIndex = puzzleIndex;
+    room.state.readyPlayers = [];
+    
+    persistRoom(room).catch(err => logger.error("Failed to persist room on briefing start", { err, roomCode: room.code }));
+
+    const players = getPlayersArray(room);
+
+    const briefingPayload: BriefingPayload = {
+      puzzleTitle: puzzle.title,
+      briefingText: puzzle.briefing,
+      puzzleIndex,
+      totalPuzzles: level.puzzles.length,
+      totalRoomPlayers: players.length,
+    };
+
+    io.to(room.code).emit(ServerEvents.PHASE_CHANGE, {
+      phase: "briefing",
+      puzzleIndex,
+    } as PhaseChangePayload);
+
+    io.to(room.code).emit(ServerEvents.BRIEFING, briefingPayload);
+  } catch (err) {
+    logger.error("Error starting puzzle briefing", { err, roomCode: room.code, puzzleIndex });
   }
-
-  room.state.phase = "briefing";
-  room.state.currentPuzzleIndex = puzzleIndex;
-  room.state.readyPlayers = [];
-  
-  persistRoom(room);
-
-  const players = getPlayersArray(room);
-
-  const briefingPayload: BriefingPayload = {
-    puzzleTitle: puzzle.title,
-    briefingText: puzzle.briefing,
-    puzzleIndex,
-    totalPuzzles: level.puzzles.length,
-    totalRoomPlayers: players.length,
-  };
-
-  io.to(room.code).emit(ServerEvents.PHASE_CHANGE, {
-    phase: "briefing",
-    puzzleIndex,
-  } as PhaseChangePayload);
-
-  io.to(room.code).emit(ServerEvents.BRIEFING, briefingPayload);
 }
 
 /**
  * Handle a player marking themselves as ready
  */
 export function handlePlayerReady(io: Server, room: Room, playerId: string): void {
-  // Only matters during the briefing phase
-  if (room.state.phase !== "briefing") return;
+  try {
+    // Only matters during the briefing phase
+    if (room.state.phase !== "briefing") return;
 
-  if (!room.state.readyPlayers.includes(playerId)) {
-    room.state.readyPlayers.push(playerId);
-    persistRoom(room);
-  }
+    if (!room.state.readyPlayers.includes(playerId)) {
+      room.state.readyPlayers.push(playerId);
+      persistRoom(room).catch(err => logger.error("Failed to persist room on player ready", { err, roomCode: room.code, playerId }));
+    }
 
-  const players = getPlayersArray(room);
-  
-  io.to(room.code).emit(ServerEvents.PLAYER_READY_UPDATE, {
-    readyCount: room.state.readyPlayers.length,
-    totalPlayers: players.length,
-  } as PlayerReadyUpdatePayload);
-
-  if (room.state.readyPlayers.length >= players.length) {
-    const level = getLevel(room.state.levelId);
-    if (!level) return;
+    const players = getPlayersArray(room);
     
-    // Clear ready players list
-    room.state.readyPlayers = [];
-    
-    startPuzzle(io, room, level, room.state.currentPuzzleIndex);
+    io.to(room.code).emit(ServerEvents.PLAYER_READY_UPDATE, {
+      readyCount: room.state.readyPlayers.length,
+      totalPlayers: players.length,
+    } as PlayerReadyUpdatePayload);
+
+    if (room.state.readyPlayers.length >= players.length) {
+      const level = getLevel(room.state.levelId);
+      if (!level) return;
+      
+      // Clear ready players list
+      room.state.readyPlayers = [];
+      
+      startPuzzle(io, room, level, room.state.currentPuzzleIndex);
+    }
+  } catch (err) {
+    logger.error("Error handling player ready", { err, roomCode: room.code, playerId });
   }
 }
 
@@ -212,74 +229,82 @@ export function handlePlayerReady(io: Server, room: Room, playerId: string): voi
  * Dev utility to jump to a specific puzzle
  */
 export function jumpToPuzzle(io: Server, room: Room, puzzleIndex: number): void {
-  const level = getLevel(room.state.levelId);
-  if (!level) return;
+  try {
+    const level = getLevel(room.state.levelId);
+    if (!level) return;
 
-  if (puzzleIndex < 0 || puzzleIndex >= level.puzzles.length) return;
+    if (puzzleIndex < 0 || puzzleIndex >= level.puzzles.length) return;
 
-  console.log(`[Engine] Jumping to puzzle ${puzzleIndex} in room ${room.code}`);
-  
-  // Clear any existing puzzle state
-  room.state.puzzleState = null;
-  persistRoom(room);
-  
-  startPuzzleBriefing(io, room, level, puzzleIndex);
+    logger.info(`[Engine] Jumping to puzzle ${puzzleIndex} in room ${room.code}`);
+    
+    // Clear any existing puzzle state
+    room.state.puzzleState = null;
+    persistRoom(room).catch(err => logger.error("Failed to persist room on jump", { err, roomCode: room.code }));
+    
+    startPuzzleBriefing(io, room, level, puzzleIndex);
+  } catch (err) {
+    logger.error("Error jumping to puzzle", { err, roomCode: room.code, puzzleIndex });
+  }
 }
 
 /**
  * Initialize and start a puzzle
  */
 function startPuzzle(io: Server, room: Room, level: LevelConfig, puzzleIndex: number): void {
-  const puzzleConfig = level.puzzles[puzzleIndex];
-  if (!puzzleConfig) return;
+  try {
+    const puzzleConfig = level.puzzles[puzzleIndex];
+    if (!puzzleConfig) return;
 
-  const handler = getPuzzleHandler(puzzleConfig.type);
-  if (!handler) {
-    console.error(`[Engine] No handler for puzzle type: ${puzzleConfig.type}`);
-    return;
-  }
-
-  const players = getPlayersArray(room);
-
-  // Assign roles for this puzzle
-  const roles = assignRoles(players, puzzleConfig);
-  room.state.roleAssignments = roles;
-
-  // Initialize puzzle state
-  const puzzleState = handler.init(players, puzzleConfig);
-  room.state.puzzleState = puzzleState;
-  room.state.phase = "playing";
-
-  persistRoom(room);
-
-  // Send each player their role-specific view
-  io.to(room.code).emit(ServerEvents.PHASE_CHANGE, {
-    phase: "playing",
-    puzzleIndex,
-  } as PhaseChangePayload);
-
-  io.to(room.code).emit(ServerEvents.ROLES_ASSIGNED, { roles });
-
-  for (const player of players) {
-    const role = roles.find((r) => r.playerId === player.id);
-    if (!role) continue;
-
-    const playerView = handler.getPlayerView(puzzleState, player.id, role.role, puzzleConfig);
-
-    const socket = getPlayerSocket(io, player.id);
-    if (socket) {
-      socket.emit(ServerEvents.PUZZLE_START, {
-        puzzleId: puzzleConfig.id,
-        puzzleType: puzzleConfig.type,
-        puzzleTitle: puzzleConfig.title,
-        roles,
-        playerView,
-        backgroundMusic: puzzleConfig.audio_cues?.background || level.audio_cues?.background,
-      } as PuzzleStartPayload);
+    const handler = getPuzzleHandler(puzzleConfig.type);
+    if (!handler) {
+      logger.error(`[Engine] No handler for puzzle type: ${puzzleConfig.type}`);
+      return;
     }
-  }
 
-  console.log(`[Engine] Puzzle ${puzzleIndex + 1}/${level.puzzles.length} started: ${puzzleConfig.title}`);
+    const players = getPlayersArray(room);
+
+    // Assign roles for this puzzle
+    const roles = assignRoles(players, puzzleConfig);
+    room.state.roleAssignments = roles;
+
+    // Initialize puzzle state
+    const puzzleState = handler.init(players, puzzleConfig);
+    room.state.puzzleState = puzzleState;
+    room.state.phase = "playing";
+
+    persistRoom(room).catch(err => logger.error("Failed to persist room on puzzle start", { err, roomCode: room.code }));
+
+    // Send each player their role-specific view
+    io.to(room.code).emit(ServerEvents.PHASE_CHANGE, {
+      phase: "playing",
+      puzzleIndex,
+    } as PhaseChangePayload);
+
+    io.to(room.code).emit(ServerEvents.ROLES_ASSIGNED, { roles });
+
+    for (const player of players) {
+      const role = roles.find((r) => r.playerId === player.id);
+      if (!role) continue;
+
+      const playerView = handler.getPlayerView(puzzleState, player.id, role.role, puzzleConfig);
+
+      const socket = getPlayerSocket(io, player.id);
+      if (socket) {
+        socket.emit(ServerEvents.PUZZLE_START, {
+          puzzleId: puzzleConfig.id,
+          puzzleType: puzzleConfig.type,
+          puzzleTitle: puzzleConfig.title,
+          roles,
+          playerView,
+          backgroundMusic: puzzleConfig.audio_cues?.background || level.audio_cues?.background,
+        } as PuzzleStartPayload);
+      }
+    }
+
+    logger.info(`[Engine] Puzzle ${puzzleIndex + 1}/${level.puzzles.length} started: ${puzzleConfig.title}`);
+  } catch (err) {
+    logger.error("Error starting puzzle", { err, roomCode: room.code, puzzleIndex });
+  }
 }
 
 /**
@@ -292,53 +317,57 @@ export function handlePuzzleAction(
   action: string,
   data: Record<string, unknown>
 ): void {
-  if (room.state.phase !== "playing" || !room.state.puzzleState) return;
+  try {
+    if (room.state.phase !== "playing" || !room.state.puzzleState) return;
 
-  const level = getLevel(room.state.levelId);
-  if (!level) return;
+    const level = getLevel(room.state.levelId);
+    if (!level) return;
 
-  const puzzleConfig = level.puzzles[room.state.currentPuzzleIndex];
-  if (!puzzleConfig) return;
+    const puzzleConfig = level.puzzles[room.state.currentPuzzleIndex];
+    if (!puzzleConfig) return;
 
-  const handler = getPuzzleHandler(puzzleConfig.type);
-  if (!handler) return;
+    const handler = getPuzzleHandler(puzzleConfig.type);
+    if (!handler) return;
 
-  // Process the action
-  const result = handler.handleAction(room.state.puzzleState, playerId, action, data);
-  room.state.puzzleState = result.state;
-  
-  persistRoom(room);
+    // Process the action
+    const result = handler.handleAction(room.state.puzzleState, playerId, action, data);
+    room.state.puzzleState = result.state;
+    
+    persistRoom(room).catch(err => logger.error("Failed to persist room on puzzle action", { err, roomCode: room.code }));
 
-  // Apply glitch penalty
-  if (result.glitchDelta > 0) {
-    addGlitch(io, room, result.glitchDelta);
-  }
-
-  // Send updated views to all players
-  const players = getPlayersArray(room);
-  for (const player of players) {
-    const role = room.state.roleAssignments.find((r) => r.playerId === player.id);
-    if (!role) continue;
-
-    const playerView = handler.getPlayerView(
-      room.state.puzzleState,
-      player.id,
-      role.role,
-      puzzleConfig
-    );
-
-    const socket = getPlayerSocket(io, player.id);
-    if (socket) {
-      socket.emit(ServerEvents.PUZZLE_UPDATE, {
-        puzzleId: puzzleConfig.id,
-        playerView,
-      } as PuzzleUpdatePayload);
+    // Apply glitch penalty
+    if (result.glitchDelta > 0) {
+      addGlitch(io, room, result.glitchDelta);
     }
-  }
 
-  // Check win condition
-  if (handler.checkWin(room.state.puzzleState)) {
-    handlePuzzleComplete(io, room, level);
+    // Send updated views to all players
+    const players = getPlayersArray(room);
+    for (const player of players) {
+      const role = room.state.roleAssignments.find((r) => r.playerId === player.id);
+      if (!role) continue;
+
+      const playerView = handler.getPlayerView(
+        room.state.puzzleState,
+        player.id,
+        role.role,
+        puzzleConfig
+      );
+
+      const socket = getPlayerSocket(io, player.id);
+      if (socket) {
+        socket.emit(ServerEvents.PUZZLE_UPDATE, {
+          puzzleId: puzzleConfig.id,
+          playerView,
+        } as PuzzleUpdatePayload);
+      }
+    }
+
+    // Check win condition
+    if (handler.checkWin(room.state.puzzleState)) {
+      handlePuzzleComplete(io, room, level);
+    }
+  } catch (err) {
+    logger.error("Error handling puzzle action", { err, roomCode: room.code, playerId, action });
   }
 }
 
@@ -346,57 +375,65 @@ export function handlePuzzleAction(
  * Handle puzzle completion — advance to next or victory
  */
 function handlePuzzleComplete(io: Server, room: Room, level: LevelConfig): void {
-  const puzzleConfig = level.puzzles[room.state.currentPuzzleIndex];
-  if (puzzleConfig) {
-    room.state.completedPuzzles.push(puzzleConfig.id);
-  }
-  
-  persistRoom(room);
-
-  const nextIndex = room.state.currentPuzzleIndex + 1;
-
-  io.to(room.code).emit(ServerEvents.PUZZLE_COMPLETED, {
-    puzzleId: puzzleConfig?.id ?? "",
-    puzzleIndex: room.state.currentPuzzleIndex,
-    totalPuzzles: level.puzzles.length,
-  } as PuzzleCompletedPayload);
-
-  // Transition pause before next puzzle
-  room.state.phase = "puzzle_transition";
-  io.to(room.code).emit(ServerEvents.PHASE_CHANGE, {
-    phase: "puzzle_transition",
-    puzzleIndex: room.state.currentPuzzleIndex,
-  } as PhaseChangePayload);
-
-  persistRoom(room);
-
-  setTimeout(() => {
-    if (nextIndex >= level.puzzles.length) {
-      handleVictory(io, room);
-    } else {
-      startPuzzleBriefing(io, room, level, nextIndex);
+  try {
+    const puzzleConfig = level.puzzles[room.state.currentPuzzleIndex];
+    if (puzzleConfig) {
+      room.state.completedPuzzles.push(puzzleConfig.id);
     }
-  }, 3000);
+    
+    persistRoom(room).catch(err => logger.error("Failed to persist room on puzzle complete", { err, roomCode: room.code }));
+
+    const nextIndex = room.state.currentPuzzleIndex + 1;
+
+    io.to(room.code).emit(ServerEvents.PUZZLE_COMPLETED, {
+      puzzleId: puzzleConfig?.id ?? "",
+      puzzleIndex: room.state.currentPuzzleIndex,
+      totalPuzzles: level.puzzles.length,
+    } as PuzzleCompletedPayload);
+
+    // Transition pause before next puzzle
+    room.state.phase = "puzzle_transition";
+    io.to(room.code).emit(ServerEvents.PHASE_CHANGE, {
+      phase: "puzzle_transition",
+      puzzleIndex: room.state.currentPuzzleIndex,
+    } as PhaseChangePayload);
+
+    persistRoom(room).catch(err => logger.error("Failed to persist room on puzzle transition", { err, roomCode: room.code }));
+
+    setTimeout(() => {
+      if (nextIndex >= level.puzzles.length) {
+        handleVictory(io, room);
+      } else {
+        startPuzzleBriefing(io, room, level, nextIndex);
+      }
+    }, 3000);
+  } catch (err) {
+    logger.error("Error handling puzzle complete", { err, roomCode: room.code });
+  }
 }
 
 /**
  * Add glitch and check for defeat
  */
 function addGlitch(io: Server, room: Room, delta: number): void {
-  room.state.glitch.value = Math.min(
-    room.state.glitch.value + delta,
-    room.state.glitch.maxValue
-  );
+  try {
+    room.state.glitch.value = Math.min(
+      room.state.glitch.value + delta,
+      room.state.glitch.maxValue
+    );
 
-  persistRoom(room);
+    persistRoom(room).catch(err => logger.error("Failed to persist room on glitch update", { err, roomCode: room.code }));
 
-  io.to(room.code).emit(ServerEvents.GLITCH_UPDATE, {
-    glitch: room.state.glitch,
-  } as GlitchUpdatePayload);
+    io.to(room.code).emit(ServerEvents.GLITCH_UPDATE, {
+      glitch: room.state.glitch,
+    } as GlitchUpdatePayload);
 
-  // Check for glitch defeat
-  if (room.state.glitch.value >= room.state.glitch.maxValue) {
-    handleDefeat(io, room, "glitch");
+    // Check for glitch defeat
+    if (room.state.glitch.value >= room.state.glitch.maxValue) {
+      handleDefeat(io, room, "glitch");
+    }
+  } catch (err) {
+    logger.error("Error adding glitch", { err, roomCode: room.code, delta });
   }
 }
 
@@ -404,62 +441,76 @@ function addGlitch(io: Server, room: Room, delta: number): void {
  * Handle victory
  */
 function handleVictory(io: Server, room: Room): void {
-  room.state.phase = "victory";
-  persistRoom(room);
-  const timer = roomTimers.get(room.code);
-  timer?.stop();
+  try {
+    room.state.phase = "victory";
+    persistRoom(room).catch(err => logger.error("Failed to persist room on victory", { err, roomCode: room.code }));
+    
+    const timer = roomTimers.get(room.code);
+    timer?.stop();
 
-  const elapsed = room.state.startedAt
-    ? Math.floor((Date.now() - room.state.startedAt) / 1000)
-    : 0;
+    const elapsed = room.state.startedAt
+      ? Math.floor((Date.now() - room.state.startedAt) / 1000)
+      : 0;
 
-  io.to(room.code).emit(ServerEvents.PHASE_CHANGE, {
-    phase: "victory",
-    puzzleIndex: room.state.currentPuzzleIndex,
-  } as PhaseChangePayload);
+    io.to(room.code).emit(ServerEvents.PHASE_CHANGE, {
+      phase: "victory",
+      puzzleIndex: room.state.currentPuzzleIndex,
+    } as PhaseChangePayload);
 
-  io.to(room.code).emit(ServerEvents.VICTORY, {
-    elapsedSeconds: elapsed,
-    glitchFinal: room.state.glitch.value,
-    puzzlesCompleted: room.state.completedPuzzles.length,
-  } as VictoryPayload);
+    io.to(room.code).emit(ServerEvents.VICTORY, {
+      elapsedSeconds: elapsed,
+      glitchFinal: room.state.glitch.value,
+      puzzlesCompleted: room.state.completedPuzzles.length,
+    } as VictoryPayload);
 
-  console.log(`[Engine] VICTORY! Room ${room.code} completed in ${elapsed}s`);
-  cleanupRoom(room.code);
+    logger.info(`[Engine] VICTORY! Room ${room.code} completed in ${elapsed}s`);
+    cleanupRoom(room.code);
+  } catch (err) {
+    logger.error("Error handling victory", { err, roomCode: room.code });
+  }
 }
 
 /**
  * Handle defeat
  */
 function handleDefeat(io: Server, room: Room, reason: "timer" | "glitch"): void {
-  room.state.phase = "defeat";
-  persistRoom(room);
-  const timer = roomTimers.get(room.code);
-  timer?.stop();
+  try {
+    room.state.phase = "defeat";
+    persistRoom(room).catch(err => logger.error("Failed to persist room on defeat", { err, roomCode: room.code }));
+    
+    const timer = roomTimers.get(room.code);
+    timer?.stop();
 
-  io.to(room.code).emit(ServerEvents.PHASE_CHANGE, {
-    phase: "defeat",
-    puzzleIndex: room.state.currentPuzzleIndex,
-  } as PhaseChangePayload);
+    io.to(room.code).emit(ServerEvents.PHASE_CHANGE, {
+      phase: "defeat",
+      puzzleIndex: room.state.currentPuzzleIndex,
+    } as PhaseChangePayload);
 
-  io.to(room.code).emit(ServerEvents.DEFEAT, {
-    reason,
-    puzzlesCompleted: room.state.completedPuzzles.length,
-    puzzleReachedIndex: room.state.currentPuzzleIndex,
-  } as DefeatPayload);
+    io.to(room.code).emit(ServerEvents.DEFEAT, {
+      reason,
+      puzzlesCompleted: room.state.completedPuzzles.length,
+      puzzleReachedIndex: room.state.currentPuzzleIndex,
+    } as DefeatPayload);
 
-  console.log(`[Engine] DEFEAT! Room ${room.code} — reason: ${reason}`);
-  cleanupRoom(room.code);
+    logger.info(`[Engine] DEFEAT! Room ${room.code} — reason: ${reason}`);
+    cleanupRoom(room.code);
+  } catch (err) {
+    logger.error("Error handling defeat", { err, roomCode: room.code, reason });
+  }
 }
 
 /**
  * Cleanup room resources
  */
 function cleanupRoom(roomCode: string): void {
-  const timer = roomTimers.get(roomCode);
-  if (timer) {
-    timer.destroy();
-    roomTimers.delete(roomCode);
+  try {
+    const timer = roomTimers.get(roomCode);
+    if (timer) {
+      timer.destroy();
+      roomTimers.delete(roomCode);
+    }
+  } catch (err) {
+    logger.error("Error cleaning up room", { err, roomCode });
   }
 }
 
@@ -467,26 +518,30 @@ function cleanupRoom(roomCode: string): void {
  * Resume timers for all rooms (called on server startup)
  */
 export function resumeRoomTimers(io: Server): void {
-  const rooms = getAllRooms();
+  try {
+    const rooms = getAllRooms();
 
-  for (const room of rooms) {
-    if (room.state.timer.running && room.state.timer.remainingSeconds > 0) {
-      console.log(`[Engine] Resuming timer for room ${room.code} (${room.state.timer.remainingSeconds}s left)`);
-      
-      const timer = new GameTimer(
-        room.state.timer.totalSeconds,
-        (timerState) => {
-          room.state.timer = timerState;
-          io.to(room.code).emit(ServerEvents.TIMER_UPDATE, { timer: timerState } as TimerUpdatePayload);
-        },
-        (_timerState) => {
-          handleDefeat(io, room, "timer");
-        }
-      );
-      timer.setRemainingSeconds(room.state.timer.remainingSeconds);
-      roomTimers.set(room.code, timer);
-      timer.start();
+    for (const room of rooms) {
+      if (room.state.timer.running && room.state.timer.remainingSeconds > 0) {
+        logger.info(`[Engine] Resuming timer for room ${room.code} (${room.state.timer.remainingSeconds}s left)`);
+        
+        const timer = new GameTimer(
+          room.state.timer.totalSeconds,
+          (timerState) => {
+            room.state.timer = timerState;
+            io.to(room.code).emit(ServerEvents.TIMER_UPDATE, { timer: timerState } as TimerUpdatePayload);
+          },
+          (_timerState) => {
+            handleDefeat(io, room, "timer");
+          }
+        );
+        timer.setRemainingSeconds(room.state.timer.remainingSeconds);
+        roomTimers.set(room.code, timer);
+        timer.start();
+      }
     }
+  } catch (err) {
+    logger.error("Error resuming room timers", { err });
   }
 }
 
@@ -494,63 +549,67 @@ export function resumeRoomTimers(io: Server): void {
  * Sync all necessary state to a re-joining or late-joining player
  */
 export function syncPlayer(io: Server, room: Room, socket: Socket): void {
-  const level = getLevel(room.state.levelId);
-  if (!level) return;
+  try {
+    const level = getLevel(room.state.levelId);
+    if (!level) return;
 
-  // 1. Mission context
-  socket.emit(ServerEvents.GAME_STARTED, {
-    levelId: level.id,
-    levelTitle: level.title,
-    levelStory: level.story,
-    levelIntroAudio: level.audio_cues?.intro,
-    backgroundMusic: level.audio_cues?.background,
-    themeCss: level.theme_css || ["themes/cyberpunk-greek.css"],
-    totalPuzzles: level.puzzles.length,
-    timerSeconds: level.timer_seconds,
-  } as GameStartedPayload);
+    // 1. Mission context
+    socket.emit(ServerEvents.GAME_STARTED, {
+      levelId: level.id,
+      levelTitle: level.title,
+      levelStory: level.story,
+      levelIntroAudio: level.audio_cues?.intro,
+      backgroundMusic: level.audio_cues?.background,
+      themeCss: level.theme_css || ["themes/cyberpunk-greek.css"],
+      totalPuzzles: level.puzzles.length,
+      timerSeconds: level.timer_seconds,
+    } as GameStartedPayload);
 
-  // 2. Current phase
-  socket.emit(ServerEvents.PHASE_CHANGE, {
-    phase: room.state.phase,
-    puzzleIndex: room.state.currentPuzzleIndex,
-  } as PhaseChangePayload);
+    // 2. Current phase
+    socket.emit(ServerEvents.PHASE_CHANGE, {
+      phase: room.state.phase,
+      puzzleIndex: room.state.currentPuzzleIndex,
+    } as PhaseChangePayload);
 
-  // 3. Phase-specific data
-  if (room.state.phase === "briefing") {
-    const puzzle = level.puzzles[room.state.currentPuzzleIndex];
-    if (puzzle) {
-      socket.emit(ServerEvents.BRIEFING, {
-        puzzleTitle: puzzle.title,
-        briefingText: puzzle.briefing,
-        puzzleIndex: room.state.currentPuzzleIndex,
-        totalPuzzles: level.puzzles.length,
-        totalRoomPlayers: room.players.size,
-      } as BriefingPayload);
+    // 3. Phase-specific data
+    if (room.state.phase === "briefing") {
+      const puzzle = level.puzzles[room.state.currentPuzzleIndex];
+      if (puzzle) {
+        socket.emit(ServerEvents.BRIEFING, {
+          puzzleTitle: puzzle.title,
+          briefingText: puzzle.briefing,
+          puzzleIndex: room.state.currentPuzzleIndex,
+          totalPuzzles: level.puzzles.length,
+          totalRoomPlayers: room.players.size,
+        } as BriefingPayload);
+      }
     }
-  }
 
-  if (room.state.phase === "playing" && room.state.puzzleState) {
-    const puzzleConfig = level.puzzles[room.state.currentPuzzleIndex];
-    const handler = puzzleConfig ? getPuzzleHandler(puzzleConfig.type) : null;
-    const role = room.state.roleAssignments.find((r) => r.playerId === socket.id);
+    if (room.state.phase === "playing" && room.state.puzzleState) {
+      const puzzleConfig = level.puzzles[room.state.currentPuzzleIndex];
+      const handler = puzzleConfig ? getPuzzleHandler(puzzleConfig.type) : null;
+      const role = room.state.roleAssignments.find((r) => r.playerId === socket.id);
 
-    if (puzzleConfig && handler && role) {
-      const playerView = handler.getPlayerView(
-        room.state.puzzleState,
-        socket.id,
-        role.role,
-        puzzleConfig
-      );
+      if (puzzleConfig && handler && role) {
+        const playerView = handler.getPlayerView(
+          room.state.puzzleState,
+          socket.id,
+          role.role,
+          puzzleConfig
+        );
 
-      socket.emit(ServerEvents.PUZZLE_START, {
-        puzzleId: puzzleConfig.id,
-        puzzleType: puzzleConfig.type,
-        puzzleTitle: puzzleConfig.title,
-        roles: room.state.roleAssignments,
-        playerView,
-        backgroundMusic: (puzzleConfig.audio_cues?.background || level.audio_cues?.background) as string,
-      } as PuzzleStartPayload);
+        socket.emit(ServerEvents.PUZZLE_START, {
+          puzzleId: puzzleConfig.id,
+          puzzleType: puzzleConfig.type,
+          puzzleTitle: puzzleConfig.title,
+          roles: room.state.roleAssignments,
+          playerView,
+          backgroundMusic: (puzzleConfig.audio_cues?.background || level.audio_cues?.background) as string,
+        } as PuzzleStartPayload);
+      }
     }
+  } catch (err) {
+    logger.error("Error syncing player", { err, roomCode: room.code, socketId: socket.id });
   }
 }
 
@@ -566,30 +625,35 @@ function getPlayerSocket(io: Server, playerId: string): Socket | undefined {
  * Get all player views (for debug mode)
  */
 export function getAllPlayerViews(room: Room): PlayerView[] {
-  if (!room.state.puzzleState) return [];
+  try {
+    if (!room.state.puzzleState) return [];
 
-  const level = getLevel(room.state.levelId);
-  if (!level) return [];
+    const level = getLevel(room.state.levelId);
+    if (!level) return [];
 
-  const puzzleConfig = level.puzzles[room.state.currentPuzzleIndex];
-  if (!puzzleConfig) return [];
+    const puzzleConfig = level.puzzles[room.state.currentPuzzleIndex];
+    if (!puzzleConfig) return [];
 
-  const handler = getPuzzleHandler(puzzleConfig.type);
-  if (!handler) return [];
+    const handler = getPuzzleHandler(puzzleConfig.type);
+    if (!handler) return [];
 
-  const views: PlayerView[] = [];
-  const roles = room.state.roleAssignments;
+    const views: PlayerView[] = [];
+    const roles = room.state.roleAssignments;
 
-  // Generate one view per unique role
-  const seenRoles = new Set<string>();
-  for (const role of roles) {
-    if (seenRoles.has(role.role)) continue;
-    seenRoles.add(role.role);
+    // Generate one view per unique role
+    const seenRoles = new Set<string>();
+    for (const role of roles) {
+      if (seenRoles.has(role.role)) continue;
+      seenRoles.add(role.role);
 
-    views.push(
-      handler.getPlayerView(room.state.puzzleState, role.playerId, role.role, puzzleConfig)
-    );
+      views.push(
+        handler.getPlayerView(room.state.puzzleState, role.playerId, role.role, puzzleConfig)
+      );
+    }
+
+    return views;
+  } catch (err) {
+    logger.error("Error getting all player views", { err, roomCode: room.code });
+    return [];
   }
-
-  return views;
 }

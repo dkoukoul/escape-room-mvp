@@ -31,188 +31,225 @@ import { initBriefing } from "./screens/briefing.ts";
 import { initPuzzleScreen } from "./screens/puzzle.ts";
 import { initResults } from "./screens/results.ts";
 
+import logger from "./logger.ts";
+
 // ---- Boot ----
 async function boot() {
-  // ---- Global resume on first interaction ----
-  const resume = () => {
-    resumeContext();
-    window.removeEventListener("mousedown", resume);
-    window.removeEventListener("keydown", resume);
-  };
-  window.addEventListener("mousedown", resume);
-  window.addEventListener("keydown", resume);
-
-  console.log("⚡ Project ODYSSEY — Cyber-Hoplite Protocol");
-  console.log("   Initializing systems...");
-
-  // Connect to server
-  connect();
-
-  // Preload audio (failures are silent)
-  await preloadSounds();
-
-  // Initialize screens
-  initLobby();
-  initLevelIntro();
-  initBriefing();
-  initPuzzleScreen();
-  initResults();
-
-  // ---- Mute Toggle ----
-  const muteBtn = $("#hud-mute-btn");
-  if (muteBtn) {
-    const updateIcon = (muted: boolean) => {
-      muteBtn.textContent = muted ? "🔇" : "🔊";
-      muteBtn.classList.toggle("muted", muted);
+  try {
+    // ---- Global resume on first interaction ----
+    const resume = () => {
+      resumeContext();
+      window.removeEventListener("mousedown", resume);
+      window.removeEventListener("keydown", resume);
     };
-    
-    updateIcon(getMuteState());
-    
-    muteBtn.onclick = () => {
-      const isMuted = toggleMute();
-      updateIcon(isMuted);
-    };
-  }
+    window.addEventListener("mousedown", resume);
+    window.addEventListener("keydown", resume);
 
-  // ---- Global HUD updates ----
+    logger.info("⚡ Project ODYSSEY — Cyber-Hoplite Protocol");
+    logger.info("   Initializing systems...");
 
-  // Timer updates
-  on(ServerEvents.TIMER_UPDATE, (data: TimerUpdatePayload) => {
-    const { remainingSeconds } = data.timer;
-    const minutes = Math.floor(remainingSeconds / 60);
-    const seconds = remainingSeconds % 60;
-    const timerEl = $("#hud-timer-value");
-    if (timerEl) {
-      timerEl.textContent = `${minutes}:${String(seconds).padStart(2, "0")}`;
+    // Connect to server
+    connect();
+
+    // Preload audio (failures are recorded but don't stop boot)
+    preloadSounds().catch(err => logger.warn("Failed to preload sounds", { err }));
+
+    // Initialize screens
+    initLobby();
+    initLevelIntro();
+    initBriefing();
+    initPuzzleScreen();
+    initResults();
+
+    // ---- Mute Toggle ----
+    const muteBtn = $("#hud-mute-btn");
+    if (muteBtn) {
+      const updateIcon = (muted: boolean) => {
+        muteBtn.textContent = muted ? "🔇" : "🔊";
+        muteBtn.classList.toggle("muted", muted);
+      };
+      
+      updateIcon(getMuteState());
+      
+      muteBtn.onclick = () => {
+        const isMuted = toggleMute();
+        updateIcon(isMuted);
+      };
     }
 
-    // Color warning when low time
-    if (remainingSeconds <= 60) {
-      timerEl?.style.setProperty("color", "var(--neon-red)");
-      if (remainingSeconds <= 10) playTick();
-    }
-  });
+    // ---- Global HUD updates ----
 
-  // Glitch updates
-  on(ServerEvents.GLITCH_UPDATE, (data: GlitchUpdatePayload) => {
-    const { value, maxValue } = data.glitch;
-    const percent = (value / maxValue) * 100;
+    // Timer updates
+    on(ServerEvents.TIMER_UPDATE, (data: TimerUpdatePayload) => {
+      try {
+        const { remainingSeconds } = data.timer;
+        const minutes = Math.floor(remainingSeconds / 60);
+        const seconds = remainingSeconds % 60;
+        const timerEl = $("#hud-timer-value");
+        if (timerEl) {
+          timerEl.textContent = `${minutes}:${String(seconds).padStart(2, "0")}`;
+        }
 
-    // Update HUD bar
-    const fill = $("#hud-glitch-fill");
-    if (fill) fill.style.width = `${percent}%`;
-
-    // Update CSS glitch intensity
-    const intensity = value / maxValue;
-    document.documentElement.style.setProperty("--glitch-intensity", String(intensity));
-
-    // Screen shake on glitch increase
-    if (intensity > 0.1) {
-      const app = $("#app");
-      if (app) {
-        app.classList.add("screen-shake");
-        setTimeout(() => app.classList.remove("screen-shake"), 300);
+        // Color warning when low time
+        if (remainingSeconds <= 60) {
+          timerEl?.style.setProperty("color", "var(--neon-red)");
+          if (remainingSeconds <= 10) playTick();
+        }
+      } catch (err) {
+        logger.error("Error updating timer HUD", { err, data });
       }
-      playGlitchHit();
-    }
-  });
+    });
 
-  // Phase changes
-  on(ServerEvents.PHASE_CHANGE, (data: PhaseChangePayload) => {
-    // Update puzzle progress in HUD
-    const progressEl = $("#hud-progress-value");
-    if (progressEl) progressEl.textContent = `${data.puzzleIndex + 1}/5`;
+    // Glitch updates
+    on(ServerEvents.GLITCH_UPDATE, (data: GlitchUpdatePayload) => {
+      try {
+        const { value, maxValue } = data.glitch;
+        const percent = (value / maxValue) * 100;
 
-    // Play background music when first puzzle starts (if not already playing)
-    if (data.phase === "playing" && activeBackgroundMusic) {
-      playBackgroundMusic(activeBackgroundMusic);
-    }
-    
-    // Stop music and remove theme on game end
-    if (data.phase === "victory" || data.phase === "defeat" || data.phase === "lobby") {
-      stopBackgroundMusic();
-      activeBackgroundMusic = null;
-      removeTheme();
-    }
-  });
+        // Update HUD bar
+        const fill = $("#hud-glitch-fill");
+        if (fill) fill.style.width = `${percent}%`;
 
-  // Handle game start to store music and apply theme
-  on(ServerEvents.GAME_STARTED, (data: GameStartedPayload) => {
-    if (data.backgroundMusic) {
-      activeBackgroundMusic = data.backgroundMusic;
-      loadSound(data.backgroundMusic).catch(console.warn);
-    }
-    if (data.themeCss) {
-      applyTheme(data.themeCss);
-    }
-  });
+        // Update CSS glitch intensity
+        const intensity = value / maxValue;
+        document.documentElement.style.setProperty("--glitch-intensity", String(intensity));
 
-  // Handle per-puzzle music updates
-  on(ServerEvents.PUZZLE_START, (data: PuzzleStartPayload) => {
-    if (data.backgroundMusic) {
-      activeBackgroundMusic = data.backgroundMusic;
-      playBackgroundMusic(data.backgroundMusic);
-    }
-  });
-
-  // Puzzle completed
-  on(ServerEvents.PUZZLE_COMPLETED, (_data: PuzzleCompletedPayload) => {
-    // Brief celebration effect
-    const app = $("#app");
-    if (app) {
-      app.style.transition = "filter 0.5s ease";
-      app.style.filter = "brightness(1.3) saturate(1.5)";
-      setTimeout(() => {
-        app.style.filter = "";
-      }, 800);
-    }
-  });
-
-  // Start on lobby
-  showScreen("lobby");
-  showHUD(false);
-
-  // ---- Dev Tools — URL Jumping ----
-  const checkUrlForJump = () => {
-    const params = new URLSearchParams(window.location.search);
-    const hash = window.location.hash;
-    
-    // Try ?puzzle=N or #puzzle=N (1-indexed for humans)
-    let puzzleStr = params.get("puzzle") || (hash.startsWith("#puzzle=") ? hash.replace("#puzzle=", "") : null);
-    
-    if (puzzleStr) {
-      const puzzleIndex = parseInt(puzzleStr) - 1;
-      if (!isNaN(puzzleIndex)) {
-        // Wait until we are actually in a room before sending the jump
-        const waitForRoom = setInterval(() => {
-          const roomCode = localStorage.getItem("odyssey_room_code");
-          if (roomCode) {
-            clearInterval(waitForRoom);
-            console.log(`[Dev] URL detected puzzle jump to: ${puzzleIndex + 1} (Room: ${roomCode})`);
-            emit(ClientEvents.JUMP_TO_PUZZLE, { puzzleIndex });
+        // Screen shake on glitch increase
+        if (intensity > 0.1) {
+          const app = $("#app");
+          if (app) {
+            app.classList.add("screen-shake");
+            setTimeout(() => app.classList.remove("screen-shake"), 300);
           }
-        }, 500);
-        
-        // Timeout after 10s if no room found
-        setTimeout(() => clearInterval(waitForRoom), 10000);
+          playGlitchHit();
+        }
+      } catch (err) {
+        logger.error("Error updating glitch HUD", { err, data });
       }
-    }
-  };
+    });
 
-  // Check on boot with a delay to allow auto-join
-  setTimeout(checkUrlForJump, 2000);
+    // Phase changes
+    on(ServerEvents.PHASE_CHANGE, (data: PhaseChangePayload) => {
+      try {
+        // Update puzzle progress in HUD
+        const progressEl = $("#hud-progress-value");
+        if (progressEl) progressEl.textContent = `${data.puzzleIndex + 1}/5`;
 
-  // Check on hash change (without reload)
-  window.addEventListener("hashchange", checkUrlForJump);
+        // Play background music when first puzzle starts (if not already playing)
+        if (data.phase === "playing" && activeBackgroundMusic) {
+          playBackgroundMusic(activeBackgroundMusic);
+        }
+        
+        // Stop music and remove theme on game end
+        if (data.phase === "victory" || data.phase === "defeat" || data.phase === "lobby") {
+          stopBackgroundMusic();
+          activeBackgroundMusic = null;
+          removeTheme();
+        }
+      } catch (err) {
+        logger.error("Error handling phase change", { err, data });
+      }
+    });
 
-  (window as any).jumpToPuzzle = (index: number) => {
-    emit(ClientEvents.JUMP_TO_PUZZLE, { puzzleIndex: index });
-    console.log(`[Dev] Jumping to puzzle index: ${index}`);
-  };
+    // Handle game start to store music and apply theme
+    on(ServerEvents.GAME_STARTED, (data: GameStartedPayload) => {
+      try {
+        if (data.backgroundMusic) {
+          activeBackgroundMusic = data.backgroundMusic;
+          loadSound(data.backgroundMusic).catch(err => logger.warn(`Failed to load background music: ${data.backgroundMusic}`, { err }));
+        }
+        if (data.themeCss) {
+          applyTheme(data.themeCss);
+        }
+      } catch (err) {
+        logger.error("Error handling game started event", { err, data });
+      }
+    });
 
-  console.log("   Systems online. Ready for deployment.");
+    // Handle per-puzzle music updates
+    on(ServerEvents.PUZZLE_START, (data: PuzzleStartPayload) => {
+      try {
+        if (data.backgroundMusic) {
+          activeBackgroundMusic = data.backgroundMusic;
+          playBackgroundMusic(data.backgroundMusic);
+        }
+      } catch (err) {
+        logger.error("Error handling puzzle start event", { err, data });
+      }
+    });
 
+    // Puzzle completed
+    on(ServerEvents.PUZZLE_COMPLETED, (_data: PuzzleCompletedPayload) => {
+      try {
+        // Brief celebration effect
+        const app = $("#app");
+        if (app) {
+          app.style.transition = "filter 0.5s ease";
+          app.style.filter = "brightness(1.3) saturate(1.5)";
+          setTimeout(() => {
+            app.style.filter = "";
+          }, 800);
+        }
+      } catch (err) {
+        logger.error("Error handling puzzle completed effect", { err });
+      }
+    });
+
+    // Start on lobby
+    showScreen("lobby");
+    showHUD(false);
+
+    // ---- Dev Tools — URL Jumping ----
+    const checkUrlForJump = () => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const hash = window.location.hash;
+        
+        // Try ?puzzle=N or #puzzle=N (1-indexed for humans)
+        let puzzleStr = params.get("puzzle") || (hash.startsWith("#puzzle=") ? hash.replace("#puzzle=", "") : null);
+        
+        if (puzzleStr) {
+          const puzzleIndex = parseInt(puzzleStr) - 1;
+          if (!isNaN(puzzleIndex)) {
+            // Wait until we are actually in a room before sending the jump
+            const waitForRoom = setInterval(() => {
+              const roomCode = localStorage.getItem("odyssey_room_code");
+              if (roomCode) {
+                clearInterval(waitForRoom);
+                logger.info(`[Dev] URL detected puzzle jump to: ${puzzleIndex + 1} (Room: ${roomCode})`);
+                emit(ClientEvents.JUMP_TO_PUZZLE, { puzzleIndex });
+              }
+            }, 500);
+            
+            // Timeout after 10s if no room found
+            setTimeout(() => clearInterval(waitForRoom), 10000);
+          }
+        }
+      } catch (err) {
+        logger.error("Error in checkUrlForJump", { err });
+      }
+    };
+
+    // Check on boot with a delay to allow auto-join
+    setTimeout(checkUrlForJump, 2000);
+
+    // Check on hash change (without reload)
+    window.addEventListener("hashchange", checkUrlForJump);
+
+    (window as any).jumpToPuzzle = (index: number) => {
+      try {
+        emit(ClientEvents.JUMP_TO_PUZZLE, { puzzleIndex: index });
+        logger.info(`[Dev] Jumping to puzzle index: ${index}`);
+      } catch (err) {
+        logger.error("Error jumping to puzzle", { err, index });
+      }
+    };
+
+    logger.info("   Systems online. Ready for deployment.");
+  } catch (err) {
+    logger.error("Failed to boot client application", { err });
+  }
 }
 
 // ---- Start ----
-boot().catch(console.error);
+boot();

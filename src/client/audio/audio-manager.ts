@@ -11,6 +11,7 @@ const rawBuffers = new Map<string, ArrayBuffer>();
 const audioBuffers = new Map<string, AudioBuffer>();
 const ASSETS_PATH = "/assets/audio/";
 import { zzfx } from "zzfx";
+import logger from "../logger.ts";
 
 /**
  * Get or create the audio context
@@ -38,9 +39,9 @@ export async function resumeContext(): Promise<void> {
         // Use a slice to avoid neutering the buffer in the map
         const decoded = await ctx.decodeAudioData(buffer.slice(0));
         audioBuffers.set(name, decoded);
-        console.log(`[Audio] Decoded on resume: ${name}`);
+        logger.debug(`[Audio] Decoded on resume: ${name}`);
       } catch (err) {
-        console.warn(`[Audio] Failed to decode ${name} on resume:`, err);
+        logger.warn(`[Audio] Failed to decode ${name} on resume:`, { err });
       }
     }
   }
@@ -64,7 +65,7 @@ export async function loadSound(nameOrUrl: string, name?: string): Promise<void>
     
     // Store raw buffer for later decoding
     rawBuffers.set(soundName, arrayBuffer);
-    console.log(`[Audio] Fetched: ${soundName}`);
+    logger.debug(`[Audio] Fetched: ${soundName}`);
 
     // If context is already active, decode immediately
     if (audioContext && audioContext.state === "running") {
@@ -72,7 +73,7 @@ export async function loadSound(nameOrUrl: string, name?: string): Promise<void>
       audioBuffers.set(soundName, decoded);
     }
   } catch (err) {
-    console.warn(`[Audio] Could not load: ${soundName} from ${fullUrl}`, err);
+    logger.warn(`[Audio] Could not load: ${soundName} from ${fullUrl}`, { err });
   }
 }
 
@@ -85,7 +86,7 @@ export async function playSound(name: string, volume: number = 1.0): Promise<voi
   
   const buffer = audioBuffers.get(name);
   if (!buffer) {
-    console.warn(`[Audio] Sound not loaded or decoded: ${name}`);
+    logger.warn(`[Audio] Sound not loaded or decoded: ${name}`);
     return;
   }
 
@@ -255,13 +256,13 @@ export async function playBackgroundMusic(name: string, volume: number = 0.4): P
 
   let buffer = audioBuffers.get(name);
   if (!buffer) {
-    console.log(`[Audio] Music not in cache, loading: ${name}`);
+    logger.debug(`[Audio] Music not in cache, loading: ${name}`);
     await loadSound(name);
     buffer = audioBuffers.get(name);
   }
 
   if (!buffer) {
-    console.warn(`[Audio] Failed to load background music: ${name}`);
+    logger.warn(`[Audio] Failed to load background music: ${name}`);
     return;
   }
 
@@ -280,7 +281,7 @@ export async function playBackgroundMusic(name: string, volume: number = 0.4): P
   backgroundMusicSource.start(0);
 
   currentMusicName = name;
-  console.log(`[Audio] Started BGM: ${name}`);
+  logger.info(`[Audio] Started BGM: ${name}`);
 }
 
 /**
@@ -351,7 +352,7 @@ export async function playAudioFile(name: string, volume: number = 1.0): Promise
   
   const buffer = audioBuffers.get(name);
   if (!buffer) {
-    console.warn(`[Audio] Sound not loaded or decoded: ${name}`);
+    logger.warn(`[Audio] Sound not loaded or decoded: ${name}`);
     return;
   }
 

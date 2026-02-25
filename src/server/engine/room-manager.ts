@@ -4,6 +4,7 @@
 
 import type { Room, Player, GameState, GlitchState, TimerState } from "../../../shared/types.ts";
 import { RedisService } from "./redis-service.ts";
+import logger from "../logger.ts";
 
 // TODO: REDIS — move room storage to Redis for multi-instance deployment
 const rooms = new Map<string, Room>();
@@ -67,8 +68,12 @@ export async function createRoom(hostId: string, hostName: string): Promise<Room
   };
 
   rooms.set(code, room);
-  await RedisService.saveRoom(room);
-  console.log(`[RoomManager] Room created: ${code} by ${hostName}`);
+  try {
+    await RedisService.saveRoom(room);
+    logger.info(`[RoomManager] Room created: ${code} by ${hostName}`);
+  } catch (error) {
+    logger.error(`[RoomManager] Failed to save new room ${code}`, { error });
+  }
   return room;
 }
 
@@ -81,10 +86,14 @@ export async function joinRoom(
   
   // If not in memory, try loading from Redis
   if (!room) {
-    room = await RedisService.getRoom(roomCode);
-    if (room) {
-      rooms.set(roomCode, room);
-      console.log(`[RoomManager] Restored room ${roomCode} from Redis`);
+    try {
+      room = await RedisService.getRoom(roomCode);
+      if (room) {
+        rooms.set(roomCode, room);
+        logger.info(`[RoomManager] Restored room ${roomCode} from Redis`);
+      }
+    } catch (error) {
+      logger.error(`[RoomManager] Error restoring room ${roomCode} from Redis`, { error });
     }
   }
 
@@ -103,10 +112,14 @@ export async function joinRoom(
     room.players.set(playerId, existing);
     if (existing.isHost) room.hostId = playerId;
     
-    console.log(`[RoomManager] ${playerName} reconnected to ${roomCode}`);
-    await RedisService.saveRoom(room);
+    logger.info(`[RoomManager] ${playerName} reconnected to ${roomCode}`);
+    try {
+      await RedisService.saveRoom(room);
+    } catch (error) {
+      logger.error(`[RoomManager] Error saving room ${roomCode} after reconnection`, { error });
+    }
     return { room, player: existing };
-  }
+}
 
   if (room.players.size >= 6) return { error: "Room is full (max 6 players)" };
 
@@ -122,8 +135,12 @@ export async function joinRoom(
   room.players.set(playerId, player);
   if (player.isHost) room.hostId = playerId;
   
-  await RedisService.saveRoom(room);
-  console.log(`[RoomManager] ${playerName} joined room ${roomCode}`);
+  try {
+    await RedisService.saveRoom(room);
+    logger.info(`[RoomManager] ${playerName} joined room ${roomCode}`);
+  } catch (error) {
+    logger.error(`[RoomManager] Error saving room ${roomCode} after join`, { error });
+  }
   return { room, player };
 }
 
@@ -137,8 +154,12 @@ export async function leaveRoom(roomCode: string, playerId: string): Promise<Roo
   // If room is empty, destroy it
   if (room.players.size === 0) {
     rooms.delete(roomCode);
-    await RedisService.deleteRoom(roomCode);
-    console.log(`[RoomManager] Room ${roomCode} destroyed (empty)`);
+    try {
+      await RedisService.deleteRoom(roomCode);
+      logger.info(`[RoomManager] Room ${roomCode} destroyed (empty)`);
+    } catch (error) {
+      logger.error(`[RoomManager] Error deleting room ${roomCode} from Redis`, { error });
+    }
     return null;
   }
 
@@ -147,10 +168,14 @@ export async function leaveRoom(roomCode: string, playerId: string): Promise<Roo
     const newHost = room.players.values().next().value!;
     newHost.isHost = true;
     room.hostId = newHost.id;
-    console.log(`[RoomManager] New host: ${newHost.name}`);
+    logger.info(`[RoomManager] New host: ${newHost.name}`);
   }
 
-  await RedisService.saveRoom(room);
+  try {
+    await RedisService.saveRoom(room);
+  } catch (error) {
+    logger.error(`[RoomManager] Error saving room ${roomCode} after leave`, { error });
+  }
   return room;
 }
 
@@ -160,8 +185,12 @@ export async function selectLevel(roomCode: string, levelId: string): Promise<{ 
   if (room.state.phase !== "lobby") return { success: false, error: "Cannot change level now" };
 
   room.state.levelId = levelId;
-  await RedisService.saveRoom(room);
-  console.log(`[RoomManager] Room ${roomCode} selected level: ${levelId}`);
+  try {
+    await RedisService.saveRoom(room);
+    logger.info(`[RoomManager] Room ${roomCode} selected level: ${levelId}`);
+  } catch (error) {
+    logger.error(`[RoomManager] Error saving level selection for room ${roomCode}`, { error });
+  }
   return { success: true };
 }
 
@@ -190,21 +219,34 @@ export async function setPlayerConnected(roomCode: string, playerId: string, con
   const player = room.players.get(playerId);
   if (player) {
     player.connected = connected;
-    await RedisService.saveRoom(room);
+    try {
+      await RedisService.saveRoom(room);
+    } catch (error) {
+      logger.error(`[RoomManager] Error saving player connection state for room ${roomCode}`, { error });
+    }
   }
 }
 
 export async function persistRoom(room: Room): Promise<void> {
-  await RedisService.saveRoom(room);
+  try {
+    await RedisService.saveRoom(room);
+  } catch (error) {
+    logger.error(`[RoomManager] Error persisting room ${room.code}`, { error });
+  }
 }
 
 export async function loadAllRooms(): Promise<void> {
-  const codes = await RedisService.getAllRoomCodes();
-  for (const code of codes) {
-    const room = await RedisService.getRoom(code);
-    if (room) {
-      rooms.set(code, room);
+  try {
+    const codes = await RedisService.getAllRoomCodes();
+    for (const code of codes) {
+      const room = await RedisService.getRoom(code);
+      if (room) {
+        rooms.set(code, room);
+      }
     }
+    logger.info(`[RoomManager] Loaded ${rooms.size} rooms from Redis`);
+  } catch (error) {
+    logger.error(`[RoomManager] Error loading all rooms from Redis`, { error });
+    throw error; // Rethrow to let index.ts handle it
   }
-  console.log(`[RoomManager] Loaded ${rooms.size} rooms from Redis`);
 }
