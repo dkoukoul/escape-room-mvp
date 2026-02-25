@@ -198,3 +198,6 @@ function computeColumns(
 
   return columns;
 }
+
+// export compute columns for testing
+export { computeColumns };
