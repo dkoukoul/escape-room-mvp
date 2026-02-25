@@ -6,6 +6,12 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
+
+  // Parse allowed hosts from env (comma-separated)
+  const allowedHosts = env.VITE_ALLOWED_HOSTS
+    ? env.VITE_ALLOWED_HOSTS.split(",").map(h => h.trim())
+    : [];
+
   return {
     root: resolve(__dirname, "src/client"),
     resolve: {
@@ -16,6 +22,7 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: parseInt(env.CLIENT_PORT || "5173"),
+      allowedHosts,
       proxy: {
         "/socket.io": {
           target: `http://localhost:${env.SERVER_PORT || "3000"}`,
@@ -24,13 +31,14 @@ export default defineConfig(({ mode }) => {
       },
     },
     build: {
-    outDir: resolve(__dirname, "dist/client"),
-    emptyOutDir: true,
-    rollupOptions: {
-      input: {
-        main: resolve(__dirname, "src/client/index.html"),
-        testAudio: resolve(__dirname, "src/client/test-audio.html"),
+      outDir: resolve(__dirname, "dist/client"),
+      emptyOutDir: true,
+      rollupOptions: {
+        input: {
+          main: resolve(__dirname, "src/client/index.html"),
+          testAudio: resolve(__dirname, "src/client/test-audio.html"),
+        },
       },
     },
-  }
-}});
+  };
+});
