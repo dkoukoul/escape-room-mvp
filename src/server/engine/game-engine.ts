@@ -41,7 +41,7 @@ const roomTimers = new Map<string, GameTimer>();
 /**
  * Start the game for a room
  */
-export function startGame(io: Server, room: Room, startingPuzzleIndex: number = 0): void {
+export function startGame(io: Server, room: Room, startingPuzzleIndex?: number): void {
   try {
     const levelId = room.state.levelId;
     if (!levelId) {
@@ -67,7 +67,7 @@ export function startGame(io: Server, room: Room, startingPuzzleIndex: number = 
 
     // Initialize game state
     // TODO: REDIS - persist game state
-    const isJumping = startingPuzzleIndex !== undefined && startingPuzzleIndex >= 0;
+    const isJumping = typeof startingPuzzleIndex === "number" && startingPuzzleIndex >= 0;
     
     room.state.phase = isJumping ? "briefing" : "level_intro";
     room.state.levelId = level.id;
