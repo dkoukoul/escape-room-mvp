@@ -214,8 +214,6 @@ export async function playBriefingIntro(puzzleIndex: number): Promise<void> {
   
   switch (puzzleIndex) {
     case 0:
-      // High tech beep / power up
-      zzfx(1, 0.05, 1000, 0.05, 0.1, 0.3, 1, 1.5, -5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
       // Mission intro narration
       playSound("level-01-briefing.mp3");
       break;

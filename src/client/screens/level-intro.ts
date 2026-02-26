@@ -49,7 +49,7 @@ async function renderLevelIntro(data: GameStartedPayload): Promise<void> {
       stopAllActiveAudio();
       skipBtn.style.display = "none";
     }
-  }, "SKIP SEQUENCE [SPACE]");
+  }, "SKIP");
 
   // Add spacebar listener for skipping
   const handleKeyDown = (e: KeyboardEvent) => {
