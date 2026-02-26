@@ -11,10 +11,10 @@ const rooms = new Map<string, Room>();
 
 // 4-char room codes using memorable words
 const CODE_WORDS = [
-  "zeus", "hera", "ares", "iris", "Apollo",
-  "echo", "gaia", "nyx", "eos", "pan",
-  "fury", "muse", "fate", "Dawn", "bolt",
-  "myth", "lyre", "helm", "veil", "orb",
+  "zeus", "hera", "ares", "iris", "nike",
+  "echo", "gaia", "eros", "ajax", "orph",
+  "stoa", "muse", "deplhi", "sparta", "athens",
+  "myth", "aegean", "crete", "minoan"
 ];
 
 function generateRoomCode(): string {

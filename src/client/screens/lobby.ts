@@ -115,7 +115,6 @@ function renderRoomView(container: HTMLElement): void {
               className: "input w-full",
               onChange: (e: any) => handleLevelSelect(e.target.value),
             },
-              h("option", { value: "" }, "-- Select a Mission --"),
               ...availableLevels.map(l => 
                 h("option", { value: l.id, selected: l.id === selectedLevelId }, l.title)
               )
