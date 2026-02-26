@@ -14,8 +14,8 @@ interface PieceState {
   correctRow: number;
   correctRotation: number; // 0, 90, 180, 270
   currentRotation: number;
-  placedCol: number | null;
-  placedRow: number | null;
+  col: number | null;
+  row: number | null;
   isPlaced: boolean;
 }
 
@@ -60,8 +60,8 @@ export const collaborativeAssemblyHandler: PuzzleHandler = {
           correctRow: row,
           correctRotation,
           currentRotation: 0, // Everyone starts at 0
-          placedCol: null,
-          placedRow: null,
+          col: null,
+          row: null,
           isPlaced: false,
         });
         pieceId++;
@@ -109,8 +109,8 @@ export const collaborativeAssemblyHandler: PuzzleHandler = {
       if (col === piece.correctCol && row === piece.correctRow && piece.currentRotation === piece.correctRotation) {
         // Correct placement!
         piece.isPlaced = true;
-        piece.placedCol = col;
-        piece.placedRow = row;
+        piece.col = col;
+        piece.row = row;
         puzzleData.placedCorrectly = puzzleData.pieces.filter((p) => p.isPlaced).length;
       } else {
         // Wrong placement
@@ -123,18 +123,20 @@ export const collaborativeAssemblyHandler: PuzzleHandler = {
         if (!piece || piece.ownerId !== playerId || piece.isPlaced) return { state, glitchDelta: 0 };
 
         piece.currentRotation = (piece.currentRotation + 90) % 360;
+        logger.debug(`[CollaborativeAssembly] Piece ${pieceId} rotated to ${piece.currentRotation}`);
     } else if (action === "remove_piece") {
       const pieceId = data.pieceId as number;
       const piece = puzzleData.pieces.find((p) => p.id === pieceId);
       if (!piece || piece.ownerId !== playerId) return { state, glitchDelta: 0 };
 
       piece.isPlaced = false;
-      piece.placedCol = null;
-      piece.placedRow = null;
+      piece.col = null;
+      piece.row = null;
       puzzleData.placedCorrectly = puzzleData.pieces.filter((p) => p.isPlaced).length;
     }
+    const result = { state: { ...state, data: puzzleData as unknown as Record<string, unknown> }, glitchDelta };
 
-    return { state: { ...state, data: puzzleData as unknown as Record<string, unknown> }, glitchDelta };
+    return result;
   },
 
   checkWin(state: PuzzleState): boolean {
@@ -189,12 +191,12 @@ export const collaborativeAssemblyHandler: PuzzleHandler = {
       .filter((p) => p.isPlaced)
       .map((p) => ({ 
           id: p.id, 
-          col: p.placedCol, 
-          row: p.placedRow,
+          col: p.col, 
+          row: p.row,
           rotation: p.currentRotation
       }));
-
-    return {
+    
+    const response: PlayerView = {
       playerId,
       role: playerRole,
       puzzleId: state.puzzleId,
@@ -209,5 +211,7 @@ export const collaborativeAssemblyHandler: PuzzleHandler = {
         placedCorrectly: data.placedCorrectly,
       },
     };
+
+    return response;
   },
 };

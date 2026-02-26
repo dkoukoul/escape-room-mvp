@@ -9,6 +9,18 @@ import type { PlayerView } from "@shared/types.ts";
 
 let currentDragPieceId: number | null = null;
 
+function showRotationIndicator(container: HTMLElement): void {
+  const indicator = document.createElement("div");
+  indicator.className = "rotation-indicator";
+  indicator.textContent = "+90°";
+
+  container.appendChild(indicator);
+
+  setTimeout(() => {
+    indicator.remove();
+  }, 600);
+}
+
 export function renderCollaborativeAssembly(container: HTMLElement, view: PlayerView): void {
   const data = view.viewData as Record<string, unknown>;
   const gridCols = data.gridCols as number;
@@ -67,8 +79,8 @@ export function renderCollaborativeAssembly(container: HTMLElement, view: Player
         onDragover: (e: Event) => (e as DragEvent).preventDefault(),
         onDrop: (e: Event) => handleDrop(e as DragEvent, row, col, view.puzzleId),
       }, placed ? h("div", { 
-          className: `assembly-piece rotated-${placed.rotation}`,
-          style: "width: 100%; height: 100%; pointer-events: none;"
+          className: 'assembly-piece',
+          style: `transform: rotate(${placed.rotation}deg); width: 100%; height: 100%; pointer-events: none;`
       }, `#${placed.id + 1}`) : "");
       gridCells.push(cell);
     }
@@ -97,7 +109,8 @@ export function renderCollaborativeAssembly(container: HTMLElement, view: Player
         ...myPieces.map((piece) =>
           h("div", { className: "assembly-piece-container" },
               h("div", {
-                className: `assembly-piece rotated-${piece.rotation}`,
+                className: 'assembly-piece',
+                style: `transform: rotate(${piece.rotation}deg);`,
                 draggable: "true",
                 id: `piece-${piece.id}`,
                 "data-piece-id": piece.id,
@@ -105,8 +118,28 @@ export function renderCollaborativeAssembly(container: HTMLElement, view: Player
               }, piece.label),
               h("button", {
                   className: "btn-rotate mt-xs",
-                  onClick: () => emit(ClientEvents.PUZZLE_ACTION, { puzzleId: view.puzzleId, action: "rotate_piece", data: { pieceId: piece.id } })
-              }, "Rotate")
+                  onclick: (e: Event) => {
+                      const container = (e.currentTarget as HTMLElement)
+                        .closest(".assembly-piece-container") as HTMLElement;
+
+                      const pieceDiv = container.querySelector(".assembly-piece") as HTMLElement;
+
+                      // Get current rotation from dataset (fallback 0)
+                      const current = Number(pieceDiv.dataset.localRotation ?? "0");
+                      const next = (current + 90) % 360;
+
+                      pieceDiv.dataset.localRotation = String(next);
+                      pieceDiv.style.transform = `rotate(${next}deg)`;
+
+                      showRotationIndicator(container);
+
+                      emit(ClientEvents.PUZZLE_ACTION, {
+                        puzzleId: view.puzzleId,
+                        action: "rotate_piece",
+                        data: { pieceId: piece.id }
+                      });
+                    }
+                }, "Rotate")
           )
         ),
         myPieces.length === 0
@@ -138,15 +171,9 @@ function handleDrop(e: DragEvent, row: number, col: number, puzzleId: string): v
 
 export function updateCollaborativeAssembly(view: PlayerView): void {
   const data = view.viewData as Record<string, unknown>;
-  const isArchitect = !!data.blueprint;
-  
-  // For simplicity in MVP, if there's a big change (like role change or grid change) 
-  // we could re-render, but usually we just update dynamic parts.
-  // Given the complexity of the new view, let's just re-render if it's the first time 
-  // or if we want to keep it simple.
-  const container = $("#puzzle-arena");
-  if (container) {
-      renderCollaborativeAssembly(container, view);
+  if (view.puzzleType === "collaborative_assembly") {
+    const container = $("#screen-puzzle") as HTMLElement;
+    renderCollaborativeAssembly(container, view);
   }
 
   if (data.placedCorrectly === data.totalPieces) {
