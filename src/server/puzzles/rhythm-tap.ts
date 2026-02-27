@@ -10,12 +10,10 @@ interface RhythmData {
   sequences: string[][];         // All sequences to complete
   currentRound: number;
   roundsToWin: number;
-  playerTaps: Record<string, string[]>;  // playerId -> taps for current round
-  playerReady: Record<string, boolean>;  // Who has submitted their taps
-  totalPlayers: number;
-  roundResults: boolean[];       // true/false per completed round
+  playerTaps: string[];  // playerId -> taps for current round
+  hopliteId: string;
+  hopliteSuccesses: number;
   currentSequence: string[];
-  showingSequence: boolean;
 }
 
 export const rhythmTapHandler: PuzzleHandler = {
@@ -38,24 +36,16 @@ export const rhythmTapHandler: PuzzleHandler = {
     const roundsToPlay = data.rounds_to_play || allSequences.length;
     const selectedSequences = allSequences.slice(0, roundsToPlay);
     const roundsToWin = data.rounds_to_win || selectedSequences.length;
-
+    const hoplite = players.find(p => p.role === "hoplite");
     const puzzleData: RhythmData = {
       sequences: selectedSequences,
       currentRound: 0,
       roundsToWin: roundsToWin,
-      playerTaps: {},
-      playerReady: {},
-      totalPlayers: players.length,
-      roundResults: [],
-      currentSequence: selectedSequences[0] ?? [],
-      showingSequence: true,
+      playerTaps: [],
+      hopliteId: hoplite?.id ?? "",
+      hopliteSuccesses: 0,
+      currentSequence: selectedSequences[0] ?? []
     };
-
-    // Initialize all players as not ready
-    for (const p of players) {
-      puzzleData.playerTaps[p.id] = [];
-      puzzleData.playerReady[p.id] = false;
-    }
 
     return {
       puzzleId: config.id,
@@ -76,50 +66,34 @@ export const rhythmTapHandler: PuzzleHandler = {
 
     if (action === "submit_sequence") {
       const taps = data.taps as string[];
-      puzzleData.playerTaps[playerId] = taps;
-      puzzleData.playerReady[playerId] = true;
+      const seq = puzzleData.currentSequence;
 
-      // Check if all players have submitted
-      const allReady = Object.values(puzzleData.playerReady).every(Boolean);
-      if (allReady) {
-        // Check if all players' taps match the sequence
-        const seq = puzzleData.currentSequence;
-        let allCorrect = true;
+      let correct = true;
 
-        for (const [pid, playerTaps] of Object.entries(puzzleData.playerTaps)) {
-          if (playerTaps.length !== seq.length) {
-            allCorrect = false;
-            continue;
-          }
-          for (let i = 0; i < seq.length; i++) {
-            if (playerTaps[i] !== seq[i]) {
-              allCorrect = false;
-              break;
-            }
-          }
-        }
-
-        puzzleData.roundResults.push(allCorrect);
-
-        if (!allCorrect) {
-          glitchDelta = 3 * puzzleData.totalPlayers;
-        }
-
-        // Move to next round
-        puzzleData.currentRound++;
-        if (puzzleData.currentRound < puzzleData.sequences.length) {
-          puzzleData.currentSequence = puzzleData.sequences[puzzleData.currentRound] ?? [];
-          puzzleData.showingSequence = true;
-          // Reset player readiness
-          for (const pid of Object.keys(puzzleData.playerReady)) {
-            puzzleData.playerReady[pid] = false;
-            puzzleData.playerTaps[pid] = [];
+      if (taps.length !== seq.length) {
+        correct = false;
+      } else {
+        for (let i = 0; i < seq.length; i++) {
+          if (taps[i] !== seq[i]) {
+            correct = false;
+            break;
           }
         }
       }
-    } else if (action === "sequence_watched") {
-      // Player acknowledges they've seen the sequence
-      puzzleData.showingSequence = false;
+      if (correct) {
+        puzzleData.hopliteSuccesses++;
+
+        // Advance round
+        puzzleData.currentRound++;
+
+        if (puzzleData.currentRound < puzzleData.sequences.length) {
+          puzzleData.currentSequence =
+            puzzleData.sequences[puzzleData.currentRound] ?? [];
+        }
+
+      } else {
+        glitchDelta = 3; // penalty only once
+      }
     }
 
     return { state: { ...state, data: puzzleData as unknown as Record<string, unknown> }, glitchDelta };
@@ -127,8 +101,7 @@ export const rhythmTapHandler: PuzzleHandler = {
 
   checkWin(state: PuzzleState): boolean {
     const data = state.data as unknown as RhythmData;
-    const successRounds = data.roundResults.filter(Boolean).length;
-    return successRounds >= data.roundsToWin;
+    return data.hopliteSuccesses >= data.roundsToWin;
   },
 
   getPlayerView(
@@ -150,11 +123,8 @@ export const rhythmTapHandler: PuzzleHandler = {
         currentSequence: data.currentSequence,
         currentRound: data.currentRound,
         roundsToWin: data.roundsToWin,
-        showingSequence: data.showingSequence,
-        isReady: data.playerReady[playerId] ?? false,
-        playersReady: Object.values(data.playerReady).filter(Boolean).length,
-        totalPlayers: data.totalPlayers,
-        roundResults: data.roundResults,
+        hopliteId: data.hopliteId,
+        hopliteSuccesses: data.hopliteSuccesses,
         toleranceMs: configData.tolerance_ms ?? 600,
         playbackSpeedMs: configData.playback_speed_ms ?? 800,
       },

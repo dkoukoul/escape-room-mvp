@@ -115,6 +115,7 @@ function renderRoomView(container: HTMLElement): void {
               className: "input w-full",
               onChange: (e: any) => handleLevelSelect(e.target.value),
             },
+              h("option", { value: "", selected: selectedLevelId === null }, "select mission"),
               ...availableLevels.map(l => 
                 h("option", { value: l.id, selected: l.id === selectedLevelId }, l.title)
               )
@@ -277,6 +278,7 @@ function setupSocketListeners(): void {
     });
 
     on(ServerEvents.ROOM_JOINED, (data: RoomJoinedPayload) => {
+      logger.debug("Room joined", { data });
       currentRoomCode = data.roomCode;
       isHost = data.player.isHost;
       players = data.players;
@@ -286,6 +288,7 @@ function setupSocketListeners(): void {
     });
 
     on(ServerEvents.PLAYER_LIST_UPDATE, (data: PlayerListPayload) => {
+      logger.debug("Player list updated", { data });
       players = data.players;
       const myId = getPlayerId();
       const me = players.find((p) => p.id === myId);
@@ -301,6 +304,7 @@ function setupSocketListeners(): void {
     });
 
     on(ServerEvents.LEVEL_LIST, (data: LevelListPayload) => {
+      logger.debug("Level list received", { data });
       availableLevels = data.levels;
       if (currentRoomCode) {
         const screen = $("#screen-lobby")!;
@@ -309,6 +313,7 @@ function setupSocketListeners(): void {
     });
 
     on(ServerEvents.LEVEL_SELECTED, (data: LevelSelectedPayload) => {
+      logger.debug("Level selected", { data });
       selectedLevelId = data.levelId;
       if (currentRoomCode) {
         const screen = $("#screen-lobby")!;
