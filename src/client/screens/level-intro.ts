@@ -6,7 +6,7 @@ import { h, $, mount, clear } from "../lib/dom.ts";
 import { on, emit, ServerEvents, ClientEvents } from "../lib/socket.ts";
 import { showScreen } from "../lib/router.ts";
 import type { GameStartedPayload } from "@shared/events.ts";
-import { playSound, playAudioFile, playTypewriterClick, loadSound, stopAllActiveAudio } from "../audio/audio-manager.ts";
+import { playAudioFile, playTypewriterClick, loadSound, stopAllActiveAudio } from "../audio/audio-manager.ts";
 
 let isSkipping = false;
 

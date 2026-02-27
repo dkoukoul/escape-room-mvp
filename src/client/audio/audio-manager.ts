@@ -7,7 +7,9 @@ let activeAudioSources: AudioBufferSourceNode[] = [];
 let audioContext: AudioContext | null = null;
 let backgroundMusicSource: AudioBufferSourceNode | null = null;
 let backgroundMusicGain: GainNode | null = null;
-let isMuted = localStorage.getItem("odyssey_muted") === "true";
+let audioGain: GainNode | null = null;
+let sfxGain: GainNode | null = null;
+let isMuted = false;//localStorage.getItem("odyssey_muted") === "true";
 
 const rawBuffers = new Map<string, ArrayBuffer>();
 const audioBuffers = new Map<string, AudioBuffer>();
@@ -82,7 +84,7 @@ export async function loadSound(nameOrUrl: string, name?: string): Promise<void>
 /**
  * Play a loaded sound effect
  */
-export async function playSound(name: string, volume: number = 1.0): Promise<void> {
+export async function playSFX(name: string, volume: number = 1.0): Promise<void> {
   await resumeContext();
   const ctx = getContext();
   
@@ -93,14 +95,12 @@ export async function playSound(name: string, volume: number = 1.0): Promise<voi
   }
 
   const source = ctx.createBufferSource();
-  const gainNode = ctx.createGain();
-
+  sfxGain = ctx.createGain();
+  sfxGain.gain.value = isMuted ? 0 : volume;
   source.buffer = buffer;
-  gainNode.gain.value = volume;
+  source.connect(sfxGain);
+  sfxGain.connect(ctx.destination);
 
-  source.connect(gainNode);
-  gainNode.connect(ctx.destination);
-  
   source.onended = () => {
     activeAudioSources = activeAudioSources.filter(s => s !== source);
   };
@@ -215,7 +215,6 @@ export async function playBriefingIntro(puzzleIndex: number): Promise<void> {
   switch (puzzleIndex) {
     case 0:
       // Mission intro narration
-      playSound("level-01-briefing.mp3");
       break;
     case 1:
       // Low sweep
@@ -313,6 +312,14 @@ export function toggleMute(): boolean {
     backgroundMusicGain.gain.setTargetAtTime(isMuted ? 0 : 0.4, getContext().currentTime, 0.1);
   }
 
+  if (audioGain) {
+    audioGain.gain.setTargetAtTime(isMuted ? 0 : 0.4, getContext().currentTime, 0.1);
+  }
+
+  if (sfxGain) {
+    sfxGain.gain.setTargetAtTime(isMuted ? 0 : 0.4, getContext().currentTime, 0.1);
+  }
+
   return isMuted;
 }
 
@@ -364,13 +371,13 @@ export async function playAudioFile(name: string, volume: number = 1.0): Promise
 
   return new Promise((resolve) => {
     const source = ctx.createBufferSource();
-    const gainNode = ctx.createGain();
+    audioGain = ctx.createGain();
 
     source.buffer = buffer;
-    gainNode.gain.value = volume;
+    audioGain.gain.value = volume;
 
-    source.connect(gainNode);
-    gainNode.connect(ctx.destination);
+    source.connect(audioGain);
+    audioGain.connect(ctx.destination);
     
     source.onended = () => {
       activeAudioSources = activeAudioSources.filter(s => s !== source);
