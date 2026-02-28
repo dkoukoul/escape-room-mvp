@@ -1,0 +1,23 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model GameScore {
+  id            String   @id @default(uuid())
+  roomName      String
+  userNames     String[]
+  playedAt      DateTime @default(now())
+  timeRemaining Int
+  glitches      Int
+  score         Int
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([roomName])
+  @@index([playedAt])
+}

@@ -58,4 +58,10 @@ export const RedisService = {
     const keys = await redis.keys("room:*");
     return keys.map((key) => key.split(":")[1]).filter((code): code is string => !!code);
   },
+
+  async saveScore(score: number): Promise<void> {
+    const key = `score:${score}`;
+    await redis.set(key, score, "EX", 86400); // 24h TTL
+    logger.debug(`[Redis] Saved score: ${score}`);
+  },
 };

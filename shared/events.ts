@@ -197,6 +197,7 @@ export interface VictoryPayload {
   elapsedSeconds: number;
   glitchFinal: number;
   puzzlesCompleted: number;
+  score: number;
 }
 
 export interface DefeatPayload {

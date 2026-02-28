@@ -37,6 +37,7 @@ function renderVictory(data: VictoryPayload): void {
           statCard("TIME", `${minutes}:${String(seconds).padStart(2, "0")}`),
           statCard("GLITCH", `${Math.round(data.glitchFinal)}%`),
           statCard("PUZZLES", `${data.puzzlesCompleted}/5`),
+          statCard("SCORE", `${data.score}`),
         ),
       ),
       h("button", {

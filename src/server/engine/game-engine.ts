@@ -33,6 +33,9 @@ import { GameTimer } from "./timer.ts";
 import { getPuzzleHandler } from "../puzzles/puzzle-handler.ts";
 import { getPlayersArray, persistRoom, getAllRooms } from "./room-manager.ts";
 import logger from "../logger.ts";
+import { PostgresService } from "./postgres-service.ts";
+
+const postgresService = new PostgresService();
 
 // Active timers per room
 // TODO: REDIS - store timer state in Redis for crash recovery
@@ -437,6 +440,35 @@ function addGlitch(io: Server, room: Room, delta: number): void {
   }
 }
 
+function calculateScore(elapsedSeconds: number, glitchFinal: number): number {
+  // (Remaining seconds * 10) - (Glitch final * 50)
+  const timeScore = Math.max(0, 1000 - elapsedSeconds);
+  const glitchPenalty = Math.min(1000, glitchFinal * 50);
+  return Math.max(0, timeScore - glitchPenalty);
+}
+
+function storeScore(room: Room, victoryPayload: VictoryPayload) {
+  const score = victoryPayload.score;
+  const timeRemaining = victoryPayload.elapsedSeconds;
+  const glitches = victoryPayload.glitchFinal;
+  // extract names from room.players
+  const userNames: string[] = [];
+  room.players.forEach((player) => {
+    userNames.push(player.name);
+  });
+  const roomName = room.code;
+  const playedAt = new Date();
+
+  postgresService.createGameScore({
+    roomName,
+    userNames,
+    timeRemaining,
+    glitches,
+    score,
+    playedAt,
+  });
+}
+
 /**
  * Handle victory
  */
@@ -457,13 +489,18 @@ function handleVictory(io: Server, room: Room): void {
       puzzleIndex: room.state.currentPuzzleIndex,
     } as PhaseChangePayload);
 
-    io.to(room.code).emit(ServerEvents.VICTORY, {
+    const score = calculateScore(elapsed, room.state.glitch.value);
+    const victoryPayload: VictoryPayload = {
       elapsedSeconds: elapsed,
       glitchFinal: room.state.glitch.value,
       puzzlesCompleted: room.state.completedPuzzles.length,
-    } as VictoryPayload);
+      score: score,
+    }
+      
+    io.to(room.code).emit(ServerEvents.VICTORY, victoryPayload);
 
     logger.info(`[Engine] VICTORY! Room ${room.code} completed in ${elapsed}s`);
+    storeScore(room, victoryPayload);
     cleanupRoom(room.code);
   } catch (err) {
     logger.error("Error handling victory", { err, roomCode: room.code });

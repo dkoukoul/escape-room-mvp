@@ -14,10 +14,12 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@prisma/client": "^7.4.2",
     "@socket.io/redis-adapter": "^8.3.0",
     "@types/winston": "^2.4.4",
     "chokidar": "^4.0.3",
     "ioredis": "^5.9.3",
+    "prisma": "^7.4.2",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
     "winston": "^3.19.0",
