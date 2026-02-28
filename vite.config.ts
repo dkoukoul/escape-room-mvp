@@ -22,6 +22,7 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: parseInt(env.CLIENT_PORT || "5173"),
+      host: '0.0.0.0',
       allowedHosts,
       proxy: {
         "/socket.io": {

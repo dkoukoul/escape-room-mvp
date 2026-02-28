@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  app:
+    container_name: odyssey-app
+    build: .
+    # Maps the SERVER_PORT from .env to the container's internal port
+    ports:
+      - "${SERVER_PORT}:${SERVER_PORT}"
+    env_file: .env
+    depends_on:
+      - postgres
+      - redis
+    command: bun run start
+
+  postgres:
+    container_name: odyssey-postgres
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      # We extract the password/db from your DB URL or set them explicitly
+      POSTGRES_PASSWORD: password 
+      POSTGRES_DB: odyssey_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    container_name: odyssey-redis
+    image: redis:alpine
+    restart: always
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres_data:

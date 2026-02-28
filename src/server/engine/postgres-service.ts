@@ -9,7 +9,9 @@ export interface CreateGameScoreDTO {
   playedAt?: Date;
 }
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  accelerateUrl: process.env.DATABASE_URL!,
+});
 
 export class PostgresService {
   // -----------------------------
