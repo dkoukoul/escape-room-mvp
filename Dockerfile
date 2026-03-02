@@ -17,6 +17,7 @@ RUN bunx prisma generate
 
 # Production stage
 FROM base AS release
-# If you need to build your Vite client for production:
-# RUN bun run build:client 
+COPY entrypoint.sh ./
+RUN chmod +x entrypoint.sh
+ENTRYPOINT ["./entrypoint.sh"]
 CMD ["bun", "run", "start"]
