@@ -147,3 +147,5 @@ config/level_*.yaml
 
 # Assets
 assets/audio/*
+src/public/assets/audio/*
+
