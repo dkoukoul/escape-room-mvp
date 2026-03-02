@@ -4,7 +4,7 @@ services:
     ports:
       - "${SERVER_PORT}:${SERVER_PORT}"
       - "${CLIENT_PORT}:${CLIENT_PORT}"
-    command: bun run dev:server & bun run dev:client
+    command: bun run dev
     volumes:
       - .:/app
       - /app/node_modules
