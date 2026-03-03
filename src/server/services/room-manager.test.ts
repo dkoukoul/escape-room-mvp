@@ -1,18 +1,20 @@
+import type { Room } from "@shared/types.ts";
 import { createRoom, joinRoom } from "./room-manager";
+import { describe, expect, mock, test } from "bun:test"
 
-jest.mock("ioredis", () => {
+mock.module("ioredis", () => {
   return {
-    Redis: jest.fn(() => ({
-      connect: jest.fn(),
-      duplicate: jest.fn(() => ({
-        connect: jest.fn()
+    Redis: mock(() => ({
+      connect: mock(),
+      duplicate: mock(() => ({
+        connect: mock()
       }))
     }))
   };
 });
 
 describe("createRoom", () => {
-  it("should create a room with the given player", async () => {
+  test("should create a room with the given player", async () => {
     const socketId = "player123";
     const playerName = "Alice";
 
@@ -25,27 +27,29 @@ describe("createRoom", () => {
 });
 
 describe("joinRoom", () => {
-  it("should join a room with the given player", async () => {
-    const socketId = "player456";
-    const playerName = "Bob";
-    const roomCode = "fate";
-
-    await createRoom(socketId, playerName);
-    const result = await joinRoom(roomCode, socketId, playerName);
-
-    expect(result.success).toBe(true);
+  test("should join a room with the given player", async () => {
+    const socketId = "player123";
+    const hostSocketId = "player456";
+    const hostPlayerName = "Bob";
+    const joinPlayerName = "Charlie";
+    const room = await createRoom(hostSocketId, hostPlayerName);
+    const result = await joinRoom(room.code, socketId, joinPlayerName);
+    if ("error" in result) {
+      throw new Error(result.error);
+    }
+    expect(result.player.connected).toBe(true);
     expect(result.room.players.has(socketId)).toBe(true);
-    expect(result.room.players.get(socketId)?.name).toBe(playerName);
+    expect(result.room.players.get(socketId)?.name).toBe(joinPlayerName);
   });
 
-  it("should return an error if the room does not exist", async () => {
+  test("should return an error if the room does not exist", async () => {
     const socketId = "player456";
     const playerName = "Bob";
     const roomCode = "nonexistent";
 
     const result = await joinRoom(roomCode, socketId, playerName);
-
-    expect(result.success).toBe(false);
-    expect(result.error).toBeDefined();
+    if ("error" in result) {
+      expect(result.error).toBe("Room not found");
+    }
   });
 });

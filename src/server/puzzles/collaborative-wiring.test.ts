@@ -3,6 +3,7 @@ import { computeColumns } from "./collaborative-wiring.ts"; // adjust path
 import { readFileSync } from "fs"
 import { resolve } from "path"
 import { parse as parseYAML } from "yaml"
+import { describe, expect, test } from "bun:test"
 
 interface Puzzle {
   id: string;
@@ -46,7 +47,7 @@ describe("Collaborative Wiring Matrices", () => {
     throw new Error("collaborative_wiring puzzle not found");
   }
   puzzle.data.solution_matrices.forEach((matrix, index) => {
-    it(`Matrix ${index} is solvable with solution ${solutions[index]}`, () => {
+    test(`Matrix ${index} is solvable with solution ${solutions[index]}`, () => {
       const columns = applySolution(matrix, solutions[index]!, puzzle.data.grid_size);
 
       // Assert all columns are lit
