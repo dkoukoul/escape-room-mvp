@@ -31,6 +31,7 @@ import {
 
 // Register all puzzle handlers
 import "./puzzles/register.ts";
+import { PostgresService } from "./engine/postgres-service.ts";
 
 // ---- Redis Setup for Multi-instance sync ----
 const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
@@ -241,6 +242,28 @@ io.on("connection", (socket) => {
       jumpToPuzzle(io, room, payload.puzzleIndex);
     } catch (error) {
       logger.error("Error jumping to puzzle", { error, socketId: socket.id, payload });
+    }
+  });
+
+  // ---- Leaderboard ----
+  socket.on(ClientEvents.LEADERBOARD_REQUEST, async () => {
+    try {
+      const postgresService = new PostgresService();
+      const scores = await postgresService.getTopScores(10);
+      
+      const entries = scores.map((s: any) => ({
+        id: s.id,
+        roomName: s.roomName,
+        userNames: s.userNames,
+        score: s.score,
+        timeRemaining: s.timeRemaining,
+        glitches: s.glitches,
+        playedAt: s.playedAt.toISOString(),
+      }));
+
+      socket.emit(ServerEvents.LEADERBOARD_LIST, { entries });
+    } catch (error) {
+      logger.error("Error fetching leaderboard", { error, socketId: socket.id });
     }
   });
 

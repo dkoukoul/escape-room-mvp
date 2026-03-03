@@ -12,6 +12,7 @@ import type {
   TimerState,
   DebugState,
   LevelSummary,
+  LeaderboardEntry,
 } from "./types.ts";
 
 // ---- Event Names ----
@@ -36,6 +37,9 @@ export const ClientEvents = {
   // Multi-Level
   LEVEL_LIST_REQUEST: "level:list",
   LEVEL_SELECT: "level:select",
+
+  // Leaderboard
+  LEADERBOARD_REQUEST: "leaderboard:list",
 } as const;
 
 export const ServerEvents = {
@@ -72,6 +76,9 @@ export const ServerEvents = {
   // Multi-Level
   LEVEL_LIST: "level:list_response",
   LEVEL_SELECTED: "level:selected",
+
+  // Leaderboard
+  LEADERBOARD_LIST: "leaderboard:list_response",
 } as const;
 
 // ---- Client → Server Payloads ----
@@ -204,4 +211,7 @@ export interface DefeatPayload {
   reason: "timer" | "glitch";
   puzzlesCompleted: number;
   puzzleReachedIndex: number;
+}
+export interface LeaderboardListPayload {
+  entries: LeaderboardEntry[];
 }

@@ -160,3 +160,18 @@ export interface DebugState {
   enabled: boolean;
   allViews: PlayerView[]; // All role views when debug is on
 }
+// ---- Leaderboard ----
+
+export interface LeaderboardEntry {
+  id: string;
+  roomName: string;
+  userNames: string[];
+  score: number;
+  timeRemaining: number;
+  glitches: number;
+  playedAt: string; // ISO date
+}
+
+export interface LeaderboardListPayload {
+  entries: LeaderboardEntry[];
+}

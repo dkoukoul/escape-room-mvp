@@ -15,8 +15,9 @@ import type {
   StartGamePayload,
   LevelListPayload,
   LevelSelectedPayload,
+  LeaderboardListPayload,
 } from "@shared/events.ts";
-import type { LevelSummary } from "@shared/types.ts";
+import type { LevelSummary, LeaderboardEntry } from "@shared/types.ts";
 import { logger } from "../logger.ts";
 
 let currentRoomCode: string | null = null;
@@ -25,11 +26,15 @@ let players: Player[] = [];
 let availableLevels: LevelSummary[] = [];
 let selectedLevelId: string | null = null;
 let selectedPuzzleIndex: number | null = null;
+let leaderboard: LeaderboardEntry[] = [];
 
 export function initLobby(): void {
   const screen = $("#screen-lobby")!;
   renderJoinView(screen);
   setupSocketListeners();
+  
+  // Request leaderboard data
+  emit(ClientEvents.LEADERBOARD_REQUEST);
 
   // Auto-restore session from localStorage
   setTimeout(() => {
@@ -93,7 +98,39 @@ function renderJoinView(container: HTMLElement): void {
         ),
         h("p", { id: "lobby-error", className: "subtitle", style: "color: var(--neon-red); min-height: 1.4em;" }),
       ),
+      renderLeaderboard(),
     ),
+  );
+}
+
+function renderLeaderboard(): HTMLElement {
+  if (leaderboard.length === 0) return h("div", { className: "hidden" });
+
+  return h("div", { className: "leaderboard-container flex-col items-center w-full mt-xl" },
+    h("h3", { className: "title-sm mb-md", style: "color: var(--neon-gold); text-transform: uppercase; letter-spacing: 4px;" }, "🏆 HALL OF FAME 🏆"),
+    h("table", { className: "leaderboard-table" },
+      h("thead", {},
+        h("tr", {},
+          h("th", { className: "text-center" }, "#"),
+          h("th", {}, "TEAM"),
+          h("th", { className: "text-center" }, "SCORE"),
+        )
+      ),
+      h("tbody", {},
+        ...leaderboard.map((entry, idx) => 
+          h("tr", {},
+            h("td", { className: "leaderboard-rank text-center" }, String(idx + 1)),
+            h("td", {}, 
+              h("div", { className: "flex-col" },
+                h("span", { style: "color: var(--neon-cyan); font-size: 0.9rem;" }, entry.userNames.join(", ")),
+                h("span", { style: "font-size: 0.6rem; opacity: 0.5;" }, entry.roomName.toUpperCase())
+              )
+            ),
+            h("td", { className: "leaderboard-score text-center" }, String(entry.score))
+          )
+        )
+      )
+    )
   );
 }
 
@@ -324,6 +361,15 @@ function setupSocketListeners(): void {
     on(ServerEvents.GAME_STARTED, (_data: GameStartedPayload) => {
       showHUD(true);
       // Level intro screen will be shown by level-intro.ts
+    });
+
+    on(ServerEvents.LEADERBOARD_LIST, (data: LeaderboardListPayload) => {
+      logger.debug("Leaderboard received", { data });
+      leaderboard = data.entries;
+      if (!currentRoomCode) {
+        const screen = $("#screen-lobby")!;
+        renderJoinView(screen);
+      }
     });
   } catch (err) {
     logger.error("Error setting up socket listeners in lobby", { err });
