@@ -15,7 +15,7 @@ function shuffle<T>(arr: T[]): T[] {
   return arr;
 }
 
-import logger from "../logger.ts";
+import logger from "../utils/logger.ts";
 
 /**
  * Assign roles to players based on the puzzle's layout configuration.

@@ -3,7 +3,7 @@
 // ============================================================
 
 import { Server } from "socket.io";
-import { loadAllConfigs, startConfigWatcher } from "./engine/config-loader.ts";
+import { loadAllConfigs, startConfigWatcher } from "./utils/config-loader.ts";
 import {
   createRoom,
   joinRoom,
@@ -14,9 +14,9 @@ import {
   getPlayersArray,
   setPlayerConnected,
   loadAllRooms,
-} from "./engine/room-manager.ts";
-import { getLevelSummaries } from "./engine/config-loader.ts";
-import { startGame, handlePuzzleAction, getAllPlayerViews, jumpToPuzzle, handlePlayerReady, handleLevelIntroComplete, syncPlayer, resumeRoomTimers } from "./engine/game-engine.ts";
+} from "./services/room-manager.ts";
+import { getLevelSummaries } from "./utils/config-loader.ts";
+import { startGame, handlePuzzleAction, getAllPlayerViews, jumpToPuzzle, handlePlayerReady, handleLevelIntroComplete, syncPlayer, resumeRoomTimers } from "./services/game-engine.ts";
 import Redis from "ioredis";
 import { createAdapter } from "@socket.io/redis-adapter";
 import {
@@ -31,7 +31,8 @@ import {
 
 // Register all puzzle handlers
 import "./puzzles/register.ts";
-import { PostgresService } from "./engine/postgres-service.ts";
+import { PostgresService } from "./repositories/postgres-service.ts";
+import logger from "./utils/logger.ts";
 
 // ---- Redis Setup for Multi-instance sync ----
 const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
@@ -48,10 +49,6 @@ const io = new Server(PORT, {
 });
 
 io.adapter(createAdapter(pubClient, subClient));
-
-import logger from "./logger.ts";
-
-// ... (imports remain the same, just adding logger)
 
 // ---- Load existing rooms and configs ----
 try {

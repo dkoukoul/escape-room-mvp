@@ -1,7 +1,7 @@
 import Redis from "ioredis";
 import type { Room, Player } from "../../../shared/types.ts";
 
-import logger from "../logger.ts";
+import logger from "../utils/logger.ts";
 
 const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
 const redis = new Redis(REDIS_URL);

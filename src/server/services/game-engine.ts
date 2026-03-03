@@ -27,13 +27,13 @@ import {
   type GameStartedPayload,
   type PlayerReadyUpdatePayload,
 } from "../../../shared/events.ts";
-import { getLevel, getDefaultLevel } from "./config-loader.ts";
+import { getLevel, getDefaultLevel } from "../utils/config-loader.ts";
 import { assignRoles } from "./role-assigner.ts";
-import { GameTimer } from "./timer.ts";
+import { GameTimer } from "../utils/timer.ts";
 import { getPuzzleHandler } from "../puzzles/puzzle-handler.ts";
 import { getPlayersArray, persistRoom, getAllRooms } from "./room-manager.ts";
-import logger from "../logger.ts";
-import { PostgresService } from "./postgres-service.ts";
+import logger from "../utils/logger.ts";
+import { PostgresService } from "../repositories/postgres-service.ts";
 
 const postgresService = new PostgresService();
 

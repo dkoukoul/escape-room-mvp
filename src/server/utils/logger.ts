@@ -1,6 +1,6 @@
 // src/server/logger.ts
 import winston from 'winston';
-import { LogLevel } from '../../shared/logger.ts';
+import { LogLevel } from '../../../shared/logger.ts';
 
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || LogLevel.DEBUG,

@@ -5,7 +5,7 @@
 
 import type { PuzzleHandler } from "./puzzle-handler.ts";
 import type { Player, PuzzleConfig, PuzzleState, PlayerView } from "../../../shared/types.ts";
-import logger from "../logger.ts";
+import logger from "../utils/logger.ts";
 
 interface PieceState {
   id: number;

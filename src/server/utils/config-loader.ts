@@ -17,7 +17,7 @@ const levels = new Map<string, LevelConfig>();
 
 let watcherReady = false;
 
-import logger from "../logger.ts";
+import logger from "./logger.ts";
 
 /**
  * Load all YAML files from the config directory

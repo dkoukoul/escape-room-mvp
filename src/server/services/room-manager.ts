@@ -3,8 +3,8 @@
 // ============================================================
 
 import type { Room, Player, GameState, GlitchState, TimerState } from "../../../shared/types.ts";
-import { RedisService } from "./redis-service.ts";
-import logger from "../logger.ts";
+import { RedisService } from "../repositories/redis-service.ts";
+import logger from "../utils/logger.ts";
 
 // TODO: REDIS — move room storage to Redis for multi-instance deployment
 const rooms = new Map<string, Room>();
