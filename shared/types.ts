@@ -23,14 +23,15 @@ export interface Room {
 
 // ---- Game State ----
 
-export type GamePhase =
-  | "lobby"
-  | "level_intro"
-  | "briefing"
-  | "playing"
-  | "puzzle_transition"
-  | "victory"
-  | "defeat";
+export enum GamePhase {
+  LOBBY = "lobby",
+  LEVEL_INTRO = "level_intro",
+  BRIEFING = "briefing",
+  PLAYING = "playing",
+  PUZZLE_TRANSITION = "puzzle_transition",
+  VICTORY = "victory",
+  DEFEAT = "defeat",
+}
 
 export interface GameState {
   phase: GamePhase;
@@ -70,16 +71,23 @@ export interface RoleAssignment {
 export interface PuzzleState {
   puzzleId: string;
   type: PuzzleType;
-  status: "active" | "completed" | "failed";
+  status: PuzzleStatus;
   data: Record<string, unknown>; // Puzzle-type-specific state
 }
 
-export type PuzzleType =
-  | "asymmetric_symbols"
-  | "rhythm_tap"
-  | "collaborative_wiring"
-  | "cipher_decode"
-  | "collaborative_assembly";
+export enum PuzzleStatus {
+  ACTIVE = "active",
+  COMPLETED = "completed",
+  FAILED = "failed"
+}
+
+export enum PuzzleType {
+  ASYMMETRIC_SYMBOLS = "asymmetric_symbols",
+  RHYTHM_TAP = "rhythm_tap",
+  COLLABORATIVE_WIRING = "collaborative_wiring",
+  CIPHER_DECODE = "cipher_decode",
+  COLLABORATIVE_ASSEMBLY = "collaborative_assembly"
+}
 
 // ---- Level Configuration (parsed from YAML) ----
 

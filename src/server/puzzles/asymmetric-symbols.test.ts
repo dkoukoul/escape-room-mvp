@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test"
 import { asymmetricSymbolsHandler } from './asymmetric-symbols.ts'
-import type { Player, PuzzleConfig, PuzzleState, PlayerView, PuzzleLayout } from "../../../shared/types.ts";
+import { type Player, type PuzzleConfig, type PuzzleState, type PlayerView, type PuzzleLayout, PuzzleType, PuzzleStatus } from "../../../shared/types.ts";
 
 const mockPuzzleConfig: PuzzleConfig = {
   id: "neon_propylaea",
-  type: "asymmetric_symbols",
+  type: PuzzleType.ASYMMETRIC_SYMBOLS,
   title: "Τα Νέον Προπύλαια",
   briefing: "Η πύλη για την Ακρόπολη έχει μολυνθεί. Θραύσματα αρχαίων λέξεων διαλύονται στο ψηφιακό κενό. Ο Navigator μπορεί ακόμα να διαβάσει τις αρχικές επιγραφές — αλλά οι Decoders πρέπει να πιάσουν τα ιπτάμενα γράμματα πριν χαθούν για πάντα.\n",
   layout: {
@@ -37,8 +37,8 @@ describe("asymmetricSymbolsHandler", () => {
 
       const initialState = asymmetricSymbolsHandler.init(players, mockPuzzleConfig);
       expect(initialState.puzzleId).toBe("neon_propylaea");
-      expect(initialState.type).toBe("asymmetric_symbols");
-      expect(initialState.status).toBe("active");
+      expect(initialState.type).toBe(PuzzleType.ASYMMETRIC_SYMBOLS);
+      expect(initialState.status).toBe(PuzzleStatus.ACTIVE);
     });
 
     test("should shuffle the solution words", () => {
@@ -64,8 +64,8 @@ describe("asymmetricSymbolsHandler", () => {
     test("should handle correct letter capture correctly", () => {
       const state: PuzzleState = {
         puzzleId: "1",
-        type: "asymmetric_symbols",
-        status: "active",
+        type: PuzzleType.ASYMMETRIC_SYMBOLS,
+        status: PuzzleStatus.ACTIVE,
         data: {
           solutionWords: ["example"],
           currentWordIndex: 0,
@@ -87,8 +87,8 @@ describe("asymmetricSymbolsHandler", () => {
     test("should handle wrong letter capture correctly", () => {
       const state: PuzzleState = {
         puzzleId: "1",
-        type: "asymmetric_symbols",
-        status: "active",
+        type: PuzzleType.ASYMMETRIC_SYMBOLS,
+        status: PuzzleStatus.ACTIVE,
         data: {
           solutionWords: ["example"],
           currentWordIndex: 0,
@@ -112,8 +112,8 @@ describe("asymmetricSymbolsHandler", () => {
     test("should return true if all words are completed", () => {
       const state: PuzzleState = {
         puzzleId: "1",
-        type: "asymmetric_symbols",
-        status: "active",
+        type: PuzzleType.ASYMMETRIC_SYMBOLS,
+        status: PuzzleStatus.ACTIVE,
         data: {
           solutionWords: ["example"],
           currentWordIndex: 0,
@@ -130,8 +130,8 @@ describe("asymmetricSymbolsHandler", () => {
     test("should return false if not all words are completed", () => {
       const state: PuzzleState = {
         puzzleId: "1",
-        type: "asymmetric_symbols",
-        status: "active",
+        type: PuzzleType.ASYMMETRIC_SYMBOLS,
+        status: PuzzleStatus.ACTIVE,
         data: {
           solutionWords: ["example", "test"],
           currentWordIndex: 0,
@@ -150,8 +150,8 @@ describe("asymmetricSymbolsHandler", () => {
     test("should return the correct view for a Navigator", () => {
       const state: PuzzleState = {
         puzzleId: "1",
-        type: "asymmetric_symbols",
-        status: "active",
+        type: PuzzleType.ASYMMETRIC_SYMBOLS,
+        status: PuzzleStatus.ACTIVE,
         data: {
           solutionWords: ["example"],
           currentWordIndex: 0,
@@ -174,8 +174,8 @@ describe("asymmetricSymbolsHandler", () => {
     test("should return the correct view for a Decoder", () => {
       const state: PuzzleState = {
         puzzleId: "1",
-        type: "asymmetric_symbols",
-        status: "active",
+        type: PuzzleType.ASYMMETRIC_SYMBOLS,
+        status: PuzzleStatus.ACTIVE,
         data: {
           solutionWords: ["example"],
           currentWordIndex: 0,

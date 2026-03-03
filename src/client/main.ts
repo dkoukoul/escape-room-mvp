@@ -41,6 +41,7 @@ import { initPuzzleScreen } from "./screens/puzzle.ts";
 import { initResults } from "./screens/results.ts";
 
 import logger from "./logger.ts";
+import { GamePhase } from "@shared/types.ts";
 
 // ---- Boot ----
 async function boot() {
@@ -145,12 +146,12 @@ async function boot() {
         if (progressEl) progressEl.textContent = `${data.puzzleIndex + 1}/5`;
 
         // Play background music when first puzzle starts (if not already playing)
-        if (data.phase === "playing" && activeBackgroundMusic) {
+        if (data.phase === GamePhase.PLAYING && activeBackgroundMusic) {
           playBackgroundMusic(activeBackgroundMusic);
         }
         
         // Stop music and remove theme on game end
-        if (data.phase === "victory" || data.phase === "defeat" || data.phase === "lobby") {
+        if (data.phase === GamePhase.VICTORY || data.phase === GamePhase.DEFEAT || data.phase === GamePhase.LOBBY) {
           stopBackgroundMusic();
           activeBackgroundMusic = null;
           removeTheme();

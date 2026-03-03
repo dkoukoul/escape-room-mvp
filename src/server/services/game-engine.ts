@@ -12,15 +12,16 @@
 // ============================================================
 
 import type { Server, Socket } from "socket.io";
-import type {
-  Room,
-  GameState,
-  Player,
-  PuzzleConfig,
-  LevelConfig,
-  PuzzleState,
-  PlayerView,
-  GlitchState,
+import {
+  type Room,
+  type GameState,
+  type Player,
+  type PuzzleConfig,
+  type LevelConfig,
+  type PuzzleState,
+  type PlayerView,
+  type GlitchState,
+  GamePhase,
 } from "../../../shared/types.ts";
 import {
   ServerEvents,
@@ -81,7 +82,7 @@ export async function startGame(io: Server, room: Room, startingPuzzleIndex?: nu
     // TODO: REDIS - persist game state
     const isJumping = typeof startingPuzzleIndex === "number" && startingPuzzleIndex >= 0;
     
-    room.state.phase = isJumping ? "briefing" : "level_intro";
+    room.state.phase = isJumping ? GamePhase.BRIEFING : GamePhase.LEVEL_INTRO;
     room.state.levelId = level.id;
     room.state.currentPuzzleIndex = startingPuzzleIndex ?? 0;
     room.state.totalPuzzles = level.puzzles.length;
@@ -176,7 +177,7 @@ async function startPuzzleBriefing(io: Server, room: Room, level: LevelConfig, p
       return;
     }
 
-    room.state.phase = "briefing";
+    room.state.phase = GamePhase.BRIEFING;
     room.state.currentPuzzleIndex = puzzleIndex;
     room.state.readyPlayers = [];
     
@@ -282,13 +283,13 @@ function startPuzzle(io: Server, room: Room, level: LevelConfig, puzzleIndex: nu
     // Initialize puzzle state
     const puzzleState = handler.init(players, puzzleConfig);
     room.state.puzzleState = puzzleState;
-    room.state.phase = "playing";
+    room.state.phase = GamePhase.PLAYING;
 
     persistRoom(room).catch(err => logger.error("Failed to persist room on puzzle start", { err, roomCode: room.code }));
 
     // Send each player their role-specific view
     io.to(room.code).emit(ServerEvents.PHASE_CHANGE, {
-      phase: "playing",
+      phase: GamePhase.PLAYING,
       puzzleIndex,
     } as PhaseChangePayload);
 
@@ -404,9 +405,9 @@ async function handlePuzzleComplete(io: Server, room: Room, level: LevelConfig):
     } as PuzzleCompletedPayload);
 
     // Transition pause before next puzzle
-    room.state.phase = "puzzle_transition";
+    room.state.phase = GamePhase.PUZZLE_TRANSITION;
     io.to(room.code).emit(ServerEvents.PHASE_CHANGE, {
-      phase: "puzzle_transition",
+      phase: GamePhase.PUZZLE_TRANSITION,
       puzzleIndex: room.state.currentPuzzleIndex,
     } as PhaseChangePayload);
 
@@ -488,7 +489,7 @@ async function storeScore(room: Room, victoryPayload: VictoryPayload) {
  */
 export async function handleVictory(io: Server, room: Room): Promise<void> {
   try {
-    room.state.phase = "victory";
+    room.state.phase = GamePhase.VICTORY;
     persistRoom(room).catch(err => logger.error("Failed to persist room on victory", { err, roomCode: room.code }));
     
     const timer = roomTimers.get(room.code);
@@ -499,7 +500,7 @@ export async function handleVictory(io: Server, room: Room): Promise<void> {
       : 0;
 
     io.to(room.code).emit(ServerEvents.PHASE_CHANGE, {
-      phase: "victory",
+      phase: GamePhase.VICTORY,
       puzzleIndex: room.state.currentPuzzleIndex,
     } as PhaseChangePayload);
 
@@ -526,14 +527,14 @@ export async function handleVictory(io: Server, room: Room): Promise<void> {
  */
 function handleDefeat(io: Server, room: Room, reason: "timer" | "glitch"): void {
   try {
-    room.state.phase = "defeat";
+    room.state.phase = GamePhase.DEFEAT;
     persistRoom(room).catch(err => logger.error("Failed to persist room on defeat", { err, roomCode: room.code }));
     
     const timer = roomTimers.get(room.code);
     timer?.stop();
 
     io.to(room.code).emit(ServerEvents.PHASE_CHANGE, {
-      phase: "defeat",
+      phase: GamePhase.DEFEAT,
       puzzleIndex: room.state.currentPuzzleIndex,
     } as PhaseChangePayload);
 

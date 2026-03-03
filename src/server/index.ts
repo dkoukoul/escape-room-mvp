@@ -42,6 +42,7 @@ import {
 import "./puzzles/register.ts";
 import { PostgresService } from "./repositories/postgres-service.ts";
 import logger from "./utils/logger.ts";
+import { GamePhase } from "@shared/types.ts";
 
 // ---- Redis Setup for Multi-instance sync ----
 const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
@@ -127,7 +128,7 @@ io.on("connection", (socket) => {
       });
 
       // Sync player if game already in progress
-      if (result.room.state.phase !== "lobby") {
+      if (result.room.state.phase !== GamePhase.LOBBY) {
         syncPlayer(io, result.room, socket);
       }
 

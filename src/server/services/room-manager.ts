@@ -11,7 +11,7 @@
 //          Room codes are generated from Greek-themed words (zeus, hera, etc.)
 // ============================================================
 
-import type { Room, Player, GameState, GlitchState, TimerState } from "../../../shared/types.ts";
+import { type Room, type Player, type GameState, type GlitchState, type TimerState, GamePhase } from "../../../shared/types.ts";
 import { RedisService } from "../repositories/redis-service.ts";
 import logger from "../utils/logger.ts";
 
@@ -43,7 +43,7 @@ function generateRoomCode(): string {
 
 function createInitialGameState(): GameState {
   return {
-    phase: "lobby",
+    phase: GamePhase.LOBBY,
     levelId: "",
     currentPuzzleIndex: 0,
     totalPuzzles: 0,
@@ -73,7 +73,7 @@ export async function createRoom(hostId: string, hostName: string): Promise<Room
     hostId,
     players: new Map([[hostId, host]]),
     state: createInitialGameState(),
-    createdAt: Date.now(),
+    createdAt: Date.now()
   };
 
   rooms.set(code, room);
