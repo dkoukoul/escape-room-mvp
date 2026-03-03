@@ -1,6 +1,15 @@
 // ============================================================
 // Room Manager — In-memory room storage
 // ============================================================
+//
+// @ai-context
+// ROLE: CRUD for game rooms. Primary in-memory store backed by Redis for persistence.
+// KEY FUNCTIONS: createRoom, joinRoom, leaveRoom, getPlayerRoom, loadAllRooms
+// DEPENDS ON: redis-service (persistence), shared/types (Room, Player, GameState)
+// STATE: rooms (Map<string, Room>) — the authoritative in-memory room store
+// PATTERN: All mutating functions persist to Redis after modifying the in-memory Map.
+//          Room codes are generated from Greek-themed words (zeus, hera, etc.)
+// ============================================================
 
 import type { Room, Player, GameState, GlitchState, TimerState } from "../../../shared/types.ts";
 import { RedisService } from "../repositories/redis-service.ts";

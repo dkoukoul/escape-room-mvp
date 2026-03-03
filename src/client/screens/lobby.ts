@@ -1,6 +1,15 @@
 // ============================================================
 // Lobby Screen — Join/Create room, player roster
 // ============================================================
+//
+// @ai-context
+// ROLE: First screen. Handles room creation/joining, player list, level selection, and leaderboard.
+// KEY FUNCTIONS: initLobby, renderJoinView, renderRoomView, setupSocketListeners
+// DEPENDS ON: lib/dom (h, $, mount, clear), lib/socket (on, emit), shared/events, shared/types
+// STATE: Module-level variables — currentRoom, myPlayer, players[], availableLevels[], leaderboard[]
+// PATTERN: Two views — "join" (create/join room) and "room" (player list + start button).
+//          Socket listeners update module state and re-render the active view.
+// ============================================================
 
 import { h, $, mount, clear } from "../lib/dom.ts";
 import { emit, on, getPlayerId, ClientEvents, ServerEvents } from "../lib/socket.ts";

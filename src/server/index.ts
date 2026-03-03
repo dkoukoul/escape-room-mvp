@@ -1,6 +1,15 @@
 // ============================================================
 // Server Entry Point — Bun + Socket.io
 // ============================================================
+//
+// @ai-context
+// ROLE: Entry point. Sets up Socket.io server, wires all event handlers, manages connections.
+// KEY EVENTS: CREATE_ROOM, JOIN_ROOM, START_GAME, PUZZLE_ACTION, PLAYER_READY, DISCONNECT
+// DEPENDS ON: game-engine (game logic), room-manager (room CRUD), config-loader (YAML), postgres-service
+// PATTERN: Each socket event handler follows try/catch with logger.error.
+//          All event names and payloads come from shared/events.ts (no magic strings).
+// TO ADD AN EVENT: Add name to shared/events.ts → add socket.on() handler here → add client emit/on
+// ============================================================
 
 import { Server } from "socket.io";
 import { loadAllConfigs, startConfigWatcher } from "./utils/config-loader.ts";

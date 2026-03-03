@@ -1,6 +1,15 @@
 // ============================================================
 // Game Engine — Core state machine for game flow
 // ============================================================
+//
+// @ai-context
+// ROLE: Orchestrates the entire game lifecycle per room.
+// PHASES: lobby → level_intro → briefing → playing → puzzle_transition → ... → victory | defeat
+// KEY FUNCTIONS: startGame, handlePuzzleAction, handlePuzzleComplete, handleVictory, handleDefeat
+// DEPENDS ON: room-manager (room CRUD), puzzle-handler registry, config-loader, postgres-service (scores)
+// STATE: roomTimers (Map<string, GameTimer>) — one timer per active room
+// PATTERN: All public functions take (io: Server, room: Room, ...) — io for broadcasting, room for state
+// ============================================================
 
 import type { Server, Socket } from "socket.io";
 import type {

@@ -2,6 +2,14 @@
 // Project ODYSSEY — Socket.io Event Definitions
 // ============================================================
 // No magic strings — every event name and payload is typed here.
+//
+// @ai-context
+// ROLE: Single source of truth for all Socket.io event names and their payload types.
+// SECTIONS: ClientEvents (client→server), ServerEvents (server→client), payload interfaces
+// PATTERN: Event names use "namespace:action" format (e.g., "room:create", "puzzle:update").
+//          To add a new event: add name to ClientEvents/ServerEvents, define payload interface below.
+// USED BY: src/server/index.ts (socket.on handlers), src/client/lib/socket.ts (on/emit wrappers)
+// ============================================================
 
 import type {
   Player,

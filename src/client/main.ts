@@ -1,6 +1,15 @@
 // ============================================================
 // Main Entry Point — Project ODYSSEY Client
 // ============================================================
+//
+// @ai-context
+// ROLE: Client bootstrap. Connects socket, initializes all screens, wires global event listeners.
+// KEY FUNCTION: boot() — runs on page load, sets up audio, screens, HUD, and game-flow listeners
+// DEPENDS ON: lib/socket (connect/on/emit), lib/router (showScreen), all screens/*.ts, lib/theme-engine
+// SCREENS: lobby, level-intro, briefing, puzzle, results — each has an init*() function called here
+// PATTERN: Server events (GAME_STARTED, PHASE_CHANGE, VICTORY, DEFEAT, etc.) trigger screen transitions.
+//          DOM is vanilla TS via lib/dom.ts helpers (h, $, mount, clear). No framework.
+// ============================================================
 
 import { connect, on, emit, ServerEvents } from "./lib/socket.ts";
 import { showScreen, showHUD } from "./lib/router.ts";
