@@ -44,7 +44,7 @@ const roomTimers = new Map<string, GameTimer>();
 /**
  * Start the game for a room
  */
-export function startGame(io: Server, room: Room, startingPuzzleIndex?: number): void {
+export async function startGame(io: Server, room: Room, startingPuzzleIndex?: number): Promise<void> {
   try {
     const levelId = room.state.levelId;
     if (!levelId) {
@@ -123,7 +123,7 @@ export function startGame(io: Server, room: Room, startingPuzzleIndex?: number):
 
     // If jumping, send the briefing immediately
     if (isJumping) {
-      startPuzzleBriefing(io, room, level, room.state.currentPuzzleIndex);
+      await startPuzzleBriefing(io, room, level, room.state.currentPuzzleIndex);
     }
     // Otherwise, no initial briefing call — we wait for level_intro to finish
   } catch (err) {
@@ -134,7 +134,7 @@ export function startGame(io: Server, room: Room, startingPuzzleIndex?: number):
 /**
  * Handle a player finishing the level intro
  */
-export function handleLevelIntroComplete(io: Server, room: Room, playerId: string): void {
+export async function handleLevelIntroComplete(io: Server, room: Room, playerId: string): Promise<void> {
   try {
     if (room.state.phase !== "level_intro") return;
 
@@ -149,7 +149,7 @@ export function handleLevelIntroComplete(io: Server, room: Room, playerId: strin
 
       room.state.readyPlayers = [];
       persistRoom(room).catch(err => logger.error("Failed to persist room on intro complete", { err, roomCode: room.code }));
-      startPuzzleBriefing(io, room, level, room.state.currentPuzzleIndex);
+      await startPuzzleBriefing(io, room, level, room.state.currentPuzzleIndex);
     }
   } catch (err) {
     logger.error("Error handling level intro complete", { err, roomCode: room.code, playerId });
@@ -159,11 +159,11 @@ export function handleLevelIntroComplete(io: Server, room: Room, playerId: strin
 /**
  * Show briefing text before a puzzle starts
  */
-function startPuzzleBriefing(io: Server, room: Room, level: LevelConfig, puzzleIndex: number): void {
+async function startPuzzleBriefing(io: Server, room: Room, level: LevelConfig, puzzleIndex: number): Promise<void> {
   try {
     const puzzle = level.puzzles[puzzleIndex];
     if (!puzzle) {
-      handleVictory(io, room);
+      await handleVictory(io, room);
       return;
     }
 
@@ -231,7 +231,7 @@ export function handlePlayerReady(io: Server, room: Room, playerId: string): voi
 /**
  * Dev utility to jump to a specific puzzle
  */
-export function jumpToPuzzle(io: Server, room: Room, puzzleIndex: number): void {
+export async function jumpToPuzzle(io: Server, room: Room, puzzleIndex: number): Promise<void> {
   try {
     const level = getLevel(room.state.levelId);
     if (!level) return;
@@ -244,7 +244,7 @@ export function jumpToPuzzle(io: Server, room: Room, puzzleIndex: number): void 
     room.state.puzzleState = null;
     persistRoom(room).catch(err => logger.error("Failed to persist room on jump", { err, roomCode: room.code }));
     
-    startPuzzleBriefing(io, room, level, puzzleIndex);
+    await startPuzzleBriefing(io, room, level, puzzleIndex);
   } catch (err) {
     logger.error("Error jumping to puzzle", { err, roomCode: room.code, puzzleIndex });
   }
@@ -313,13 +313,13 @@ function startPuzzle(io: Server, room: Room, level: LevelConfig, puzzleIndex: nu
 /**
  * Handle a puzzle action from a player
  */
-export function handlePuzzleAction(
+export async function handlePuzzleAction(
   io: Server,
   room: Room,
   playerId: string,
   action: string,
   data: Record<string, unknown>
-): void {
+): Promise<void> {
   try {
     if (room.state.phase !== "playing" || !room.state.puzzleState) return;
 
@@ -367,7 +367,7 @@ export function handlePuzzleAction(
 
     // Check win condition
     if (handler.checkWin(room.state.puzzleState)) {
-      handlePuzzleComplete(io, room, level);
+      await handlePuzzleComplete(io, room, level);
     }
   } catch (err) {
     logger.error("Error handling puzzle action", { err, roomCode: room.code, playerId, action });
@@ -377,7 +377,7 @@ export function handlePuzzleAction(
 /**
  * Handle puzzle completion — advance to next or victory
  */
-function handlePuzzleComplete(io: Server, room: Room, level: LevelConfig): void {
+async function handlePuzzleComplete(io: Server, room: Room, level: LevelConfig): Promise<void> {
   try {
     const puzzleConfig = level.puzzles[room.state.currentPuzzleIndex];
     if (puzzleConfig) {
@@ -403,11 +403,11 @@ function handlePuzzleComplete(io: Server, room: Room, level: LevelConfig): void 
 
     persistRoom(room).catch(err => logger.error("Failed to persist room on puzzle transition", { err, roomCode: room.code }));
 
-    setTimeout(() => {
+    setTimeout(async () => {
       if (nextIndex >= level.puzzles.length) {
-        handleVictory(io, room);
+        await handleVictory(io, room);
       } else {
-        startPuzzleBriefing(io, room, level, nextIndex);
+        await startPuzzleBriefing(io, room, level, nextIndex);
       }
     }, 3000);
   } catch (err) {
@@ -447,32 +447,37 @@ function calculateScore(elapsedSeconds: number, glitchFinal: number): number {
   return Math.max(0, timeScore - glitchPenalty);
 }
 
-function storeScore(room: Room, victoryPayload: VictoryPayload) {
-  const score = victoryPayload.score;
-  const timeRemaining = victoryPayload.elapsedSeconds;
-  const glitches = victoryPayload.glitchFinal;
-  // extract names from room.players
-  const userNames: string[] = [];
-  room.players.forEach((player) => {
-    userNames.push(player.name);
-  });
-  const roomName = room.code;
-  const playedAt = new Date();
+async function storeScore(room: Room, victoryPayload: VictoryPayload) {
+  try {
+    const score = victoryPayload.score;
+    const timeRemaining = victoryPayload.elapsedSeconds;
+    const glitches = victoryPayload.glitchFinal;
+    // extract names from room.players
+    const userNames: string[] = [];
+    room.players.forEach((player) => {
+      userNames.push(player.name);
+    });
+    const roomName = room.code;
+    const playedAt = new Date();
 
-  postgresService.createGameScore({
-    roomName,
-    userNames,
-    timeRemaining,
-    glitches,
-    score,
-    playedAt,
-  });
+    await postgresService.createGameScore({
+      roomName,
+      userNames,
+      timeRemaining,
+      glitches,
+      score,
+      playedAt,
+    });
+    logger.info(`[Engine] Score recorded for room ${room.code}`);
+  } catch (err) {
+    logger.error(`[Engine] Failed to record score for room ${room.code}`, { err });
+  }
 }
 
 /**
  * Handle victory
  */
-function handleVictory(io: Server, room: Room): void {
+export async function handleVictory(io: Server, room: Room): Promise<void> {
   try {
     room.state.phase = "victory";
     persistRoom(room).catch(err => logger.error("Failed to persist room on victory", { err, roomCode: room.code }));
@@ -500,7 +505,7 @@ function handleVictory(io: Server, room: Room): void {
     io.to(room.code).emit(ServerEvents.VICTORY, victoryPayload);
 
     logger.info(`[Engine] VICTORY! Room ${room.code} completed in ${elapsed}s`);
-    storeScore(room, victoryPayload);
+    await storeScore(room, victoryPayload);
     cleanupRoom(room.code);
   } catch (err) {
     logger.error("Error handling victory", { err, roomCode: room.code });

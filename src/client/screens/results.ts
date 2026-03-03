@@ -42,7 +42,10 @@ function renderVictory(data: VictoryPayload): void {
       ),
       h("button", {
         className: "btn btn-primary mt-xl",
-        onClick: () => location.reload(),
+        onClick: () => {
+          localStorage.removeItem("odyssey_room_code");
+          location.reload();
+        },
       }, "Play Again"),
     ),
   );
@@ -72,7 +75,10 @@ function renderDefeat(data: DefeatPayload): void {
       ),
       h("button", {
         className: "btn btn-danger mt-xl",
-        onClick: () => location.reload(),
+        onClick: () => {
+          localStorage.removeItem("odyssey_room_code");
+          location.reload();
+        },
       }, "Try Again"),
     ),
   );

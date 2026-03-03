@@ -7,11 +7,11 @@ const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
 const redis = new Redis(REDIS_URL);
 
 redis.on("error", (err) => {
-  logger.error("[Redis] Error:", { message: err.message });
+  logger.error("❌ [Redis] Error:", { message: err.message });
 });
 
 redis.on("connect", () => {
-  logger.info("[Redis] Connected to Redis server");
+  logger.info("✅ [Redis] Connected to Redis server");
 });
 
 /**

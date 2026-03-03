@@ -14,11 +14,13 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@prisma/adapter-pg": "^7.4.2",
     "@prisma/client": "^7.4.2",
     "@socket.io/redis-adapter": "^8.3.0",
     "@types/winston": "^2.4.4",
     "chokidar": "^4.0.3",
     "ioredis": "^5.9.3",
+    "pg": "^8.19.0",
     "prisma": "^7.4.2",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
@@ -28,8 +30,9 @@
   },
   "devDependencies": {
     "@types/bun": "latest",
-    "vite": "^6.1.0",
-    "concurrently": "^9.1.2"
+    "@types/pg": "^8.18.0",
+    "concurrently": "^9.1.2",
+    "vite": "^6.1.0"
   },
   "peerDependencies": {
     "typescript": "^5"

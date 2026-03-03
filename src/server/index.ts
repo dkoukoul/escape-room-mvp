@@ -63,10 +63,18 @@ try {
 
 logger.info(`⚡ Project ODYSSEY Server running on port ${PORT}`);
 logger.info(`   Waiting for Cyber-Hoplites...`);
-
+// Test postgres connection
+const postgresService = new PostgresService();
+try {
+  postgresService.getTopScores(10).then((scores) => {
+    logger.info('✅ [Postgres] Connection successful');
+  });
+} catch (error) {
+  logger.error("Failed to connect to db", { error });
+}
 // ---- Socket.io Connection Handler ----
 io.on("connection", (socket) => {
-  logger.info(`[Socket] Connected: ${socket.id}`);
+  logger.info(`✅ [Socket] Connected: ${socket.id}`);
 
   // ---- Create Room ----
   socket.on(ClientEvents.CREATE_ROOM, async (payload: CreateRoomPayload) => {
@@ -130,7 +138,7 @@ io.on("connection", (socket) => {
   });
 
   // ---- Start Game ----
-  socket.on(ClientEvents.START_GAME, (payload?: StartGamePayload) => {
+  socket.on(ClientEvents.START_GAME, async (payload?: StartGamePayload) => {
     try {
       const room = getPlayerRoom(socket.id);
       if (!room) return;
@@ -141,7 +149,7 @@ io.on("connection", (socket) => {
         return;
       }
 
-      startGame(io, room, payload?.startingPuzzleIndex);
+      await startGame(io, room, payload?.startingPuzzleIndex);
     } catch (error) {
       logger.error("Error starting game", { error, socketId: socket.id });
     }
@@ -179,12 +187,12 @@ io.on("connection", (socket) => {
   });
 
   // ---- Puzzle Action ----
-  socket.on(ClientEvents.PUZZLE_ACTION, (payload: PuzzleActionPayload) => {
+  socket.on(ClientEvents.PUZZLE_ACTION, async (payload: PuzzleActionPayload) => {
     try {
       const room = getPlayerRoom(socket.id);
       if (!room) return;
 
-      handlePuzzleAction(io, room, socket.id, payload.action, payload.data);
+      await handlePuzzleAction(io, room, socket.id, payload.action, payload.data);
     } catch (error) {
       logger.error("Error handling puzzle action", { error, socketId: socket.id, payload });
     }
@@ -203,12 +211,12 @@ io.on("connection", (socket) => {
   });
 
   // ---- Level Intro Complete ----
-  socket.on(ClientEvents.INTRO_COMPLETE, () => {
+  socket.on(ClientEvents.INTRO_COMPLETE, async () => {
     try {
       const room = getPlayerRoom(socket.id);
       if (!room) return;
 
-      handleLevelIntroComplete(io, room, socket.id);
+      await handleLevelIntroComplete(io, room, socket.id);
     } catch (error) {
       logger.error("Error handling intro complete", { error, socketId: socket.id });
     }
@@ -231,12 +239,12 @@ io.on("connection", (socket) => {
   });
 
   // ---- Jump To Puzzle ----
-  socket.on(ClientEvents.JUMP_TO_PUZZLE, (payload: any) => {
+  socket.on(ClientEvents.JUMP_TO_PUZZLE, async (payload: any) => {
     try {
       const room = getPlayerRoom(socket.id);
       if (!room) return;
 
-      jumpToPuzzle(io, room, payload.puzzleIndex);
+      await jumpToPuzzle(io, room, payload.puzzleIndex);
     } catch (error) {
       logger.error("Error jumping to puzzle", { error, socketId: socket.id, payload });
     }
