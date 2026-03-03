@@ -37,7 +37,6 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         input: {
           main: resolve(__dirname, "src/client/index.html"),
-          testAudio: resolve(__dirname, "src/client/test-audio.html"),
         },
       },
     },
