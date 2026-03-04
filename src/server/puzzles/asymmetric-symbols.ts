@@ -1,5 +1,5 @@
 // ============================================================
-// Puzzle: Asymmetric Symbols — The Neon Propylaea
+// Puzzle: Asymmetric Symbols
 // ============================================================
 // Navigator sees target words; Decoders capture flying letters.
 

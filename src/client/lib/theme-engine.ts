@@ -15,11 +15,9 @@ export function applyTheme(cssPaths: string[]): void {
       const link = document.createElement("link");
       link.rel = "stylesheet";
       
-      // Vite serves from /src/client/ in dev, so absolute from root works
-      // In production, styles are usually flattened or hashed, 
-      // but we'll assume a convention-based asset loading or literal paths.
-      // For this MVP version, we'll prefix with /styles/
-      link.href = `/src/client/styles/${path}`;
+      // Vite serves from /src/client/ in dev, so we can use /styles/... since
+      // root is resolve(__dirname, "src/client").
+      link.href = `/styles/${path}`;
       link.dataset.theme = "level";
       
       document.head.appendChild(link);
