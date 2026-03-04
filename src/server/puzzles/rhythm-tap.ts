@@ -49,8 +49,8 @@ export const rhythmTapHandler: PuzzleHandler = {
 
     return {
       puzzleId: config.id,
-      type: "rhythm_tap",
-      status: "active",
+      type: "rhythm_tap" as any,
+      status: "active" as any,
       data: puzzleData as unknown as Record<string, unknown>,
     };
   },

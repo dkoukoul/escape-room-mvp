@@ -8,11 +8,15 @@ import { rhythmTapHandler } from "./rhythm-tap.ts";
 import { collaborativeWiringHandler } from "./collaborative-wiring.ts";
 import { cipherDecodeHandler } from "./cipher-decode.ts";
 import { collaborativeAssemblyHandler } from "./collaborative-assembly.ts";
+import { alphabetWallHandler } from "./alphabet-wall.ts";
+import { demogorgonHuntHandler } from "./demogorgon-hunt.ts";
 
 registerPuzzleHandler("asymmetric_symbols", asymmetricSymbolsHandler);
 registerPuzzleHandler("rhythm_tap", rhythmTapHandler);
 registerPuzzleHandler("collaborative_wiring", collaborativeWiringHandler);
 registerPuzzleHandler("cipher_decode", cipherDecodeHandler);
 registerPuzzleHandler("collaborative_assembly", collaborativeAssemblyHandler);
+registerPuzzleHandler("alphabet_wall", alphabetWallHandler);
+registerPuzzleHandler("demogorgon_hunt", demogorgonHuntHandler);
 
-console.log("[PuzzleRegistry] All 5 puzzle handlers registered");
+console.log("[PuzzleRegistry] Registered all puzzle handlers");

@@ -85,8 +85,8 @@ export const collaborativeWiringHandler: PuzzleHandler = {
 
     return {
       puzzleId: config.id,
-      type: "collaborative_wiring",
-      status: "active",
+      type: "collaborative_wiring" as any,
+      status: "active" as any,
       data: puzzleData as unknown as Record<string, unknown>,
     };
   },

@@ -45,8 +45,8 @@ export const asymmetricSymbolsHandler: PuzzleHandler = {
 
     return {
       puzzleId: config.id,
-      type: "asymmetric_symbols",
-      status: "active",
+      type: "asymmetric_symbols" as any,
+      status: "active" as any,
       data: puzzleData as unknown as Record<string, unknown>,
     };
   },

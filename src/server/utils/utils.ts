@@ -4,7 +4,7 @@ export function getPlayerRoom(socketId: string) {
   // Implement the logic to get the player's room based on socketId
 }
 
-export function checkIfHost(room, socketId) {
+export function checkIfHost(room: any, socketId: string) {
   // Check if the player is the host of the room
   return room.players.get(socketId)?.isHost;
 }

@@ -86,7 +86,9 @@ export enum PuzzleType {
   RHYTHM_TAP = "rhythm_tap",
   COLLABORATIVE_WIRING = "collaborative_wiring",
   CIPHER_DECODE = "cipher_decode",
-  COLLABORATIVE_ASSEMBLY = "collaborative_assembly"
+  COLLABORATIVE_ASSEMBLY = "collaborative_assembly",
+  ALPHABET_WALL = "alphabet_wall",
+  DEMOGORGON_HUNT = "demogorgon_hunt",
 }
 
 // ---- Level Configuration (parsed from YAML) ----

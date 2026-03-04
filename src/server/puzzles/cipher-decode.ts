@@ -46,8 +46,8 @@ export const cipherDecodeHandler: PuzzleHandler = {
 
     return {
       puzzleId: config.id,
-      type: "cipher_decode",
-      status: "active",
+      type: "cipher_decode" as any,
+      status: "active" as any,
       data: puzzleData as unknown as Record<string, unknown>,
     };
   },

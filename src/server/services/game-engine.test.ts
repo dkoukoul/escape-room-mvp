@@ -204,7 +204,7 @@ describe("Game Engine", () => {
       
       await handleLevelIntroComplete(io, room, "player1");
 
-      expect(room.state.phase).toBe(GamePhase.BRIEFING);
+      expect(room.state.phase).toBe(GamePhase.BRIEFING as any);
       expect(io.to().emit).toHaveBeenCalledWith(ServerEvents.PHASE_CHANGE, expect.objectContaining({
         phase: GamePhase.BRIEFING,
         puzzleIndex: 0
@@ -231,7 +231,7 @@ describe("Game Engine", () => {
       
       handlePlayerReady(io, room, "player1");
       
-      expect(room.state.phase).toBe(GamePhase.PLAYING);
+      expect(room.state.phase).toBe(GamePhase.PLAYING as any);
       expect(io.to().emit).toHaveBeenCalledWith(ServerEvents.PHASE_CHANGE, expect.objectContaining({
         phase: "playing"
       }));
@@ -254,7 +254,7 @@ describe("Game Engine", () => {
       await handlePuzzleAction(io, room, "player1", "click", { x: 10 });
       
       expect(room.state.completedPuzzles).toContain("p1");
-      expect(room.state.phase).toBe(GamePhase.PUZZLE_TRANSITION);
+      expect(room.state.phase).toBe(GamePhase.PUZZLE_TRANSITION as any);
       expect(io.to().emit).toHaveBeenCalledWith(ServerEvents.PUZZLE_COMPLETED, expect.any(Object));
     });
 
@@ -281,7 +281,7 @@ describe("Game Engine", () => {
       await jumpToPuzzle(io, room, 1);
 
       expect(room.state.currentPuzzleIndex).toBe(1);
-      expect(room.state.phase).toBe(GamePhase.BRIEFING);
+      expect(room.state.phase).toBe(GamePhase.BRIEFING as any);
       expect(io.to().emit).toHaveBeenCalledWith(ServerEvents.PHASE_CHANGE, expect.objectContaining({
         puzzleIndex: 1
       }));

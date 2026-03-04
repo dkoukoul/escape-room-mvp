@@ -14,6 +14,8 @@ import { renderRhythmTap, updateRhythmTap } from "../puzzles/rhythm-tap.ts";
 import { renderCollaborativeWiring, updateCollaborativeWiring } from "../puzzles/collaborative-wiring.ts";
 import { renderCipherDecode, updateCipherDecode } from "../puzzles/cipher-decode.ts";
 import { renderCollaborativeAssembly, updateCollaborativeAssembly } from "../puzzles/collaborative-assembly.ts";
+import { renderAlphabetWall, updateAlphabetWall } from "../puzzles/alphabet-wall.ts";
+import { renderDemogorgonHunt, updateDemogorgonHunt } from "../puzzles/demogorgon-hunt.ts";
 
 let currentPuzzleType: string | null = null;
 
@@ -56,6 +58,12 @@ function renderPuzzle(data: PuzzleStartPayload): void {
     case "collaborative_assembly":
       renderCollaborativeAssembly(container, data.playerView);
       break;
+    case "alphabet_wall":
+      renderAlphabetWall(container, data.playerView);
+      break;
+    case "demogorgon_hunt":
+      renderDemogorgonHunt(container, data.playerView);
+      break;
     default:
       mount(container, h("p", { className: "subtitle" }, `Unknown puzzle type: ${data.puzzleType}`));
   }
@@ -77,6 +85,12 @@ function updatePuzzle(view: PlayerView): void {
       break;
     case "collaborative_assembly":
       updateCollaborativeAssembly(view);
+      break;
+    case "alphabet_wall":
+      updateAlphabetWall(view);
+      break;
+    case "demogorgon_hunt":
+      updateDemogorgonHunt(view);
       break;
   }
 }

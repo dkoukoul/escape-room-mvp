@@ -79,8 +79,8 @@ export const collaborativeAssemblyHandler: PuzzleHandler = {
 
     return {
       puzzleId: config.id,
-      type: "collaborative_assembly",
-      status: "active",
+      type: "collaborative_assembly" as any,
+      status: "active" as any,
       data: puzzleData as unknown as Record<string, unknown>,
     };
   },

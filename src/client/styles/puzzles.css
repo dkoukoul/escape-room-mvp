@@ -393,7 +393,7 @@
   content: "";
   position: absolute;
   inset: 0;
-  background-image: 
+  background-image:
     linear-gradient(rgba(0, 240, 255, 0.05) 1px, transparent 1px),
     linear-gradient(90deg, rgba(0, 240, 255, 0.05) 1px, transparent 1px);
   background-size: 20px 20px;
@@ -488,7 +488,7 @@
   content: "";
   position: absolute;
   inset: 0;
-  background-image: 
+  background-image:
     linear-gradient(rgba(255, 215, 0, 0.05) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 215, 0, 0.05) 1px, transparent 1px);
   background-size: 20px 20px;
@@ -588,3 +588,242 @@
     transform: translateX(4px);
   }
 }
+
+/* ==== Puzzle 6: Alphabet Wall ==== */
+
+.alphabet-wall-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  width: 100%;
+  max-width: 600px;
+}
+
+.target-word-display {
+  text-align: center;
+  padding: var(--space-md);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-md);
+  background: rgba(0, 0, 0, 0.3);
+  min-width: 250px;
+}
+
+.alphabet-keyboard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  align-items: center;
+  margin-top: var(--space-lg);
+}
+
+.alphabet-row {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.alphabet-key {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  color: rgba(255, 255, 255, 0.5);
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.alphabet-key::before {
+  content: "";
+  position: absolute;
+  top: -15px;
+  width: 10px;
+  height: 15px;
+  background: transparent;
+  border-left: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 5px;
+  z-index: -1;
+}
+
+/* Light bulb shape */
+.alphabet-key::after {
+  content: "";
+  position: absolute;
+  top: -25px;
+  width: 15px;
+  height: 20px;
+  border-radius: 50% 50% 20% 20%;
+  background: rgba(255, 255, 255, 0.1);
+  z-index: -1;
+  transition: all 0.3s ease;
+}
+
+.alphabet-key.interactive {
+  cursor: pointer;
+  color: white;
+}
+
+.alphabet-key.interactive:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.alphabet-key.lit-local::after,
+.alphabet-key.lit::after {
+  background: var(--neon-cyan);
+  box-shadow: 0 0 15px 5px var(--neon-cyan);
+}
+
+.alphabet-key.lit-local,
+.alphabet-key.lit {
+  color: var(--neon-cyan);
+  text-shadow: 0 0 10px var(--neon-cyan);
+  border-color: var(--neon-cyan);
+}
+
+.guess-input {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  letter-spacing: 4px;
+  width: 100%;
+}
+
+/* ==== Puzzle 7: Demogorgon Hunt ==== */
+
+.dh-container {
+  min-height: 400px;
+}
+
+/* Eleven's Radar View */
+.dh-radar-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 4px;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  border: 4px solid rgba(0, 240, 255, 0.3);
+  background: rgba(0, 0, 0, 0.5);
+  box-shadow: inset 0 0 50px rgba(0, 240, 255, 0.1);
+  overflow: hidden;
+  position: relative;
+}
+
+.dh-radar-container::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
+  background: conic-gradient(from 0deg, transparent 70%, rgba(0, 240, 255, 0.5) 100%);
+  transform-origin: 0 0;
+  animation: radarSpin 4s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes radarSpin {
+  100% { transform: rotate(360deg); }
+}
+
+.dh-quadrant {
+  position: relative;
+  background: rgba(0, 240, 255, 0.05);
+  border: 1px solid rgba(0, 240, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dh-quadrant.active {
+  background: rgba(255, 0, 0, 0.1);
+}
+
+.dh-quad-label {
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  color: rgba(0, 240, 255, 0.3);
+}
+
+.dh-radar-blip {
+  position: absolute;
+  width: 15px;
+  height: 15px;
+  background: #ff0000;
+  border-radius: 50%;
+  box-shadow: 0 0 10px 5px rgba(255, 0, 0, 0.5);
+  animation: blipPulse 1s ease-out infinite;
+  z-index: 10;
+}
+
+/* Randomize blip slightly within the quadrant for flavor */
+.nw .dh-radar-blip { top: 30%; left: 40%; }
+.ne .dh-radar-blip { top: 40%; right: 30%; }
+.sw .dh-radar-blip { bottom: 30%; left: 50%; }
+.se .dh-radar-blip { bottom: 40%; right: 40%; }
+
+@keyframes blipPulse {
+  0% { transform: scale(0.5); opacity: 1; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+.dh-school-icon {
+  position: absolute;
+  bottom: 10%;
+  right: 10%;
+  font-size: 1.5rem;
+  opacity: 0.8;
+}
+
+/* Trapper's Grid View */
+.dh-board {
+  display: grid;
+  gap: 2px;
+  background: #111;
+  border: 2px solid #333;
+  padding: 4px;
+  max-width: 500px;
+  width: 100%;
+  aspect-ratio: 1;
+}
+
+.dh-cell {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px dotted rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.dh-cell:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.dh-cell.placed {
+  background: rgba(0, 255, 100, 0.2);
+  border: 1px solid rgba(0, 255, 100, 0.5);
+  cursor: default;
+}
+
+.dh-cell.current {
+  background: rgba(255, 200, 0, 0.3);
+  border: 1px solid rgba(255, 200, 0, 0.8);
+  box-shadow: 0 0 10px rgba(255, 200, 0, 0.5);
+}
+
+.dh-cell.school {
+  background: rgba(0, 100, 255, 0.2);
+  border: 1px solid rgba(0, 100, 255, 0.5);
+  cursor: default;
+}
+
