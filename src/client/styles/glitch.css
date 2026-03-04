@@ -19,12 +19,11 @@
   content: "";
   position: absolute;
   inset: 0;
-  background:
-    linear-gradient(
-      transparent 0%,
-      rgba(255, 0, 100, 0.04) 50%,
-      transparent 100%
-    );
+  background: linear-gradient(
+    transparent 0%,
+    rgba(255, 0, 100, 0.04) 50%,
+    transparent 100%
+  );
   animation: glitchShift 0.15s infinite;
   opacity: var(--glitch-intensity);
 }
@@ -66,16 +65,37 @@
 }
 
 @keyframes screenShake {
-  0%, 100% { transform: translate(0, 0); }
-  10% { transform: translate(-3px, -2px); }
-  20% { transform: translate(3px, 2px); }
-  30% { transform: translate(-2px, 3px); }
-  40% { transform: translate(2px, -3px); }
-  50% { transform: translate(-3px, 1px); }
-  60% { transform: translate(3px, -1px); }
-  70% { transform: translate(-1px, 3px); }
-  80% { transform: translate(1px, -2px); }
-  90% { transform: translate(-2px, 2px); }
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  10% {
+    transform: translate(-3px, -2px);
+  }
+  20% {
+    transform: translate(3px, 2px);
+  }
+  30% {
+    transform: translate(-2px, 3px);
+  }
+  40% {
+    transform: translate(2px, -3px);
+  }
+  50% {
+    transform: translate(-3px, 1px);
+  }
+  60% {
+    transform: translate(3px, -1px);
+  }
+  70% {
+    transform: translate(-1px, 3px);
+  }
+  80% {
+    transform: translate(1px, -2px);
+  }
+  90% {
+    transform: translate(-2px, 2px);
+  }
 }
 
 /* ---- Glitch Text Effect ---- */
@@ -109,33 +129,84 @@
 }
 
 @keyframes glitchText1 {
-  0%, 88%, 100% { opacity: 0; }
-  89% { opacity: calc(var(--glitch-intensity) * 0.8); }
-  90% { opacity: 0; }
-  91% { opacity: calc(var(--glitch-intensity) * 0.6); }
-  92% { opacity: 0; }
+  0%,
+  88%,
+  100% {
+    opacity: 0;
+  }
+  89% {
+    opacity: calc(var(--glitch-intensity) * 0.8);
+  }
+  90% {
+    opacity: 0;
+  }
+  91% {
+    opacity: calc(var(--glitch-intensity) * 0.6);
+  }
+  92% {
+    opacity: 0;
+  }
 }
 
 @keyframes glitchText2 {
-  0%, 93%, 100% { opacity: 0; }
-  94% { opacity: calc(var(--glitch-intensity) * 0.7); }
-  95% { opacity: 0; }
-  96% { opacity: calc(var(--glitch-intensity) * 0.5); }
-  97% { opacity: 0; }
+  0%,
+  93%,
+  100% {
+    opacity: 0;
+  }
+  94% {
+    opacity: calc(var(--glitch-intensity) * 0.7);
+  }
+  95% {
+    opacity: 0;
+  }
+  96% {
+    opacity: calc(var(--glitch-intensity) * 0.5);
+  }
+  97% {
+    opacity: 0;
+  }
 }
 
 /* ---- Color Distortion on high glitch ---- */
 @keyframes glitchShift {
-  0% { transform: translate(0, 0); filter: hue-rotate(0deg); }
-  25% { transform: translate(calc(var(--glitch-intensity) * 2px), calc(var(--glitch-intensity) * -1px)); }
-  50% { transform: translate(calc(var(--glitch-intensity) * -1px), calc(var(--glitch-intensity) * 2px)); filter: hue-rotate(calc(var(--glitch-intensity) * 30deg)); }
-  75% { transform: translate(calc(var(--glitch-intensity) * 1px), calc(var(--glitch-intensity) * -2px)); }
-  100% { transform: translate(0, 0); filter: hue-rotate(0deg); }
+  0% {
+    transform: translate(0, 0);
+    filter: hue-rotate(0deg);
+  }
+  25% {
+    transform: translate(
+      calc(var(--glitch-intensity) * 2px),
+      calc(var(--glitch-intensity) * -1px)
+    );
+  }
+  50% {
+    transform: translate(
+      calc(var(--glitch-intensity) * -1px),
+      calc(var(--glitch-intensity) * 2px)
+    );
+    filter: hue-rotate(calc(var(--glitch-intensity) * 30deg));
+  }
+  75% {
+    transform: translate(
+      calc(var(--glitch-intensity) * 1px),
+      calc(var(--glitch-intensity) * -2px)
+    );
+  }
+  100% {
+    transform: translate(0, 0);
+    filter: hue-rotate(0deg);
+  }
 }
 
 @keyframes glitchFlicker {
-  0%, 100% { opacity: var(--glitch-intensity); }
-  50% { opacity: calc(var(--glitch-intensity) * 0.5); }
+  0%,
+  100% {
+    opacity: var(--glitch-intensity);
+  }
+  50% {
+    opacity: calc(var(--glitch-intensity) * 0.5);
+  }
 }
 
 /* ---- Glitch Block — random color strip that appears on high glitch ---- */
@@ -151,16 +222,41 @@
   animation: glitchBlockAppear 4s infinite;
 }
 
-.glitch-block:nth-child(1) { top: 15%; animation-delay: 0s; }
-.glitch-block:nth-child(2) { top: 45%; animation-delay: 1.5s; background: var(--neon-cyan); }
-.glitch-block:nth-child(3) { top: 78%; animation-delay: 3s; }
+.glitch-block:nth-child(1) {
+  top: 15%;
+  animation-delay: 0s;
+}
+.glitch-block:nth-child(2) {
+  top: 45%;
+  animation-delay: 1.5s;
+  background: var(--neon-cyan);
+}
+.glitch-block:nth-child(3) {
+  top: 78%;
+  animation-delay: 3s;
+}
 
 @keyframes glitchBlockAppear {
-  0%, 95%, 100% { opacity: 0; transform: scaleX(0); }
-  96% { opacity: var(--glitch-intensity); transform: scaleX(1); }
-  97% { opacity: 0; }
-  98% { opacity: calc(var(--glitch-intensity) * 0.5); transform: scaleX(0.7); }
-  99% { opacity: 0; }
+  0%,
+  95%,
+  100% {
+    opacity: 0;
+    transform: scaleX(0);
+  }
+  96% {
+    opacity: var(--glitch-intensity);
+    transform: scaleX(1);
+  }
+  97% {
+    opacity: 0;
+  }
+  98% {
+    opacity: calc(var(--glitch-intensity) * 0.5);
+    transform: scaleX(0.7);
+  }
+  99% {
+    opacity: 0;
+  }
 }
 
 /* ---- VHS Noise flash (high glitch) ---- */
@@ -175,9 +271,17 @@
 }
 
 @keyframes vhsFlash {
-  0%, 97%, 100% { opacity: 0; }
-  98% { opacity: calc(var(--glitch-intensity) * 0.1); }
-  99% { opacity: 0; }
+  0%,
+  97%,
+  100% {
+    opacity: 0;
+  }
+  98% {
+    opacity: calc(var(--glitch-intensity) * 0.1);
+  }
+  99% {
+    opacity: 0;
+  }
 }
 
 /* ---- Matrix Screen Glitch ---- */
@@ -250,6 +354,55 @@
 }
 
 @keyframes matrixScanlines {
-  from { transform: translateY(0); }
-  to { transform: translateY(2px); }
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(2px);
+  }
+}
+
+/* ---- Lights Glitch ---- */
+.lights-glitch-active {
+  animation: lightsGlitch 2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes lightsGlitch {
+  0% {
+    filter: brightness(1) contrast(1);
+  }
+  5% {
+    filter: brightness(0.2) contrast(1.2);
+  }
+  10% {
+    filter: brightness(0.8) contrast(1);
+  }
+  15% {
+    filter: brightness(0.1) contrast(1.5);
+  }
+  25% {
+    filter: brightness(0.9) contrast(1);
+  }
+  35% {
+    filter: brightness(0.2) contrast(1.3);
+  }
+  50% {
+    filter: brightness(0.05) contrast(1.5);
+  }
+  60% {
+    filter: brightness(0.6) contrast(1.1);
+  }
+  70% {
+    filter: brightness(0.1) contrast(1.2);
+  }
+  85% {
+    filter: brightness(0.8) contrast(1);
+  }
+  90% {
+    filter: brightness(0.2) contrast(1.3);
+  }
+  100% {
+    filter: brightness(1) contrast(1);
+  }
 }

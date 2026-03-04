@@ -57,6 +57,7 @@ export function stopRandomFX(): void {
   const app = $("#app");
   if (app) {
     app.classList.remove("matrix-glitch-active");
+    app.classList.remove("lights-glitch-active");
   }
   console.log("[VisualFX] Random cycle stopped.");
 }
@@ -93,4 +94,17 @@ registerFX("retro-flash", (duration) => {
   setTimeout(() => {
     document.body.style.filter = "";
   }, Math.min(duration, 100)); // Very brief
+});
+
+// Lights Glitch
+registerFX("lights-glitch", (duration) => {
+  const app = $("#app");
+  if (!app) return;
+  
+  app.classList.add("lights-glitch-active");
+  // playGlitchHit();
+  
+  setTimeout(() => {
+    app.classList.remove("lights-glitch-active");
+  }, duration);
 });

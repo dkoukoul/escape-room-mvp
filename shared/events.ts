@@ -157,6 +157,7 @@ export interface GameStartedPayload {
   levelIntroAudio?: string;
   backgroundMusic?: string;
   themeCss: string[];
+  glitch: GlitchState;
   totalPuzzles: number;
   timerSeconds: number;
   isJumpStart?: boolean;
@@ -186,6 +187,7 @@ export interface PuzzleStartPayload {
   puzzleTitle: string;
   roles: RoleAssignment[];
   playerView: PlayerView;
+  glitch: GlitchState;
   backgroundMusic?: string;
 }
 

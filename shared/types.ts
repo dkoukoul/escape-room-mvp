@@ -49,6 +49,7 @@ export interface GameState {
 }
 
 export interface GlitchState {
+  name: string;
   value: number; // 0–100
   maxValue: number; // Default 100 — game over if reached
   decayRate: number; // Points per second of natural decay (0 = no decay)
@@ -92,7 +93,6 @@ export enum PuzzleType {
 }
 
 // ---- Level Configuration (parsed from YAML) ----
-
 export interface LevelConfig {
   id: string;
   title: string;
@@ -100,8 +100,7 @@ export interface LevelConfig {
   min_players: number;
   max_players: number;
   timer_seconds: number;
-  glitch_max: number;
-  glitch_decay_rate: number;
+  glitch: GlitchState;
   theme_css: string[]; // List of CSS files to load (relative to src/client/styles/)
 
   puzzles: PuzzleConfig[];

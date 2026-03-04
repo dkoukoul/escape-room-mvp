@@ -65,6 +65,7 @@ export async function startGame(io: Server, room: Room, startingPuzzleIndex?: nu
     }
 
     const level = getLevel(levelId);
+
     if (!level) {
       logger.error(`[Engine] Level config not found: ${levelId}`);
       return;
@@ -79,18 +80,13 @@ export async function startGame(io: Server, room: Room, startingPuzzleIndex?: nu
     }
 
     // Initialize game state
-    // TODO: REDIS - persist game state
     const isJumping = typeof startingPuzzleIndex === "number" && startingPuzzleIndex >= 0;
     
     room.state.phase = isJumping ? GamePhase.BRIEFING : GamePhase.LEVEL_INTRO;
     room.state.levelId = level.id;
     room.state.currentPuzzleIndex = startingPuzzleIndex ?? 0;
     room.state.totalPuzzles = level.puzzles.length;
-    room.state.glitch = {
-      value: 0,
-      maxValue: level.glitch_max,
-      decayRate: level.glitch_decay_rate,
-    };
+    room.state.glitch = level.glitch;
     room.state.timer = {
       totalSeconds: level.timer_seconds,
       remainingSeconds: level.timer_seconds,
@@ -99,7 +95,7 @@ export async function startGame(io: Server, room: Room, startingPuzzleIndex?: nu
     room.state.startedAt = Date.now();
     room.state.completedPuzzles = [];
     room.state.readyPlayers = [];
-
+    console.log("Room state is: ", room.state.glitch);
     // Persist initial game state
     persistRoom(room).catch(err => logger.error("Failed to persist room on start", { err, roomCode: room.code }));
 
@@ -114,6 +110,7 @@ export async function startGame(io: Server, room: Room, startingPuzzleIndex?: nu
       totalPuzzles: level.puzzles.length,
       timerSeconds: level.timer_seconds,
       isJumpStart: isJumping,
+      glitch: level.glitch,
     };
     io.to(room.code).emit(ServerEvents.GAME_STARTED, startPayload);
 
@@ -310,6 +307,7 @@ function startPuzzle(io: Server, room: Room, level: LevelConfig, puzzleIndex: nu
           roles,
           playerView,
           backgroundMusic: puzzleConfig.audio_cues?.background || level.audio_cues?.background,
+          glitch: room.state.glitch,
         } as PuzzleStartPayload);
       }
     }
@@ -657,6 +655,7 @@ export function syncPlayer(io: Server, room: Room, socket: Socket): void {
           roles: room.state.roleAssignments,
           playerView,
           backgroundMusic: (puzzleConfig.audio_cues?.background || level.audio_cues?.background) as string,
+          glitch: room.state.glitch,
         } as PuzzleStartPayload);
       }
     }

@@ -2,6 +2,7 @@
 // Router — Simple screen manager
 // ============================================================
 
+import type { GlitchState } from "@shared/types.ts";
 import { $ } from "./dom.ts";
 import { startRandomFX, stopRandomFX } from "./visual-fx.ts";
 
@@ -12,7 +13,8 @@ let currentScreen: ScreenName = "lobby";
 /**
  * Show a screen and hide all others
  */
-export function showScreen(name: ScreenName): void {
+export function showScreen(name: ScreenName, glitch: GlitchState): void {
+  console.log(`[Router] Glitch: ${JSON.stringify(glitch)}`);
   // Hide current
   const current = $(`#screen-${currentScreen}`);
   if (current) current.classList.remove("active");
@@ -25,8 +27,12 @@ export function showScreen(name: ScreenName): void {
   console.log(`[Router] Screen: ${name}`);
 
   // Manage Visual FX: only during missions (puzzles)
-  if (name === "puzzle") {
-    startRandomFX(["matrix-glitch"]);
+  if (name === "puzzle" && glitch) {
+    const glitchName = Array.isArray(glitch) 
+      ? glitch.find((g: any) => g.name)?.name || "matrix-glitch"
+      : (glitch as any).name || "matrix-glitch";
+    console.log(`[Router] Starting random FX for glitch: ${glitchName}`);
+    startRandomFX([glitchName]);
   } else {
     stopRandomFX();
   }

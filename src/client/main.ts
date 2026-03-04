@@ -206,7 +206,7 @@ async function boot() {
     });
 
     // Start on lobby
-    showScreen("lobby");
+    showScreen("lobby", { name: "", value: 0, maxValue: 0, decayRate: 0 });
     showHUD(false);
 
     // ---- Dev Tools — URL Jumping ----

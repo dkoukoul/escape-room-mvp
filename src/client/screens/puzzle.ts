@@ -21,7 +21,8 @@ let currentPuzzleType: string | null = null;
 
 export function initPuzzleScreen(): void {
   on(ServerEvents.PUZZLE_START, (data: PuzzleStartPayload) => {
-    showScreen("puzzle");
+    console.log("[Puzzle] Starting puzzle: with data", JSON.stringify(data));
+    showScreen("puzzle", data.glitch);
     currentPuzzleType = data.puzzleType;
     renderPuzzle(data);
   });
