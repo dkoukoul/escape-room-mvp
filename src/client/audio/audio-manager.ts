@@ -38,9 +38,11 @@ export async function resumeContext(): Promise<void> {
 
   // Defer decoding until we have a context and a user gesture
   for (const [name, buffer] of rawBuffers.entries()) {
+    // Remove to avoid parallel overlapping decodes (from interval calls)
+    rawBuffers.delete(name);
+    
     if (!audioBuffers.has(name)) {
       try {
-        // Use a slice to avoid neutering the buffer in the map
         const decoded = await ctx.decodeAudioData(buffer.slice(0));
         audioBuffers.set(name, decoded);
         logger.debug(`[Audio] Decoded on resume: ${name}`);
@@ -67,15 +69,16 @@ export async function loadSound(nameOrUrl: string, name?: string): Promise<void>
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const arrayBuffer = await response.arrayBuffer();
     
-    // Store raw buffer for later decoding
-    rawBuffers.set(soundName, arrayBuffer);
-    logger.debug(`[Audio] Fetched: ${soundName}`);
-
     // If context is already active, decode immediately
     if (audioContext && audioContext.state === "running") {
       const decoded = await audioContext.decodeAudioData(arrayBuffer.slice(0));
       audioBuffers.set(soundName, decoded);
+      return;
     }
+
+    // Otherwise, store raw buffer for later decoding
+    rawBuffers.set(soundName, arrayBuffer);
+    logger.debug(`[Audio] Fetched: ${soundName}`);
   } catch (err) {
     logger.warn(`[Audio] Could not load: ${soundName} from ${fullUrl}`, { err });
   }

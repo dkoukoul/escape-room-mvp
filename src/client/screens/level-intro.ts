@@ -35,29 +35,9 @@ async function renderLevelIntro(data: GameStartedPayload): Promise<void> {
     style: "display: none; padding: 1rem 3rem; font-size: 1.2rem;",
     onclick: () => {
       completeIntro();
-      continueBtn.classList.add("disabled");
-      (continueBtn as HTMLButtonElement).disabled = true;
       continueBtn.textContent = "WAITING FOR CREW...";
     }
   }, "INITIALIZE MISSION");
-
-  const skipBtn = h("button", {
-    className: "btn btn-outline",
-    style: "position: absolute; bottom: 20px; right: 20px; font-size: 0.7rem; opacity: 0.5; border-color: rgba(0, 240, 255, 0.3);",
-    onclick: () => {
-      isSkipping = true;
-      stopAllActiveAudio();
-      skipBtn.style.display = "none";
-    }
-  }, "SKIP");
-
-  // Add spacebar listener for skipping
-  const handleKeyDown = (e: KeyboardEvent) => {
-    if (e.code === "Space" && skipBtn.style.display !== "none") {
-      skipBtn.click();
-    }
-  };
-  window.addEventListener("keydown", handleKeyDown, { once: true });
 
   mount(
     screen,
@@ -74,8 +54,7 @@ async function renderLevelIntro(data: GameStartedPayload): Promise<void> {
         id: "intro-status",
         className: "status-line pulse mt-xl",
       }, "Synchronizing transmission..."),
-      continueBtn,
-      skipBtn
+      continueBtn
     ),
   );
 
@@ -98,23 +77,15 @@ async function renderLevelIntro(data: GameStartedPayload): Promise<void> {
     })();
   }
 
+  continueBtn.style.display = "block";
   // Wait for both to finish (or at least the typewriter if audio fails/is missing)
   await Promise.all([typewriterPromise, audioPromise]);
-
-  // Clean up listener if not skipped
-  window.removeEventListener("keydown", handleKeyDown);
 
   // Show the continue button after both are done
   if (statusEl) {
     statusEl.textContent = "Transmission complete. Awaiting manual override.";
     statusEl.classList.remove("pulse");
   }
-  continueBtn.style.display = "block";
-  skipBtn.style.display = "none";
-
-  // If we skipped, we might want to automatically trigger the continue button?
-  // User says "add a skip button", usually it just bypasses the animation.
-  // I'll leave the button there so they still have to confirm readiness.
 }
 
 function completeIntro() {
