@@ -32,15 +32,15 @@ export function renderAsymmetricSymbols(
 ): void {
   currentView = view;
   const data = view.viewData as Record<string, unknown>;
-
+  const title = view.puzzleTitle;
   if (view.role === "Navigator") {
-    renderNavigatorView(container, data);
+    renderNavigatorView(container, title, data);
   } else {
-    renderDecoderView(container, data);
+    renderDecoderView(container, title, data);
   }
 }
 
-function renderNavigatorView(container: HTMLElement, data: Record<string, unknown>): void {
+function renderNavigatorView(container: HTMLElement, title: string, data: Record<string, unknown>): void {
   const words = data.solutionWords as string[];
   const currentIdx = data.currentWordIndex as number;
   const captured = data.capturedLetters as string[];
@@ -54,7 +54,7 @@ function renderNavigatorView(container: HTMLElement, data: Record<string, unknow
   mount(
     container,
     h("div", { className: "puzzle-header" },
-      h("h2", { className: "title-lg" }, "The Neon Propylaea"),
+      h("h2", { className: "title-lg" }, title),
       h("div", { className: "puzzle-role-badge" }, "Navigator"),
     ),
     h("p", { className: "subtitle mt-md" }, "Guide your Decoders — tell them which letters to catch!"),
@@ -75,7 +75,7 @@ function renderNavigatorView(container: HTMLElement, data: Record<string, unknow
   startLetterSpawner("nav-arena", spawnMs, lifetimeMs, decoyRatio, false);
 }
 
-function renderDecoderView(container: HTMLElement, data: Record<string, unknown>): void {
+function renderDecoderView(container: HTMLElement, title: string, data: Record<string, unknown>): void {
   const spawnMs = (data.spawnIntervalMs as number) ?? 800;
   const lifetimeMs = (data.letterLifetimeMs as number) ?? 4000;
   const decoyRatio = (data.decoyRatio as number) ?? 0.3;
@@ -85,7 +85,7 @@ function renderDecoderView(container: HTMLElement, data: Record<string, unknown>
   mount(
     container,
     h("div", { className: "puzzle-header" },
-      h("h2", { className: "title-lg" }, "The Neon Propylaea"),
+      h("h2", { className: "title-lg" }, title),
       h("div", { className: "puzzle-role-badge" }, "Decoder"),
     ),
     h("p", { className: "subtitle mt-md" }, "Catch the letters your Navigator calls out!"),
