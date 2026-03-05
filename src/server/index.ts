@@ -72,7 +72,7 @@ try {
 }
 
 logger.info(`⚡ Project ODYSSEY Server running on port ${PORT}`);
-logger.info(`   Waiting for Cyber-Hoplites...`);
+logger.info(`   Waiting for agents...`);
 // Test postgres connection
 const postgresService = new PostgresService();
 try {
@@ -89,6 +89,7 @@ io.on("connection", (socket) => {
   // ---- Create Room ----
   socket.on(ClientEvents.CREATE_ROOM, async (payload: CreateRoomPayload) => {
     try {
+      logger.debug(`[Socket] Creating room: ${payload.playerName}`);
       const room = await createRoom(socket.id, payload.playerName);
       socket.join(room.code);
 
@@ -111,9 +112,11 @@ io.on("connection", (socket) => {
   // ---- Join Room ----
   socket.on(ClientEvents.JOIN_ROOM, async (payload: JoinRoomPayload) => {
     try {
+      logger.debug(`[Socket] Joining room: ${payload.roomCode} with name: ${payload.playerName}`);
       const result = await joinRoom(payload.roomCode.toLowerCase(), socket.id, payload.playerName);
 
       if ("error" in result) {
+        logger.error("Error joining room", { error: result.error, socketId: socket.id, payload });
         socket.emit(ServerEvents.ROOM_ERROR, { message: result.error });
         return;
       }
@@ -144,12 +147,14 @@ io.on("connection", (socket) => {
 
   // ---- Leave Room ----
   socket.on(ClientEvents.LEAVE_ROOM, () => {
+    logger.debug(`[Socket] Leaving room`);
     handleDisconnect(socket).catch(err => logger.error("Disconnect error", { err }));
   });
 
   // ---- Start Game ----
   socket.on(ClientEvents.START_GAME, async (payload?: StartGamePayload) => {
     try {
+      logger.debug(`[Socket] Starting game`);
       const room = getPlayerRoom(socket.id);
       if (!room) return;
 
@@ -168,6 +173,7 @@ io.on("connection", (socket) => {
   // ---- Level List (Lobby) ----
   socket.on(ClientEvents.LEVEL_LIST_REQUEST, () => {
     try {
+      logger.debug(`[Socket] Providing level list`);
       socket.emit(ServerEvents.LEVEL_LIST, {
         levels: getLevelSummaries(),
       });
@@ -179,6 +185,7 @@ io.on("connection", (socket) => {
   // ---- Level Selection (Host) ----
   socket.on(ClientEvents.LEVEL_SELECT, async (payload: LevelSelectPayload) => {
     try {
+      logger.debug(`[Socket] Selecting level: ${payload.levelId}`);
       const room = getPlayerRoom(socket.id);
       if (!room) return;
 
@@ -199,6 +206,7 @@ io.on("connection", (socket) => {
   // ---- Puzzle Action ----
   socket.on(ClientEvents.PUZZLE_ACTION, async (payload: PuzzleActionPayload) => {
     try {
+      logger.debug(`[Socket] Handling puzzle action: ${payload.action}`);
       const room = getPlayerRoom(socket.id);
       if (!room) return;
 
@@ -211,6 +219,7 @@ io.on("connection", (socket) => {
   // ---- Player Ready ----
   socket.on(ClientEvents.PLAYER_READY, () => {
     try {
+      logger.debug(`[Socket] Player ready`);
       const room = getPlayerRoom(socket.id);
       if (!room) return;
       
@@ -223,6 +232,7 @@ io.on("connection", (socket) => {
   // ---- Level Intro Complete ----
   socket.on(ClientEvents.INTRO_COMPLETE, async () => {
     try {
+      logger.debug(`[Socket] Intro complete`);
       const room = getPlayerRoom(socket.id);
       if (!room) return;
 
@@ -235,6 +245,7 @@ io.on("connection", (socket) => {
   // ---- Debug Mode Toggle ----
   socket.on(ClientEvents.TOGGLE_DEBUG, () => {
     try {
+      logger.debug(`[Socket] Toggling debug`);
       const room = getPlayerRoom(socket.id);
       if (!room) return;
 
@@ -251,6 +262,7 @@ io.on("connection", (socket) => {
   // ---- Jump To Puzzle ----
   socket.on(ClientEvents.JUMP_TO_PUZZLE, async (payload: any) => {
     try {
+      logger.debug(`[Socket] Jumping to puzzle: ${payload.puzzleIndex}`);
       const room = getPlayerRoom(socket.id);
       if (!room) return;
 

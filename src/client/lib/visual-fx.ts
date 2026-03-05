@@ -4,6 +4,7 @@
 
 import { $ } from "./dom.ts";
 import { playGlitchHit } from "../audio/audio-manager.ts";
+import logger from "@client/logger.ts";
 
 export type FXHandler = (duration: number) => void;
 
@@ -42,7 +43,7 @@ export function startRandomFX(effectIds: string[]): void {
   activePool = effectIds;
   isCycleActive = true;
   scheduleNextFX();
-  console.log(`[VisualFX] Random cycle started with pool: ${effectIds.join(", ")}`);
+  logger.debug(`[VisualFX] Random cycle started with pool: ${effectIds.join(", ")}`);
 }
 
 /**
@@ -59,7 +60,7 @@ export function stopRandomFX(): void {
     app.classList.remove("matrix-glitch-active");
     app.classList.remove("lights-glitch-active");
   }
-  console.log("[VisualFX] Random cycle stopped.");
+  logger.debug("[VisualFX] Random cycle stopped.");
 }
 
 function scheduleNextFX(): void {

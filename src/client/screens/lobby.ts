@@ -37,6 +37,12 @@ let selectedLevelId: string | null = null;
 let selectedPuzzleIndex: number | null = null;
 let leaderboard: LeaderboardEntry[] = [];
 
+function clearSavedSession() {
+  localStorage.removeItem("odyssey_room_code");
+  localStorage.removeItem("odyssey_player_name");
+  localStorage.removeItem("odyssey_room_created_time");
+}
+
 export function initLobby(): void {
   const screen = $("#screen-lobby")!;
   renderJoinView(screen);
@@ -45,12 +51,18 @@ export function initLobby(): void {
   // Request leaderboard data
   emit(ClientEvents.LEADERBOARD_REQUEST);
 
-  // Auto-restore session from localStorage
+  const savedRoomCreatedTime = localStorage.getItem("odyssey_room_created_time");
+  // If room created time is further than 30 minutes in the past clear it
+  if (savedRoomCreatedTime && Date.now() - parseInt(savedRoomCreatedTime) > 30 * 60 * 1000) {
+    clearSavedSession();
+  }
+  // Auto-restore session from localStorage, only if it is in the last 30 minutes
   setTimeout(() => {
     const savedName = localStorage.getItem("odyssey_player_name");
     const savedRoom = localStorage.getItem("odyssey_room_code");
-    const urlParams = new URLSearchParams(window.location.search);
     
+    const urlParams = new URLSearchParams(window.location.search);
+
     // Fill input fields if saved
     if (savedName) {
       const nameInput = $("#input-name") as HTMLInputElement;
@@ -74,7 +86,7 @@ function renderJoinView(container: HTMLElement): void {
     container,
     h("div", { className: "panel flex-col items-center gap-md", style: "max-width: 440px; width: 100%;" },
       h("h1", { className: "title-xl glitch-text", "data-text": "ODYSSEY" }, "ODYSSEY"),
-      h("p", { className: "subtitle mt-sm" }, "Cyber-Hoplite Protocol"),
+      h("p", { className: "subtitle mt-sm" }, "Cyber Protocol"),
       h("div", { className: "mt-xl flex-col gap-md items-center w-full" },
         h("input", {
           id: "input-name",
@@ -225,10 +237,11 @@ function handleCreate(): void {
   try {
     const name = ($("#input-name") as HTMLInputElement)?.value.trim();
     if (!name) {
-      showError("Enter your callsign, Hoplite.");
+      showError("Enter your callsign.");
       return;
     }
     localStorage.setItem("odyssey_player_name", name);
+    localStorage.setItem("odyssey_room_created_time", Date.now().toString());
     emit(ClientEvents.CREATE_ROOM, { playerName: name });
   } catch (err) {
     logger.error("Error creating room", { err });
@@ -240,7 +253,7 @@ function handleJoin(): void {
     const name = ($("#input-name") as HTMLInputElement)?.value.trim();
     const code = ($("#input-room") as HTMLInputElement)?.value.trim().toLowerCase();
     if (!name) {
-      showError("Enter your callsign, Hoplite.");
+      showError("Enter your callsign.");
       return;
     }
     if (!code) {
@@ -249,6 +262,8 @@ function handleJoin(): void {
     }
     localStorage.setItem("odyssey_player_name", name);
     localStorage.setItem("odyssey_room_code", code);
+    localStorage.setItem("odyssey_room_created_time", Date.now().toString());
+    logger.info("[Lobby] Joining room", { roomCode: code, playerName: name });
     emit(ClientEvents.JOIN_ROOM, { roomCode: code, playerName: name });
   } catch (err) {
     logger.error("Error joining room", { err });
@@ -312,6 +327,12 @@ function setupSocketListeners(): void {
     // Re-join on socket reconnection
     on("connect", () => {
       try {
+        const savedRoomCreatedTime = localStorage.getItem("odyssey_room_created_time");
+        // If room created time is further than 30 minutes in the past clear it
+        if (savedRoomCreatedTime && Date.now() - parseInt(savedRoomCreatedTime) > 30 * 60 * 1000) {
+          clearSavedSession();
+          return
+        }
         const savedName = localStorage.getItem("odyssey_player_name");
         const savedRoom = localStorage.getItem("odyssey_room_code");
         if (savedName && savedRoom) {

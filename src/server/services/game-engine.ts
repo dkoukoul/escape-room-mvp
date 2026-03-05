@@ -95,7 +95,7 @@ export async function startGame(io: Server, room: Room, startingPuzzleIndex?: nu
     room.state.startedAt = Date.now();
     room.state.completedPuzzles = [];
     room.state.readyPlayers = [];
-    console.log("Room state is: ", room.state.glitch);
+
     // Persist initial game state
     persistRoom(room).catch(err => logger.error("Failed to persist room on start", { err, roomCode: room.code }));
 

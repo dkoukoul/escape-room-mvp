@@ -47,7 +47,7 @@ function createInitialGameState(): GameState {
     levelId: "",
     currentPuzzleIndex: 0,
     totalPuzzles: 0,
-    glitch: { value: 0, maxValue: 100, decayRate: 0 },
+    glitch: { name: "", value: 0, maxValue: 100, decayRate: 0 },
     timer: { totalSeconds: 0, remainingSeconds: 0, running: false },
     puzzleState: null,
     roleAssignments: [],
@@ -158,7 +158,7 @@ export async function leaveRoom(roomCode: string, playerId: string): Promise<Roo
   if (!room) return null;
 
   room.players.delete(playerId);
-  console.log(`[RoomManager] Player ${playerId} left room ${roomCode}`);
+  logger.info(`[RoomManager] Player ${playerId} left room ${roomCode}`);
 
   // If room is empty, destroy it
   if (room.players.size === 0) {

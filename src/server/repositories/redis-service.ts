@@ -39,7 +39,7 @@ function deserializeRoom(data: string): Room {
 export const RedisService = {
   async saveRoom(room: Room): Promise<void> {
     const key = `room:${room.code}`;
-    await redis.set(key, serializeRoom(room), "EX", 86400); // 24h TTL
+    await redis.set(key, serializeRoom(room), "EX", 3600); // 1h TTL
     logger.debug(`[Redis] Saved room: ${room.code}`);
   },
 

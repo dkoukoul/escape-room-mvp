@@ -2,6 +2,7 @@
 // Puzzle Handler — Interface for all puzzle types
 // ============================================================
 
+import logger from "@client/logger.ts";
 import type { Player, PuzzleConfig, PuzzleState, PlayerView } from "../../../shared/types.ts";
 
 /**
@@ -47,7 +48,7 @@ const handlers = new Map<string, PuzzleHandler>();
 
 export function registerPuzzleHandler(type: string, handler: PuzzleHandler): void {
   handlers.set(type, handler);
-  console.log(`[PuzzleRegistry] Registered handler: ${type}`);
+  logger.info(`[PuzzleRegistry] Registered handler: ${type}`);
 }
 
 export function getPuzzleHandler(type: string): PuzzleHandler | undefined {

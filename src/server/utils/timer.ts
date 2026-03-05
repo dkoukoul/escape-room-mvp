@@ -2,6 +2,7 @@
 // Timer — Server-authoritative countdown
 // ============================================================
 
+import logger from "@client/logger.ts";
 import type { TimerState } from "../../../shared/types.ts";
 
 export type TimerCallback = (timer: TimerState) => void;
@@ -40,7 +41,7 @@ export class GameTimer {
       }
     }, 1000);
 
-    console.log(`[Timer] Started: ${this.state.totalSeconds}s`);
+    logger.debug(`[Timer] Started: ${this.state.totalSeconds}s`);
   }
 
   stop(): void {
@@ -53,12 +54,12 @@ export class GameTimer {
 
   pause(): void {
     this.stop();
-    console.log(`[Timer] Paused at ${this.state.remainingSeconds}s`);
+    logger.debug(`[Timer] Paused at ${this.state.remainingSeconds}s`);
   }
 
   resume(): void {
     this.start();
-    console.log(`[Timer] Resumed at ${this.state.remainingSeconds}s`);
+    logger.debug(`[Timer] Resumed at ${this.state.remainingSeconds}s`);
   }
 
   getState(): TimerState {

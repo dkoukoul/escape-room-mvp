@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import type { LevelConfig } from "../../../shared/types.ts";
+import logger from "@client/logger.ts";
 
 const BASE_DIR = path.join(process.cwd(), "src", "client");
 const STYLES_DIR = path.join(BASE_DIR, "styles");
@@ -71,7 +72,7 @@ export function validateLevel(config: LevelConfig): ValidationResult {
  */
 export function validateAll(levels: LevelConfig[]): boolean {
   let allValid = true;
-  console.log("\n[Validator] Starting configuration health check...");
+  logger.info("\n[Validator] Starting configuration health check...");
 
   for (const level of levels) {
     const result = validateLevel(level);
@@ -83,16 +84,16 @@ export function validateAll(levels: LevelConfig[]): boolean {
     if (!result.valid) {
       allValid = false;
       result.errors.forEach(e => console.error(`   [ERROR] ${e}`));
-      console.error(`❌ Level '${level.id}' validation FAILED\n`);
+      logger.error(`❌ Level '${level.id}' validation FAILED\n`);
     } else {
-      console.log(`✅ Level '${level.id}' validation PASSED`);
+      logger.info(`✅ Level '${level.id}' validation PASSED`);
     }
   }
 
   if (allValid) {
-    console.log("[Validator] All configuration systems NOMINAL.\n");
+    logger.info("[Validator] All configuration systems NOMINAL.\n");
   } else {
-    console.error("[Validator] Configuration errors detected. System behavior may be unstable.\n");
+    logger.error("[Validator] Configuration errors detected. System behavior may be unstable.\n");
   }
 
   return allValid;

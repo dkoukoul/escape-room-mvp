@@ -7,13 +7,14 @@ import { on, emit, ServerEvents, ClientEvents } from "../lib/socket.ts";
 import { showScreen } from "../lib/router.ts";
 import type { GameStartedPayload } from "@shared/events.ts";
 import { playAudioFile, playTypewriterClick, loadSound, stopAllActiveAudio } from "../audio/audio-manager.ts";
+import logger from "@client/logger.ts";
 
 let isSkipping = false;
 
 export function initLevelIntro(): void {
   on(ServerEvents.GAME_STARTED, (data: GameStartedPayload) => {
     if (data.isJumpStart) {
-      console.log("[Intro] Skipping intro due to jump start");
+      logger.info("[Intro] Skipping intro due to jump start");
       return;
     }
     isSkipping = false;
@@ -23,7 +24,7 @@ export function initLevelIntro(): void {
 
 async function renderLevelIntro(data: GameStartedPayload): Promise<void> {
   const screen = $("#screen-level-intro")!;
-  showScreen("level-intro");
+  showScreen("level-intro", data.glitch);
 
   const storyEl = h("p", {
     className: "story-text",

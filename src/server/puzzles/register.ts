@@ -18,5 +18,3 @@ registerPuzzleHandler("cipher_decode", cipherDecodeHandler);
 registerPuzzleHandler("collaborative_assembly", collaborativeAssemblyHandler);
 registerPuzzleHandler("alphabet_wall", alphabetWallHandler);
 registerPuzzleHandler("demogorgon_hunt", demogorgonHuntHandler);
-
-console.log("[PuzzleRegistry] Registered all puzzle handlers");

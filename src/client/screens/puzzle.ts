@@ -16,12 +16,13 @@ import { renderCipherDecode, updateCipherDecode } from "../puzzles/cipher-decode
 import { renderCollaborativeAssembly, updateCollaborativeAssembly } from "../puzzles/collaborative-assembly.ts";
 import { renderAlphabetWall, updateAlphabetWall } from "../puzzles/alphabet-wall.ts";
 import { renderDemogorgonHunt, updateDemogorgonHunt } from "../puzzles/demogorgon-hunt.ts";
+import logger from "@client/logger.ts";
 
 let currentPuzzleType: string | null = null;
 
 export function initPuzzleScreen(): void {
   on(ServerEvents.PUZZLE_START, (data: PuzzleStartPayload) => {
-    console.log("[Puzzle] Starting puzzle: with data", JSON.stringify(data));
+    logger.info("[Puzzle] Starting puzzle: with data", JSON.stringify(data));
     showScreen("puzzle", data.glitch);
     currentPuzzleType = data.puzzleType;
     renderPuzzle(data);
@@ -33,6 +34,7 @@ export function initPuzzleScreen(): void {
 }
 
 function renderPuzzle(data: PuzzleStartPayload): void {
+  logger.info(`[Puzzle] Rendering puzzle: ${data.puzzleTitle}`);
   const screen = $("#screen-puzzle")!;
   clear(screen);
 
@@ -71,6 +73,7 @@ function renderPuzzle(data: PuzzleStartPayload): void {
 }
 
 function updatePuzzle(view: PlayerView): void {
+  logger.info(`[Puzzle] Updating puzzle: ${currentPuzzleType}`);
   switch (currentPuzzleType) {
     case "asymmetric_symbols":
       updateAsymmetricSymbols(view);
