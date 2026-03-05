@@ -146,12 +146,13 @@ function spawnLetter(arena: HTMLElement, letter: string, isDecoy: boolean, lifet
 }
 
 function handleLetterClick(el: HTMLElement, letter: string): void {
-  // Send capture action to server
-  emit(ClientEvents.PUZZLE_ACTION, {
+  const puzzleActionMsg = {
     puzzleId: currentView?.puzzleId ?? "",
     action: "capture_letter",
-    data: { letter },
-  });
+    data: { letter }
+  };
+  // Send capture action to server
+  emit(ClientEvents.PUZZLE_ACTION, puzzleActionMsg);
 
   // Visual feedback (server will confirm correctness)
   el.classList.add("captured");

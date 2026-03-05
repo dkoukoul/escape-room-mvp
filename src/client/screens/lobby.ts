@@ -37,7 +37,7 @@ let selectedLevelId: string | null = null;
 let selectedPuzzleIndex: number | null = null;
 let leaderboard: LeaderboardEntry[] = [];
 
-function clearSavedSession() {
+export function clearSavedSession() {
   localStorage.removeItem("odyssey_room_code");
   localStorage.removeItem("odyssey_player_name");
   localStorage.removeItem("odyssey_room_created_time");

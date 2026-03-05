@@ -36,6 +36,7 @@ async function renderLevelIntro(data: GameStartedPayload): Promise<void> {
     style: "display: none; padding: 1rem 3rem; font-size: 1.2rem;",
     onclick: () => {
       completeIntro();
+      stopAllActiveAudio();
       continueBtn.textContent = "WAITING FOR CREW...";
     }
   }, "INITIALIZE MISSION");
