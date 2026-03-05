@@ -561,3 +561,41 @@ body::before {
   font-weight: bold;
   width: 40px;
 }
+
+/* ---- Footer ---- */
+.lobby-footer {
+  margin-top: var(--space-xl);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  opacity: 0.5;
+  transition: opacity var(--transition-fast);
+  padding-bottom: var(--space-lg);
+}
+
+.lobby-footer:hover {
+  opacity: 1;
+}
+
+.github-link {
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: 1px;
+}
+
+.github-link:hover {
+  color: var(--neon-cyan);
+}
+
+.github-logo {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
