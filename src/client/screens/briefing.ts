@@ -29,7 +29,7 @@ export function initBriefing(): void {
 
 function renderBriefing(data: BriefingPayload): void {
   const screen = $("#screen-briefing")!;
-  showScreen("briefing", { name: "", value: 0, maxValue: 0, decayRate: 0 });
+  showScreen("briefing");
 
   const textEl = h("p", {
     id: "briefing-text",

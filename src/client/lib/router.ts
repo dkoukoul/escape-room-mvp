@@ -14,7 +14,7 @@ let currentScreen: ScreenName = "lobby";
 /**
  * Show a screen and hide all others
  */
-export function showScreen(name: ScreenName, glitch: GlitchState): void {
+export function showScreen(name: ScreenName, glitch?: GlitchState): void {
   // Hide current
   const current = $(`#screen-${currentScreen}`);
   if (current) current.classList.remove("active");
