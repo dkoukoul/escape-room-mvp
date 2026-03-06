@@ -1,0 +1,406 @@
+# Deployment & Operations
+
+<cite>
+**Referenced Files in This Document**
+- [Dockerfile](file://Dockerfile)
+- [docker-compose.yml](file://docker-compose.yml)
+- [docker-compose.override.yml](file://docker-compose.override.yml)
+- [entrypoint.sh](file://entrypoint.sh)
+- [package.json](file://package.json)
+- [src/server/index.ts](file://src/server/index.ts)
+- [src/server/repositories/postgres-service.ts](file://src/server/repositories/postgres-service.ts)
+- [src/server/repositories/redis-service.ts](file://src/server/repositories/redis-service.ts)
+- [prisma.config.ts](file://prisma.config.ts)
+- [prisma/schema.prisma](file://prisma/schema.prisma)
+- [vite.config.ts](file://vite.config.ts)
+- [ARCHITECTURE.md](file://ARCHITECTURE.md)
+</cite>
+
+## Table of Contents
+1. [Introduction](#introduction)
+2. [Project Structure](#project-structure)
+3. [Core Components](#core-components)
+4. [Architecture Overview](#architecture-overview)
+5. [Detailed Component Analysis](#detailed-component-analysis)
+6. [Dependency Analysis](#dependency-analysis)
+7. [Performance Considerations](#performance-considerations)
+8. [Troubleshooting Guide](#troubleshooting-guide)
+9. [Conclusion](#conclusion)
+10. [Appendices](#appendices)
+
+## Introduction
+This document provides comprehensive deployment and operations guidance for Project ODYSSEY. It covers containerized deployment with Docker multi-stage builds, docker-compose orchestration for Redis and PostgreSQL, environment variable configuration, secrets management, scaling strategies, load balancing, performance monitoring, production workflows, rollback procedures, security considerations, logging, health checks, and troubleshooting.
+
+## Project Structure
+Project ODYSSEY is a Bun-based real-time co-op escape room server with a Vite client, Socket.io for real-time communication, Redis for room/session persistence, and PostgreSQL with Prisma for score persistence. The repository includes:
+- Containerization and orchestration: Dockerfile, docker-compose files, entrypoint script
+- Server runtime: Bun, Socket.io, Redis adapter, Prisma client
+- Client runtime: Vite, proxy configuration for Socket.io
+- Database: Prisma schema and configuration
+- Utilities: Environment-driven ports, CORS configuration, and development overrides
+
+```mermaid
+graph TB
+subgraph "Container Orchestration"
+DC["docker-compose.yml"]
+DCO["docker-compose.override.yml"]
+end
+subgraph "Application"
+APP["Bun Server<br/>Socket.io + Redis Adapter"]
+CLI["Vite Client<br/>Proxy /socket.io"]
+end
+subgraph "Data"
+PG["PostgreSQL"]
+RDS["Redis"]
+end
+DC --> APP
+DC --> PG
+DC --> RDS
+DCO --> APP
+DCO --> CLI
+CLI --> APP
+APP --> RDS
+APP --> PG
+```
+
+**Diagram sources**
+- [docker-compose.yml](file://docker-compose.yml#L1-L45)
+- [docker-compose.override.yml](file://docker-compose.override.yml#L1-L14)
+- [src/server/index.ts](file://src/server/index.ts#L47-L61)
+- [vite.config.ts](file://vite.config.ts#L27-L32)
+
+**Section sources**
+- [ARCHITECTURE.md](file://ARCHITECTURE.md#L1-L202)
+- [docker-compose.yml](file://docker-compose.yml#L1-L45)
+- [docker-compose.override.yml](file://docker-compose.override.yml#L1-L14)
+- [vite.config.ts](file://vite.config.ts#L1-L44)
+
+## Core Components
+- Containerization and runtime
+  - Dockerfile defines a multi-stage build using the official Bun image, installs dependencies, generates Prisma client, and sets an entrypoint script for pre-start initialization.
+  - The entrypoint waits for the database to be reachable and applies Prisma schema before starting the application.
+- Orchestration
+  - docker-compose.yml defines three services: app, postgres, and redis, with health checks, environment injection, and volume mounts.
+  - docker-compose.override.yml enables development mode with hot reload, dual ports, and development environment variables.
+- Application server
+  - Socket.io server listens on a configurable port, uses Redis adapter for multi-instance synchronization, and loads room state and configurations at startup.
+  - PostgresService uses Prisma with a connection string from environment variables.
+  - RedisService persists rooms with TTL and logs connection events.
+- Client
+  - Vite proxy routes Socket.io traffic to the server port and supports allowed hosts configuration.
+
+**Section sources**
+- [Dockerfile](file://Dockerfile#L1-L23)
+- [entrypoint.sh](file://entrypoint.sh#L1-L15)
+- [docker-compose.yml](file://docker-compose.yml#L1-L45)
+- [docker-compose.override.yml](file://docker-compose.override.yml#L1-L14)
+- [src/server/index.ts](file://src/server/index.ts#L47-L76)
+- [src/server/repositories/postgres-service.ts](file://src/server/repositories/postgres-service.ts#L14-L22)
+- [src/server/repositories/redis-service.ts](file://src/server/repositories/redis-service.ts#L6-L16)
+- [vite.config.ts](file://vite.config.ts#L27-L32)
+
+## Architecture Overview
+The deployment architecture integrates the Bun server, Vite client, Redis, and PostgreSQL. The server uses Socket.io with a Redis adapter to support horizontal scaling across instances. Prisma manages PostgreSQL schema and queries for leaderboards and persisted scores.
+
+```mermaid
+graph TB
+subgraph "Clients"
+B["Browser Clients"]
+end
+subgraph "Load Balancer"
+LB["Reverse Proxy / Load Balancer"]
+end
+subgraph "App Layer"
+S1["Server Instance 1"]
+S2["Server Instance N"]
+SI["Socket.io Redis Adapter"]
+end
+subgraph "Data Layer"
+RD["Redis"]
+PG["PostgreSQL"]
+end
+B --> LB
+LB --> S1
+LB --> S2
+S1 --> SI
+S2 --> SI
+SI --> RD
+S1 --> PG
+S2 --> PG
+```
+
+**Diagram sources**
+- [src/server/index.ts](file://src/server/index.ts#L47-L61)
+- [src/server/repositories/postgres-service.ts](file://src/server/repositories/postgres-service.ts#L14-L22)
+- [src/server/repositories/redis-service.ts](file://src/server/repositories/redis-service.ts#L6-L16)
+
+## Detailed Component Analysis
+
+### Containerized Deployment with Docker
+- Multi-stage build
+  - Base stage installs Bun dependencies and copies source; Prisma client generation runs with DATABASE_URL argument and environment variable.
+  - Release stage copies the entrypoint script, sets executable permissions, and starts the server with Bun.
+- Entrypoint behavior
+  - Waits for database readiness using Prisma db push, then executes the command passed to the container.
+- Production command
+  - Starts both server and client concurrently in production mode.
+
+```mermaid
+flowchart TD
+Start(["Container Start"]) --> CopySrc["Copy Source Code"]
+CopySrc --> InstallDeps["Install Dependencies"]
+InstallDeps --> GenClient["Generate Prisma Client<br/>with DATABASE_URL"]
+GenClient --> WaitDB["Wait for DB via entrypoint.sh"]
+WaitDB --> PushSchema["Apply Prisma Schema"]
+PushSchema --> ExecCmd["Execute CMD (start server + client)"]
+ExecCmd --> End(["Running"])
+```
+
+**Diagram sources**
+- [Dockerfile](file://Dockerfile#L1-L23)
+- [entrypoint.sh](file://entrypoint.sh#L4-L14)
+- [package.json](file://package.json#L10-L12)
+
+**Section sources**
+- [Dockerfile](file://Dockerfile#L1-L23)
+- [entrypoint.sh](file://entrypoint.sh#L1-L15)
+- [package.json](file://package.json#L1-L41)
+
+### Docker Compose Orchestration
+- Services
+  - app: Builds from the repository root, exposes SERVER_PORT, injects .env, depends on postgres health and redis availability, runs Bun start.
+  - postgres: Uses postgres:15-alpine, healthchecks with pg_isready, persistent volume for data, environment variables from .env.
+  - redis: Uses redis:alpine, exposed port 6379.
+- Overrides for development
+  - Adds CLIENT_PORT, runs dev command, mounts source and ignores node_modules, sets development environment variables.
+
+```mermaid
+sequenceDiagram
+participant Dev as "Developer"
+participant Compose as "docker-compose"
+participant App as "App Container"
+participant Pg as "Postgres Container"
+participant Rd as "Redis Container"
+Dev->>Compose : up (override)
+Compose->>Pg : start and healthcheck
+Compose->>Rd : start
+Compose->>App : start (dev)
+App->>Pg : connect (health condition)
+App-->>Dev : logs and ports
+```
+
+**Diagram sources**
+- [docker-compose.yml](file://docker-compose.yml#L1-L45)
+- [docker-compose.override.yml](file://docker-compose.override.yml#L1-L14)
+
+**Section sources**
+- [docker-compose.yml](file://docker-compose.yml#L1-L45)
+- [docker-compose.override.yml](file://docker-compose.override.yml#L1-L14)
+
+### Environment Variables and Secrets Management
+- Required variables
+  - DATABASE_URL: Postgres connection string for Prisma.
+  - REDIS_URL: Redis connection string for Socket.io adapter and RedisService.
+  - SERVER_PORT: Server port for the Bun application.
+  - CLIENT_PORT: Vite dev server port (development).
+  - VITE_ALLOWED_HOSTS: Comma-separated allowed hosts for Vite dev server.
+  - LOG_LEVEL, VITE_LOG_LEVEL: Logging verbosity for server and client.
+- Recommended practices
+  - Store secrets in a secrets manager or compose secrets and pass them via secure mechanisms.
+  - Use separate .env files per environment and avoid committing secrets to version control.
+  - Validate presence of critical variables at startup (consider adding explicit checks in the server).
+
+**Section sources**
+- [docker-compose.yml](file://docker-compose.yml#L10-L15)
+- [docker-compose.yml](file://docker-compose.yml#L22-L28)
+- [docker-compose.override.yml](file://docker-compose.override.yml#L11-L13)
+- [src/server/index.ts](file://src/server/index.ts#L47-L52)
+- [src/server/repositories/postgres-service.ts](file://src/server/repositories/postgres-service.ts#L14-L16)
+- [src/server/repositories/redis-service.ts](file://src/server/repositories/redis-service.ts#L6-L7)
+- [vite.config.ts](file://vite.config.ts#L10-L13)
+
+### Scaling and Horizontal Scaling with Redis Adapter
+- Horizontal scaling
+  - Socket.io adapter uses Redis pub/sub to synchronize events across instances.
+  - Configure REDIS_URL to point to a managed Redis instance for production.
+- Room persistence
+  - RedisService serializes rooms with TTL to persist across restarts and scale-out scenarios.
+- Recommendations
+  - Use a managed Redis cluster for high availability and performance.
+  - Monitor Redis memory usage and latency; consider sharding or replication.
+
+```mermaid
+sequenceDiagram
+participant C1 as "Client A"
+participant S1 as "Server Instance 1"
+participant RA as "Redis Adapter"
+participant S2 as "Server Instance 2"
+participant C2 as "Client B"
+C1->>S1 : "JOIN_ROOM"
+S1->>RA : publish "room : join"
+RA->>S2 : subscribe "room : join"
+S2-->>C2 : broadcast "PLAYER_LIST_UPDATE"
+```
+
+**Diagram sources**
+- [src/server/index.ts](file://src/server/index.ts#L47-L61)
+- [src/server/repositories/redis-service.ts](file://src/server/repositories/redis-service.ts#L39-L67)
+
+**Section sources**
+- [src/server/index.ts](file://src/server/index.ts#L47-L61)
+- [src/server/repositories/redis-service.ts](file://src/server/repositories/redis-service.ts#L39-L67)
+
+### Load Balancing Strategies
+- Reverse proxy or load balancer
+  - Place a reverse proxy (e.g., Nginx, Traefik, or cloud LB) in front of multiple server instances.
+  - Enable sticky sessions if required, or rely on Redis adapter for event distribution.
+- Health checks
+  - Use the server’s internal readiness signals (after Prisma initialization) and container health checks for dependent services.
+  - Expose a lightweight health endpoint for external probes if desired.
+
+**Section sources**
+- [docker-compose.yml](file://docker-compose.yml#L31-L35)
+- [entrypoint.sh](file://entrypoint.sh#L4-L11)
+
+### Database and Prisma Configuration
+- Prisma client generation
+  - Generated client is included in the image; DATABASE_URL is injected during build and runtime.
+- Schema and migrations
+  - Prisma schema defines the GameScore model with indexes; migrations path is configured.
+- Connection
+  - PostgresService constructs a Pool with DATABASE_URL and uses PrismaPg adapter.
+
+```mermaid
+flowchart TD
+Build["Build Image"] --> Gen["bunx prisma generate"]
+Gen --> Run["Runtime: Prisma Client"]
+Run --> Pool["Pool(connectionString)"]
+Pool --> Adapter["PrismaPg Adapter"]
+Adapter --> DB["PostgreSQL"]
+```
+
+**Diagram sources**
+- [Dockerfile](file://Dockerfile#L12-L16)
+- [prisma.config.ts](file://prisma.config.ts#L4-L9)
+- [prisma/schema.prisma](file://prisma/schema.prisma#L10-L24)
+- [src/server/repositories/postgres-service.ts](file://src/server/repositories/postgres-service.ts#L14-L22)
+
+**Section sources**
+- [Dockerfile](file://Dockerfile#L12-L16)
+- [prisma.config.ts](file://prisma.config.ts#L1-L14)
+- [prisma/schema.prisma](file://prisma/schema.prisma#L1-L24)
+- [src/server/repositories/postgres-service.ts](file://src/server/repositories/postgres-service.ts#L1-L68)
+
+### Client Proxy and Ports
+- Vite proxy
+  - Proxies /socket.io to the server port, enabling seamless development and production routing.
+- Port configuration
+  - SERVER_PORT and CLIENT_PORT are environment-driven and mapped in docker-compose.
+
+**Section sources**
+- [vite.config.ts](file://vite.config.ts#L27-L32)
+- [docker-compose.yml](file://docker-compose.yml#L8-L9)
+- [docker-compose.override.yml](file://docker-compose.override.yml#L4-L6)
+
+### Security Considerations
+- CORS
+  - Server allows origin from http://localhost:CLIENT_PORT; adjust for production domains.
+- TLS/SSL
+  - Terminate TLS at the reverse proxy or load balancer; configure HTTPS listeners and certificates externally.
+- Network security
+  - Restrict inbound ports to necessary ranges; isolate Redis and Postgres behind application networks.
+  - Use private networks and secrets management for credentials.
+
+**Section sources**
+- [src/server/index.ts](file://src/server/index.ts#L54-L58)
+- [docker-compose.yml](file://docker-compose.yml#L18-L43)
+
+### Logging, Health Checks, and Monitoring
+- Logging
+  - Winston-based logger is used across server utilities; configure log levels via environment variables.
+- Health checks
+  - Postgres healthcheck uses pg_isready; Redis is monitored via ioredis events.
+- Monitoring
+  - Track CPU/memory/disk of containers; monitor Redis and Postgres metrics; instrument application logs for key events.
+
+**Section sources**
+- [src/server/repositories/redis-service.ts](file://src/server/repositories/redis-service.ts#L9-L15)
+- [docker-compose.yml](file://docker-compose.yml#L31-L35)
+
+### Production Deployment Workflows and Rollback Procedures
+- Deployment workflow
+  - Build images with DATABASE_URL and deploy orchestrator (compose or platform).
+  - Start postgres and redis, wait for health, then start app instances behind a load balancer.
+- Rollback
+  - Keep previous image tags; redeploy with the prior tag and reverse proxy configuration.
+  - For database changes, maintain migration safety and consider backup/restore procedures.
+
+[No sources needed since this section provides general guidance]
+
+### Maintenance Tasks
+- Database maintenance
+  - Regularly vacuum/analyze PostgreSQL; prune old data as needed; monitor indexes.
+- Redis maintenance
+  - Monitor memory usage, evictions, and slowlog; tune maxmemory policy.
+- Certificates and secrets rotation
+  - Rotate TLS certificates at the reverse proxy; rotate DATABASE_URL and REDIS_URL secrets and redeploy.
+
+[No sources needed since this section provides general guidance]
+
+## Dependency Analysis
+The server depends on Redis for inter-instance messaging and room persistence, and on PostgreSQL via Prisma for score persistence. The client depends on the server over Socket.io with Vite proxy routing.
+
+```mermaid
+graph LR
+Client["Vite Client"] --> |"/socket.io"| Server["Bun Server"]
+Server --> |Redis Adapter| Redis["Redis"]
+Server --> |Prisma| Postgres["PostgreSQL"]
+```
+
+**Diagram sources**
+- [src/server/index.ts](file://src/server/index.ts#L29-L30)
+- [src/server/repositories/postgres-service.ts](file://src/server/repositories/postgres-service.ts#L1-L3)
+- [vite.config.ts](file://vite.config.ts#L27-L32)
+
+**Section sources**
+- [src/server/index.ts](file://src/server/index.ts#L29-L30)
+- [src/server/repositories/postgres-service.ts](file://src/server/repositories/postgres-service.ts#L1-L3)
+- [vite.config.ts](file://vite.config.ts#L27-L32)
+
+## Performance Considerations
+- Container sizing
+  - Allocate sufficient CPU/memory to Bun server and database; monitor GC and thread usage.
+- Database tuning
+  - Use connection pooling; optimize Prisma queries; add appropriate indexes.
+- Redis tuning
+  - Tune maxmemory and eviction policies; monitor latency; consider clustering for HA.
+- Client delivery
+  - Serve static assets via CDN or reverse proxy; enable compression and caching.
+
+[No sources needed since this section provides general guidance]
+
+## Troubleshooting Guide
+- Database connectivity
+  - Verify DATABASE_URL correctness; ensure Postgres is healthy and accepting connections.
+- Redis connectivity
+  - Confirm REDIS_URL and network reachability; check Redis logs for errors.
+- Socket.io scaling
+  - Ensure Redis adapter is configured and reachable; confirm pub/sub channels are active.
+- Health checks failing
+  - Review postgres healthcheck interval/timeout; check container logs for initialization errors.
+- Port conflicts
+  - Ensure SERVER_PORT and CLIENT_PORT are not in use; verify docker-compose port mappings.
+
+**Section sources**
+- [docker-compose.yml](file://docker-compose.yml#L31-L35)
+- [src/server/repositories/postgres-service.ts](file://src/server/repositories/postgres-service.ts#L14-L16)
+- [src/server/repositories/redis-service.ts](file://src/server/repositories/redis-service.ts#L6-L16)
+- [src/server/index.ts](file://src/server/index.ts#L47-L61)
+
+## Conclusion
+Project ODYSSEY is designed for containerized deployment with clear separation of concerns between the Bun server, Vite client, Redis, and PostgreSQL. The provided docker-compose configuration, environment-driven settings, and Redis adapter enable horizontal scaling and robust operations. Adopt the recommended practices for secrets, security, monitoring, and maintenance to ensure reliable production deployments.
+
+## Appendices
+- Quick reference: Ensure DATABASE_URL, REDIS_URL, SERVER_PORT, CLIENT_PORT are set; run docker-compose up; verify health checks; scale horizontally with Redis adapter.
+
+[No sources needed since this section provides general guidance]
