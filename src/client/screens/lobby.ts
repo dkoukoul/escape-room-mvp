@@ -14,6 +14,7 @@
 import { h, $, mount, clear } from "../lib/dom.ts";
 import { emit, on, getPlayerId, ClientEvents, ServerEvents } from "../lib/socket.ts";
 import { showScreen, showHUD } from "../lib/router.ts";
+import { i18n, t } from "../lib/i18n.ts";
 import type { Player } from "@shared/types.ts";
 import type {
   RoomCreatedPayload,
@@ -85,14 +86,14 @@ function renderJoinView(container: HTMLElement): void {
   mount(
     container,
     h("div", { className: "panel flex-col items-center gap-md", style: "max-width: 440px; width: 100%;" },
-      h("h1", { className: "title-xl glitch-text", "data-text": "ODYSSEY" }, "ODYSSEY"),
-      h("p", { className: "subtitle mt-sm" }, "Cyber Protocol"),
+      h("h1", { className: "title-xl glitch-text", "data-text": t("lobby.title") }, t("lobby.title")),
+      h("p", { className: "subtitle mt-sm" }, t("lobby.subtitle")),
       h("div", { className: "mt-xl flex-col gap-md items-center w-full" },
         h("input", {
           id: "input-name",
           className: "input w-full",
           type: "text",
-          placeholder: "Your callsign",
+          placeholder: t("lobby.input.name_placeholder"),
           maxlength: "16",
           autocomplete: "off",
           style: "letter-spacing: 2px; text-transform: none;",
@@ -101,7 +102,7 @@ function renderJoinView(container: HTMLElement): void {
           id: "input-room",
           className: "input w-full",
           type: "text",
-          placeholder: "room code",
+          placeholder: t("lobby.input.room_placeholder"),
           maxlength: "8",
           autocomplete: "off",
         }),
@@ -110,12 +111,12 @@ function renderJoinView(container: HTMLElement): void {
             id: "btn-join",
             className: "btn btn-primary",
             onClick: handleJoin,
-          }, "Join"),
+          }, t("lobby.buttons.join")),
           h("button", {
             id: "btn-create",
             className: "btn",
             onClick: handleCreate,
-          }, "Create Room"),
+          }, t("lobby.buttons.create_room")),
         ),
         h("p", { id: "lobby-error", className: "subtitle", style: "color: var(--neon-red); min-height: 1.4em;" }),
       ),
@@ -129,13 +130,13 @@ function renderLeaderboard(): HTMLElement {
   if (leaderboard.length === 0) return h("div", { className: "hidden" });
 
   return h("div", { className: "leaderboard-container flex-col items-center w-full mt-xl" },
-    h("h3", { className: "title-sm mb-md", style: "color: var(--neon-gold); text-transform: uppercase; letter-spacing: 4px;" }, "🏆 HALL OF FAME 🏆"),
+    h("h3", { className: "title-sm mb-md", style: "color: var(--neon-gold); text-transform: uppercase; letter-spacing: 4px;" }, t("lobby.leaderboard.title")),
     h("table", { className: "leaderboard-table" },
       h("thead", {},
         h("tr", {},
-          h("th", { className: "text-center" }, "#"),
-          h("th", {}, "TEAM"),
-          h("th", { className: "text-center" }, "SCORE"),
+          h("th", { className: "text-center" }, t("lobby.leaderboard.rank")),
+          h("th", {}, t("lobby.leaderboard.team")),
+          h("th", { className: "text-center" }, t("lobby.leaderboard.score")),
         )
       ),
       h("tbody", {},
@@ -168,7 +169,7 @@ function renderFooter(): HTMLElement {
         className: "github-logo",
         style: "display: inline-flex; align-items: center;"
       }),
-      "Odyssey is an open source escape room platform — GitHub Repo"
+      t("lobby.footer.github_link")
     )
   );
 
@@ -187,12 +188,12 @@ function renderRoomView(container: HTMLElement): void {
   mount(
     container,
     h("div", { className: "panel flex-col items-center gap-md", style: "max-width: 500px; width: 100%;" },
-      h("p", { className: "subtitle" }, "ROOM CODE"),
+      h("p", { className: "subtitle" }, t("lobby.status.room_code")),
       h("h2", { className: "title-xl", style: "font-size: 3rem; letter-spacing: 8px;" }, currentRoomCode ?? ""),
       
       // Level Selection Section
       h("div", { className: "w-full mt-lg pt-lg", style: "border-top: 1px solid rgba(0, 240, 255, 0.1);" },
-        h("p", { className: "subtitle mb-sm" }, "SELECTED MISSION"),
+        h("p", { className: "subtitle mb-sm" }, t("lobby.status.select_mission")),
         isHost
           ? h("select", {
               id: "select-level",
@@ -212,13 +213,17 @@ function renderRoomView(container: HTMLElement): void {
       // Mission Details (if level selected)
       selectedLevel ? h("div", { className: "w-full mt-md flex-col gap-xs" },
         h("p", { className: "subtitle", style: "font-size: 0.7rem;" }, 
-          `${selectedLevel.puzzle_count} PUZZLES | ${selectedLevel.min_players}-${selectedLevel.max_players} PLAYERS`
+          t("lobby.status.mission_details", {
+            puzzle_count: selectedLevel.puzzle_count,
+            min_players: selectedLevel.min_players,
+            max_players: selectedLevel.max_players
+          })
         ),
         h("p", { className: "subtitle", style: "opacity: 0.7; font-size: 0.8rem; line-height: 1.4;" }, selectedLevel.story),
         
         // Puzzle Selection for Host (Dev Mode)
         isHost ? h("div", { className: "mt-sm pt-sm", style: "border-top: 1px dashed rgba(0, 240, 255, 0.2);" },
-          h("p", { className: "subtitle mb-xs", style: "font-size: 0.7rem; color: var(--neon-cyan);" }, "START AT PUZZLE (DEV ONLY)"),
+          h("p", { className: "subtitle mb-xs", style: "font-size: 0.7rem; color: var(--neon-cyan);" }, t("lobby.status.dev_jump_to")),
           h("select", {
             className: "input w-full",
             style: "font-size: 0.8rem; height: 2rem; padding: 0 0.5rem;",
@@ -227,15 +232,21 @@ function renderRoomView(container: HTMLElement): void {
               selectedPuzzleIndex = val === "" ? null : parseInt(val); 
             }
           },
-            h("option", { value: "", selected: selectedPuzzleIndex === null }, "Normal Start (With Intro)"),
+            h("option", { value: "", selected: selectedPuzzleIndex === null }, t("lobby.status.normal_start")),
             ...selectedLevel.puzzles.map((p, idx) => 
-               h("option", { value: String(idx), selected: idx === selectedPuzzleIndex }, `Jump to ${idx + 1}. ${p.title}`)
+               h("option", { value: String(idx), selected: idx === selectedPuzzleIndex }, 
+                 t("lobby.status.jump_to_puzzle", { index: idx + 1, title: p.title }))
             )
           )
         ) : ""
       ) : "",
 
-      h("p", { className: "subtitle mt-xl" }, `${players.length} HOPLITE${players.length !== 1 ? "S" : ""} CONNECTED`),
+      h("p", { className: "subtitle mt-xl" }, 
+        t("lobby.status.connected_players", { 
+          count: players.length, 
+          plural: players.length !== 1 ? "S" : "" 
+        })
+      ),
       h("ul", { id: "player-list", className: "player-list mt-sm" },
         ...players.map((p) =>
           h("li", { className: `player-tag ${p.isHost ? "host" : ""}` }, p.name)
@@ -248,12 +259,12 @@ function renderRoomView(container: HTMLElement): void {
                 className: "btn btn-primary",
                 onClick: handleStart,
                 disabled: players.length < (selectedLevel?.min_players || 1) || !selectedLevelId,
-              }, "⚡ Start Mission")
-          : h("p", { className: "subtitle pulse" }, "Waiting for host to start..."),
+              }, t("lobby.buttons.start_mission"))
+          : h("p", { className: "subtitle pulse" }, t("lobby.status.waiting_host")),
         h("button", {
           className: "btn btn-danger",
           onClick: handleLeave,
-        }, "Leave"),
+        }, t("lobby.buttons.leave")),
       ),
     ),
     renderFooter(),
@@ -264,7 +275,7 @@ function handleCreate(): void {
   try {
     const name = ($("#input-name") as HTMLInputElement)?.value.trim();
     if (!name) {
-      showError("Enter your callsign.");
+      showError(t("lobby.errors.enter_callsign"));
       return;
     }
     localStorage.setItem("odyssey_player_name", name);
@@ -280,11 +291,11 @@ function handleJoin(): void {
     const name = ($("#input-name") as HTMLInputElement)?.value.trim();
     const code = ($("#input-room") as HTMLInputElement)?.value.trim().toLowerCase();
     if (!name) {
-      showError("Enter your callsign.");
+      showError(t("lobby.errors.enter_callsign"));
       return;
     }
     if (!code) {
-      showError("Enter a room code.");
+      showError(t("lobby.errors.enter_room_code"));
       return;
     }
     localStorage.setItem("odyssey_player_name", name);

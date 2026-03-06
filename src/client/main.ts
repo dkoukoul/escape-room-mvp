@@ -15,6 +15,8 @@ import { connect, on, emit, ServerEvents } from "./lib/socket.ts";
 import { showScreen, showHUD } from "./lib/router.ts";
 import { preloadSounds, playGlitchHit, playTick, resumeContext } from "./audio/audio-manager.ts";
 import { $ } from "./lib/dom.ts";
+import { i18n, t } from "./lib/i18n.ts";
+import { createLanguageSelector } from "./components/language-selector.ts";
 import type { 
   GlitchUpdatePayload, 
   TimerUpdatePayload, 
@@ -58,6 +60,13 @@ async function boot() {
     logger.info("⚡ Project ODYSSEY — Cyber-Hoplite Protocol");
     logger.info("   Initializing systems...");
 
+    // Initialize i18n service
+    await i18n.init();
+    logger.info(`[i18n] Initialized with language: ${i18n.getCurrentLanguage()}`);
+
+    // Update HUD labels with translations
+    updateHUDLabels();
+
     // Connect to server
     connect();
 
@@ -70,6 +79,12 @@ async function boot() {
     initBriefing();
     initPuzzleScreen();
     initResults();
+
+    // Add language selector
+    const app = $("#app");
+    if (app) {
+      app.appendChild(createLanguageSelector());
+    }
 
     // ---- Mute Toggle ----
     const muteBtn = $("#hud-mute-btn");
@@ -259,6 +274,21 @@ async function boot() {
   } catch (err) {
     logger.error("Failed to boot client application", { err });
   }
+}
+
+function updateHUDLabels(): void {
+  // Update HUD labels with translations
+  const timeLabel = $("#hud-timer .hud-label");
+  const missionLabel = $("#hud-progress .hud-label");
+  const glitchLabel = $("#hud-glitch .hud-label");
+  const roleLabel = $("#hud-role .hud-label");
+  const muteBtn = $("#hud-mute-btn");
+
+  if (timeLabel) timeLabel.textContent = t("hud.time");
+  if (missionLabel) missionLabel.textContent = t("hud.mission");
+  if (glitchLabel) glitchLabel.textContent = t("hud.glitch");
+  if (roleLabel) roleLabel.textContent = t("hud.role");
+  if (muteBtn) muteBtn.title = t("hud.mute");
 }
 
 // ---- Start ----

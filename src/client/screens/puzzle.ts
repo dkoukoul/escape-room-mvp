@@ -5,6 +5,7 @@
 import { h, $, mount, clear } from "../lib/dom.ts";
 import { on, ServerEvents } from "../lib/socket.ts";
 import { showScreen } from "../lib/router.ts";
+import { t } from "../lib/i18n.ts";
 import type { PuzzleStartPayload, PuzzleUpdatePayload } from "@shared/events.ts";
 import type { PlayerView } from "@shared/types.ts";
 
@@ -68,7 +69,7 @@ function renderPuzzle(data: PuzzleStartPayload): void {
       renderDemogorgonHunt(container, data.playerView);
       break;
     default:
-      mount(container, h("p", { className: "subtitle" }, `Unknown puzzle type: ${data.puzzleType}`));
+      mount(container, h("p", { className: "subtitle" }, t("puzzle.unknown_type", { type: data.puzzleType })));
   }
 }
 

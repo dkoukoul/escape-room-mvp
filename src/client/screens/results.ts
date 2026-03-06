@@ -6,6 +6,7 @@ import { h, $, mount } from "../lib/dom.ts";
 import { on, ServerEvents } from "../lib/socket.ts";
 import { showScreen, showHUD } from "../lib/router.ts";
 import { playSuccess, playFail } from "../audio/audio-manager.ts";
+import { t } from "../lib/i18n.ts";
 import type { VictoryPayload, DefeatPayload } from "@shared/events.ts";
 
 export function initResults(): void {
@@ -19,7 +20,7 @@ export function initResults(): void {
 }
 
 function renderVictory(data: VictoryPayload): void {
-  showScreen("results");
+  showScreen("results", { name: "", value: 0, maxValue: 0, decayRate: 0 });
   showHUD(false);
   playSuccess();
 
@@ -30,14 +31,14 @@ function renderVictory(data: VictoryPayload): void {
   mount(
     screen,
     h("div", { className: "panel flex-col items-center gap-md text-center fade-in", style: "max-width: 500px;" },
-      h("h1", { className: "title-xl", style: "color: var(--neon-green); filter: drop-shadow(0 0 20px rgba(57,255,20,0.5));" }, "MISSION COMPLETE"),
-      h("p", { className: "subtitle mt-md" }, "The Parthenon has been restored. Democracy is saved."),
+      h("h1", { className: "title-xl", style: "color: var(--neon-green); filter: drop-shadow(0 0 20px rgba(57,255,20,0.5));" }, t("results.victory.title")),
+      h("p", { className: "subtitle mt-md" }, t("results.victory.subtitle")),
       h("div", { className: "mt-lg flex-col gap-sm" },
         h("div", { className: "flex-row gap-md justify-center" },
-          statCard("TIME", `${minutes}:${String(seconds).padStart(2, "0")}`),
-          statCard("GLITCH", `${Math.round(data.glitchFinal)}%`),
-          statCard("PUZZLES", `${data.puzzlesCompleted}/5`),
-          statCard("SCORE", `${data.score}`),
+          statCard(t("results.victory.stats.time"), `${minutes}:${String(seconds).padStart(2, "0")}`),
+          statCard(t("results.victory.stats.glitch"), `${Math.round(data.glitchFinal)}%`),
+          statCard(t("results.victory.stats.puzzles"), `${data.puzzlesCompleted}/5`),
+          statCard(t("results.victory.stats.score"), `${data.score}`),
         ),
       ),
       h("button", {
@@ -46,31 +47,31 @@ function renderVictory(data: VictoryPayload): void {
           localStorage.removeItem("odyssey_room_code");
           location.reload();
         },
-      }, "Play Again"),
+      }, t("common.play_again")),
     ),
   );
 }
 
 function renderDefeat(data: DefeatPayload): void {
-  showScreen("results");
+  showScreen("results", { name: "", value: 0, maxValue: 0, decayRate: 0 });
   showHUD(false);
   playFail();
 
   const reason = data.reason === "timer"
-    ? "Time has expired. The Chronos Virus has consumed Ancient Greece."
-    : "Glitch overload. The simulation has collapsed.";
+    ? t("results.defeat.reason.timer")
+    : t("results.defeat.reason.glitch");
 
   const screen = $("#screen-results")!;
   mount(
     screen,
     h("div", { className: "panel flex-col items-center gap-md text-center fade-in", style: "max-width: 500px;" },
-      h("h1", { className: "title-xl", style: "color: var(--neon-red); filter: drop-shadow(0 0 20px rgba(255,51,51,0.5));" }, "MISSION FAILED"),
+      h("h1", { className: "title-xl", style: "color: var(--neon-red); filter: drop-shadow(0 0 20px rgba(255,51,51,0.5));" }, t("results.defeat.title")),
       h("p", { className: "subtitle mt-md" }, reason),
       h("div", { className: "mt-lg flex-col gap-sm" },
         h("div", { className: "flex-row gap-md justify-center" },
-          statCard("REACHED", `Puzzle ${data.puzzleReachedIndex + 1}/5`),
-          statCard("COMPLETED", `${data.puzzlesCompleted}`),
-          statCard("CAUSE", data.reason.toUpperCase()),
+          statCard(t("results.defeat.stats.reached"), `Puzzle ${data.puzzleReachedIndex + 1}/5`),
+          statCard(t("results.defeat.stats.completed"), `${data.puzzlesCompleted}`),
+          statCard(t("results.defeat.stats.cause"), data.reason.toUpperCase()),
         ),
       ),
       h("button", {
@@ -79,7 +80,7 @@ function renderDefeat(data: DefeatPayload): void {
           localStorage.removeItem("odyssey_room_code");
           location.reload();
         },
-      }, "Try Again"),
+      }, t("common.try_again")),
     ),
   );
 }

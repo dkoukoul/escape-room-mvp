@@ -5,6 +5,7 @@
 import { h, $, mount, clear } from "../lib/dom.ts";
 import { on, emit, ServerEvents, ClientEvents } from "../lib/socket.ts";
 import { showScreen } from "../lib/router.ts";
+import { i18n, t } from "../lib/i18n.ts";
 import type { GameStartedPayload } from "@shared/events.ts";
 import { playAudioFile, playTypewriterClick, loadSound, stopAllActiveAudio } from "../audio/audio-manager.ts";
 import logger from "@client/logger.ts";
@@ -37,25 +38,25 @@ async function renderLevelIntro(data: GameStartedPayload): Promise<void> {
     onclick: () => {
       completeIntro();
       stopAllActiveAudio();
-      continueBtn.textContent = "WAITING FOR CREW...";
+      continueBtn.textContent = t("level_intro.waiting_crew");
     }
-  }, "INITIALIZE MISSION");
+  }, t("level_intro.initialize_mission"));
 
   mount(
     screen,
     h("div", { className: "panel level-intro-panel flex-col items-center gap-md text-center fade-in", style: "max-width: 800px; position: relative;" },
-      h("div", { className: "mission-brand" }, "System Narrative Protocol"),
+      h("div", { className: "mission-brand" }, t("level_intro.narrative_protocol")),
       h("h1", { className: "title-lg mt-sm glitch-text", "data-text": data.levelTitle, style: "font-size: 2.5rem;" }, data.levelTitle),
       h("div", { className: "mt-lg", style: "border-top: 1px solid var(--neon-cyan); padding-top: var(--space-md); position: relative; width: 100%;" },
         h("div", {
           style: "position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: var(--bg-black); padding: 0 10px; font-family: 'Share Tech Mono'; color: var(--neon-cyan); font-size: 0.7rem; letter-spacing: 2px;",
-        }, "MISSION SYNC"),
+        }, t("level_intro.mission_sync")),
         storyEl,
       ),
       h("p", {
         id: "intro-status",
         className: "status-line pulse mt-xl",
-      }, "Synchronizing transmission..."),
+      }, t("level_intro.synchronizing")),
       continueBtn
     ),
   );
@@ -71,7 +72,7 @@ async function renderLevelIntro(data: GameStartedPayload): Promise<void> {
     audioPromise = (async () => {
        try {
         await loadSound(audioUrl);
-        if (statusEl) statusEl.textContent = "Incoming Audio Stream...";
+        if (statusEl) statusEl.textContent = t("level_intro.incoming_audio");
         await playAudioFile(audioUrl);
       } catch (err) {
         console.warn("[Intro] Audio failed:", err);
@@ -85,7 +86,7 @@ async function renderLevelIntro(data: GameStartedPayload): Promise<void> {
 
   // Show the continue button after both are done
   if (statusEl) {
-    statusEl.textContent = "Transmission complete. Awaiting manual override.";
+    statusEl.textContent = t("level_intro.transmission_complete");
     statusEl.classList.remove("pulse");
   }
 }
