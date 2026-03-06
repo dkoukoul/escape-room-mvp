@@ -206,11 +206,17 @@ async function startPuzzleBriefing(io: Server, room: Room, level: LevelConfig, p
  */
 export function handlePlayerReady(io: Server, room: Room, playerId: string): void {
   try {
+    logger.info(`[Engine] Player ${playerId} ready in phase: ${room.state.phase}`);
+    
     // Only matters during the briefing phase
-    if (room.state.phase !== "briefing") return;
+    if (room.state.phase !== "briefing") {
+      logger.warn(`[Engine] Ignoring player ready - not in briefing phase`);
+      return;
+    }
 
     if (!room.state.readyPlayers.includes(playerId)) {
       room.state.readyPlayers.push(playerId);
+      logger.info(`[Engine] Player ${playerId} marked ready. Total ready: ${room.state.readyPlayers.length}`);
       persistRoom(room).catch(err => logger.error("Failed to persist room on player ready", { err, roomCode: room.code, playerId }));
     }
 
@@ -222,8 +228,12 @@ export function handlePlayerReady(io: Server, room: Room, playerId: string): voi
     } as PlayerReadyUpdatePayload);
 
     if (room.state.readyPlayers.length >= players.length) {
+      logger.info(`[Engine] All ${players.length} players ready! Starting puzzle...`);
       const level = getLevel(room.state.levelId);
-      if (!level) return;
+      if (!level) {
+        logger.error(`[Engine] Level not found: ${room.state.levelId}`);
+        return;
+      }
       
       // Clear ready players list
       room.state.readyPlayers = [];
@@ -263,7 +273,10 @@ export async function jumpToPuzzle(io: Server, room: Room, puzzleIndex: number):
 function startPuzzle(io: Server, room: Room, level: LevelConfig, puzzleIndex: number): void {
   try {
     const puzzleConfig = level.puzzles[puzzleIndex];
-    if (!puzzleConfig) return;
+    if (!puzzleConfig) {
+      logger.error(`[Engine] Puzzle ${puzzleIndex} not found in level ${level.id}`);
+      return;
+    }
 
     const handler = getPuzzleHandler(puzzleConfig.type);
     if (!handler) {
@@ -272,6 +285,7 @@ function startPuzzle(io: Server, room: Room, level: LevelConfig, puzzleIndex: nu
     }
 
     const players = getPlayersArray(room);
+    logger.info(`[Engine] Starting puzzle ${puzzleIndex + 1}/${level.puzzles.length} for ${players.length} players`);
 
     // Assign roles for this puzzle
     const roles = assignRoles(players, puzzleConfig);
@@ -294,22 +308,29 @@ function startPuzzle(io: Server, room: Room, level: LevelConfig, puzzleIndex: nu
 
     for (const player of players) {
       const role = roles.find((r) => r.playerId === player.id);
-      if (!role) continue;
+      if (!role) {
+        logger.warn(`[Engine] No role found for player ${player.id}`);
+        continue;
+      }
 
       const playerView = handler.getPlayerView(puzzleState, player.id, role.role, puzzleConfig);
 
       const socket = getPlayerSocket(io, player.id);
-      if (socket) {
-        socket.emit(ServerEvents.PUZZLE_START, {
-          puzzleId: puzzleConfig.id,
-          puzzleType: puzzleConfig.type,
-          puzzleTitle: puzzleConfig.title,
-          roles,
-          playerView,
-          backgroundMusic: puzzleConfig.audio_cues?.background || level.audio_cues?.background,
-          glitch: room.state.glitch,
-        } as PuzzleStartPayload);
+      if (!socket) {
+        logger.error(`[Engine] Socket not found for player ${player.id}`);
+        continue;
       }
+
+      logger.info(`[Engine] Sending PUZZLE_START to player ${player.name} (${player.id})`);
+      socket.emit(ServerEvents.PUZZLE_START, {
+        puzzleId: puzzleConfig.id,
+        puzzleType: puzzleConfig.type,
+        puzzleTitle: puzzleConfig.title,
+        roles,
+        playerView,
+        backgroundMusic: puzzleConfig.audio_cues?.background || level.audio_cues?.background,
+        glitch: room.state.glitch,
+      } as PuzzleStartPayload);
     }
 
     logger.info(`[Engine] Puzzle ${puzzleIndex + 1}/${level.puzzles.length} started: ${puzzleConfig.title}`);

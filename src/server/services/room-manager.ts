@@ -15,7 +15,6 @@ import { type Room, type Player, type GameState, type GlitchState, type TimerSta
 import { RedisService } from "../repositories/redis-service.ts";
 import logger from "../utils/logger.ts";
 
-// TODO: REDIS — move room storage to Redis for multi-instance deployment
 const rooms = new Map<string, Room>();
 
 // 4-char room codes using memorable words

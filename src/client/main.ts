@@ -55,7 +55,7 @@ async function boot() {
     window.addEventListener("mousedown", resume);
     window.addEventListener("keydown", resume);
 
-    logger.info("⚡ Project ODYSSEY — Cyber-Hoplite Protocol");
+    logger.info("⚡ Project ODYSSEY — Cyber Protocol");
     logger.info("   Initializing systems...");
 
     // Connect to server

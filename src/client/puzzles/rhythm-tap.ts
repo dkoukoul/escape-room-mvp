@@ -94,7 +94,7 @@ function playSequence(sequence: string[], speed: number): void {
 
   // After sequence finishes, enable input
   setTimeout(() => {
-    if (instructionEl) instructionEl.textContent = "Guide your hoplite through the sequence";
+    if (instructionEl) instructionEl.textContent = "Guide your team through the sequence";
   }, sequence.length * speed + 300);
 }
 

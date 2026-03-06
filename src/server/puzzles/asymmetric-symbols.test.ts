@@ -193,5 +193,43 @@ describe("asymmetricSymbolsHandler", () => {
       expect(view.viewData.capturedLetters).toEqual(["_", "_", "_", "_", "_", "_", "_"]);
       expect(view.viewData.completedWords).toEqual(0);
     });
+
+    test("should validate decoy_ratio to be between 0 and 0.9", () => {
+      const state: PuzzleState = {
+        puzzleId: "1",
+        type: PuzzleType.ASYMMETRIC_SYMBOLS,
+        status: PuzzleStatus.ACTIVE,
+        data: {
+          solutionWords: ["test"],
+          currentWordIndex: 0,
+          capturedLetters: ["_", "_", "_", "_"],
+          capturedBy: {},
+          wrongCaptures: 0,
+          completedWords: [],
+        },
+      };
+      const playerId = "player1";
+      const playerRole = "Decoder";
+
+      // Test with ratio > 0.9 (should be clamped to 0.9)
+      const highRatioConfig = { ...mockPuzzleConfig, data: { ...mockPuzzleConfig.data, decoy_ratio: 1.5 } };
+      const viewHigh = asymmetricSymbolsHandler.getPlayerView(state, playerId, playerRole, highRatioConfig);
+      expect(viewHigh.viewData.decoyRatio).toBe(0.9);
+
+      // Test with negative ratio (should be clamped to 0)
+      const negativeRatioConfig = { ...mockPuzzleConfig, data: { ...mockPuzzleConfig.data, decoy_ratio: -0.2 } };
+      const viewNegative = asymmetricSymbolsHandler.getPlayerView(state, playerId, playerRole, negativeRatioConfig);
+      expect(viewNegative.viewData.decoyRatio).toBe(0);
+
+      // Test with valid ratio (should remain unchanged)
+      const validRatioConfig = { ...mockPuzzleConfig, data: { ...mockPuzzleConfig.data, decoy_ratio: 0.5 } };
+      const viewValid = asymmetricSymbolsHandler.getPlayerView(state, playerId, playerRole, validRatioConfig);
+      expect(viewValid.viewData.decoyRatio).toBe(0.5);
+
+      // Test with ratio = 0 (all letters should be valid)
+      const zeroRatioConfig = { ...mockPuzzleConfig, data: { ...mockPuzzleConfig.data, decoy_ratio: 0 } };
+      const viewZero = asymmetricSymbolsHandler.getPlayerView(state, playerId, playerRole, zeroRatioConfig);
+      expect(viewZero.viewData.decoyRatio).toBe(0);
+    });
   });
 });

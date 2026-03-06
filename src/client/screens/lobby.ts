@@ -235,7 +235,7 @@ function renderRoomView(container: HTMLElement): void {
         ) : ""
       ) : "",
 
-      h("p", { className: "subtitle mt-xl" }, `${players.length} HOPLITE${players.length !== 1 ? "S" : ""} CONNECTED`),
+      h("p", { className: "subtitle mt-xl" }, `${players.length} PLAYER${players.length !== 1 ? "S" : ""} CONNECTED`),
       h("ul", { id: "player-list", className: "player-list mt-sm" },
         ...players.map((p) =>
           h("li", { className: `player-tag ${p.isHost ? "host" : ""}` }, p.name)

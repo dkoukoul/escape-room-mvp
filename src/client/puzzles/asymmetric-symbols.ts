@@ -17,12 +17,39 @@ let currentView: PlayerView | null = null;
 let activeSpawnMs = 0;
 let activeLifetimeMs = 0;
 let activeDecoyRatio = 0;
+let activeCurrentWord = "";
 
 // Simple seeded PRNG to sync letter generation between clients
 let prngSeed = 1234567;
 function prng() {
   prngSeed = (prngSeed * 9301 + 49297) % 233280;
   return prngSeed / 233280;
+}
+
+// Track which letters from the current word still need to be spawned
+let pendingLetters: string[] = [];
+
+function initPendingLetters(word: string): void {
+  // Split word into individual letters that need to be spawned
+  pendingLetters = word.split("").filter(c => c !== "_");
+}
+
+function updatePendingLetters(captured: string[]): void {
+  // Remove captured letters from pending letters
+  const capturedLetters = captured.filter(c => c !== "_");
+  
+  // Create a copy of pending letters to modify
+  const newPending: string[] = [...pendingLetters];
+  
+  // Remove each captured letter from pending
+  for (const letter of capturedLetters) {
+    const index = newPending.indexOf(letter);
+    if (index > -1) {
+      newPending.splice(index, 1);
+    }
+  }
+  
+  pendingLetters = newPending;
 }
 
 export function renderAsymmetricSymbols(
@@ -71,6 +98,10 @@ function renderNavigatorView(container: HTMLElement, title: string, data: Record
   activeSpawnMs = spawnMs;
   activeLifetimeMs = lifetimeMs;
   activeDecoyRatio = decoyRatio;
+  activeCurrentWord = currentWord;
+
+  // Initialize pending letters for the current word
+  initPendingLetters(currentWord);
 
   startLetterSpawner("nav-arena", spawnMs, lifetimeMs, decoyRatio, false);
 }
@@ -81,6 +112,11 @@ function renderDecoderView(container: HTMLElement, title: string, data: Record<s
   const decoyRatio = (data.decoyRatio as number) ?? 0.3;
   const totalWords = data.totalWords as number;
   const completedWords = (data.completedWords as number) ?? 0;
+  const currentWordLength = data.currentWordLength as number;
+
+  // Reconstruct current word from captured letters for pending letter tracking
+  const capturedLetters = data.capturedLetters as string[];
+  const currentWord = "_".repeat(currentWordLength || 1); // Placeholder for tracking
 
   mount(
     container,
@@ -99,6 +135,10 @@ function renderDecoderView(container: HTMLElement, title: string, data: Record<s
   activeSpawnMs = spawnMs;
   activeLifetimeMs = lifetimeMs;
   activeDecoyRatio = decoyRatio;
+  activeCurrentWord = currentWord;
+
+  // Initialize pending letters for the current word
+  initPendingLetters(currentWord);
 
   // Start spawning letters
   startLetterSpawner("decoder-arena", spawnMs, lifetimeMs, decoyRatio, true);
@@ -112,11 +152,51 @@ function startLetterSpawner(arenaId: string, intervalMs: number, lifetimeMs: num
 
   // Reset PRNG seed so all clients generate the same sequence
   prngSeed = 1234567;
+  
+  // Reset pending letters counter for batch spawning
+  let lettersSpawnedInBatch = 0;
+  const batchSize = 4; // Spawn letters in batches of 4
 
   spawnInterval = setInterval(() => {
-    const isDecoy = prng() < decoyRatio;
-    const letter = GREEK_LETTERS[Math.floor(prng() * GREEK_LETTERS.length)]!;
+    // Validate decoy ratio (must be between 0 and 0.9)
+    const validRatio = Math.max(0, Math.min(0.9, decoyRatio));
+    
+    // Determine how many valid letters and decoys to spawn in this batch
+    // For example, with ratio 0.5 and batch size 4: 2 valid, 2 decoys
+    const validLettersCount = Math.floor(batchSize * (1 - validRatio));
+    const decoysCount = batchSize - validLettersCount;
+    
+    // Decide which type to spawn based on current position in batch
+    const shouldSpawnValid = lettersSpawnedInBatch < validLettersCount;
+    
+    let letter: string;
+    let isDecoy: boolean;
+    
+    if (shouldSpawnValid && pendingLetters.length > 0) {
+      // Spawn a valid letter from the word
+      const randomIndex = Math.floor(prng() * pendingLetters.length);
+      letter = pendingLetters[randomIndex]!;
+      isDecoy = false;
+    } else {
+      // Spawn a decoy letter (random Greek letter not in pending letters)
+      const availableDecoys = GREEK_LETTERS.filter(l => !pendingLetters.includes(l));
+      if (availableDecoys.length > 0) {
+        const randomIndex = Math.floor(prng() * availableDecoys.length);
+        letter = availableDecoys[randomIndex]!;
+      } else {
+        // Fallback if all letters are in the word
+        const randomIndex = Math.floor(prng() * GREEK_LETTERS.length);
+        letter = GREEK_LETTERS[randomIndex]!;
+      }
+      isDecoy = true;
+    }
+    
     spawnLetter(arena, letter, isDecoy, lifetimeMs, interactable);
+    
+    lettersSpawnedInBatch++;
+    if (lettersSpawnedInBatch >= batchSize) {
+      lettersSpawnedInBatch = 0;
+    }
   }, intervalMs);
 }
 
@@ -185,6 +265,15 @@ export function updateAsymmetricSymbols(view: PlayerView): void {
     const completed = data.completedWords as string[];
     const currentWord = words[currentIdx] ?? "✓";
 
+    // Check if word changed and reset pending letters
+    if (currentWord !== activeCurrentWord && currentWord !== "✓") {
+      activeCurrentWord = currentWord;
+      initPendingLetters(currentWord);
+    } else {
+      // Update pending letters based on what's been captured
+      updatePendingLetters(captured);
+    }
+
     const wordEl = $("#nav-current-word");
     if (wordEl) wordEl.textContent = currentWord;
 
@@ -201,12 +290,23 @@ export function updateAsymmetricSymbols(view: PlayerView): void {
     const completedWords = (data.completedWords as number) ?? 0;
     const totalWords = data.totalWords as number;
     const captured = data.capturedLetters as string[];
+    const currentWordLength = data.currentWordLength as number;
 
     const progressEl = $("#decoder-progress");
     if (progressEl) progressEl.textContent = `Words: ${completedWords}/${totalWords}`;
 
     const capturedEl = $("#decoder-captured");
     if (capturedEl) capturedEl.textContent = `Captured: ${captured.join("")}`;
+    
+    // Update pending letters based on captured count
+    const currentWord = "_".repeat(currentWordLength || 1);
+    if (currentWord !== activeCurrentWord) {
+      activeCurrentWord = currentWord;
+      initPendingLetters(currentWord);
+    } else {
+      // Update pending letters based on what's been captured
+      updatePendingLetters(captured);
+    }
   }
 }
 

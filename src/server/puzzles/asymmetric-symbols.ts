@@ -109,6 +109,10 @@ export const asymmetricSymbolsHandler: PuzzleHandler = {
     const data = state.data as unknown as SymbolsData;
     const configData = config.data as Record<string, unknown>;
 
+    // Validate decoy ratio (must be between 0 and 0.9)
+    let decoyRatio = configData.decoy_ratio as number ?? 0.3;
+    decoyRatio = Math.max(0, Math.min(0.9, decoyRatio));
+
     const baseView = {
       playerId,
       role: playerRole,
@@ -129,7 +133,7 @@ export const asymmetricSymbolsHandler: PuzzleHandler = {
           totalWords: data.solutionWords.length,
           spawnIntervalMs: configData.spawn_interval_ms ?? 800,
           letterLifetimeMs: configData.letter_lifetime_ms ?? 4000,
-          decoyRatio: configData.decoy_ratio ?? 0.3,
+          decoyRatio,
           glitchSpeed: configData.glitch_speed ?? "medium",
         },
       };
@@ -146,7 +150,7 @@ export const asymmetricSymbolsHandler: PuzzleHandler = {
           totalWords: data.solutionWords.length,
           spawnIntervalMs: configData.spawn_interval_ms ?? 800,
           letterLifetimeMs: configData.letter_lifetime_ms ?? 4000,
-          decoyRatio: configData.decoy_ratio ?? 0.3,
+          decoyRatio,
           glitchSpeed: configData.glitch_speed ?? "medium",
         },
       };
