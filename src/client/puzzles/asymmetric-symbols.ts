@@ -29,6 +29,9 @@ function prng() {
 // Track which letters from the current word still need to be spawned
 let pendingLetters: string[] = [];
 
+// Global spawn counter to keep all clients in sync
+let globalSpawnCounter = 0;
+
 function initPendingLetters(word: string): void {
   // Split word into individual letters that need to be spawned
   pendingLetters = word.split("").filter(c => c !== "_");
@@ -150,8 +153,9 @@ function startLetterSpawner(arenaId: string, intervalMs: number, lifetimeMs: num
   const arena = $(`#${arenaId}`);
   if (!arena) return;
 
-  // Reset PRNG seed so all clients generate the same sequence
+  // Reset PRNG seed AND spawn counter so all clients generate the same sequence
   prngSeed = 1234567;
+  globalSpawnCounter = 0;
   
   // Reset pending letters counter for batch spawning
   let lettersSpawnedInBatch = 0;
@@ -171,40 +175,63 @@ function startLetterSpawner(arenaId: string, intervalMs: number, lifetimeMs: num
     
     let letter: string;
     let isDecoy: boolean;
+    let xPercent: number;
+    let yPercent: number;
     
+    // CRITICAL: We MUST consume exactly the same number of PRNG calls per spawn
+    // to keep all clients synchronized. Every spawn consumes exactly 5 PRNG values:
+    // 1. Letter type selection
+    // 2. Letter index selection  
+    // 3. Letter index selection (unused, but consumed for sync)
+    // 4. X position
+    // 5. Y position
+    
+    // PRNG call #1: Determine if this is a valid letter or decoy
+    const typeRoll = prng();
+    
+    // PRNG call #2: Select letter index (will use different pools but same PRNG consumption)
+    const letterIndexRoll = prng();
+    
+    // PRNG call #3: Consume another for sync (used differently based on type)
+    const letterIndexRoll2 = prng();
+    
+    // Now apply the logic based on shouldSpawnValid
     if (shouldSpawnValid && pendingLetters.length > 0) {
       // Spawn a valid letter from the word
-      const randomIndex = Math.floor(prng() * pendingLetters.length);
+      const randomIndex = Math.floor(letterIndexRoll * pendingLetters.length);
       letter = pendingLetters[randomIndex]!;
       isDecoy = false;
     } else {
       // Spawn a decoy letter (random Greek letter not in pending letters)
       const availableDecoys = GREEK_LETTERS.filter(l => !pendingLetters.includes(l));
       if (availableDecoys.length > 0) {
-        const randomIndex = Math.floor(prng() * availableDecoys.length);
+        const randomIndex = Math.floor(letterIndexRoll * availableDecoys.length);
         letter = availableDecoys[randomIndex]!;
       } else {
         // Fallback if all letters are in the word
-        const randomIndex = Math.floor(prng() * GREEK_LETTERS.length);
+        const randomIndex = Math.floor(letterIndexRoll * GREEK_LETTERS.length);
         letter = GREEK_LETTERS[randomIndex]!;
       }
       isDecoy = true;
     }
     
-    spawnLetter(arena, letter, isDecoy, lifetimeMs, interactable);
+    // PRNG calls #4 & #5: Position (same for all letters)
+    xPercent = (prng() * 85) + 5; // 5% to 90%
+    yPercent = (prng() * 85) + 5; // 5% to 90%
+    
+    spawnLetter(arena, letter, isDecoy, lifetimeMs, interactable, xPercent, yPercent);
     
     lettersSpawnedInBatch++;
     if (lettersSpawnedInBatch >= batchSize) {
       lettersSpawnedInBatch = 0;
     }
+    
+    globalSpawnCounter++;
   }, intervalMs);
 }
 
-function spawnLetter(arena: HTMLElement, letter: string, isDecoy: boolean, lifetimeMs: number, interactable: boolean): void {
-  // Use percentages to keep it looking identical regardless of screen size
-  const xPercent = (prng() * 85) + 5; // 5% to 90%
-  const yPercent = (prng() * 85) + 5; // 5% to 90%
-
+function spawnLetter(arena: HTMLElement, letter: string, isDecoy: boolean, lifetimeMs: number, interactable: boolean, xPercent: number, yPercent: number): void {
+  // Use pre-calculated percentages to keep it looking identical regardless of screen size
   const elProps: Record<string, any> = {
     className: `flying-letter ${isDecoy ? "decoy" : "correct"} ${!interactable ? "read-only" : ""}`,
     style: `left: ${xPercent}%; top: ${yPercent}%; animation-duration: ${lifetimeMs}ms;`,
