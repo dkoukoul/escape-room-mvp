@@ -22,7 +22,7 @@ const rooms = new Map<string, Room>();
 const CODE_WORDS = [
   "zeus", "hera", "ares", "iris", "nike",
   "echo", "gaia", "eros", "ajax", "orph",
-  "stoa", "muse", "deplhi", "sparta", "athens",
+  "stoa", "muse", "sparta", "athens",
   "myth", "aegean", "crete", "minoan"
 ];
 
