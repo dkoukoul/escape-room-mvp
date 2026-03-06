@@ -5,7 +5,6 @@
 import { h, $, mount } from "../lib/dom.ts";
 import { on, emit, ServerEvents, ClientEvents } from "../lib/socket.ts";
 import { showScreen } from "../lib/router.ts";
-import { i18n, t } from "../lib/i18n.ts";
 import type { BriefingPayload, PlayerReadyUpdatePayload } from "@shared/events.ts";
 import { playBriefingIntro, playTypewriterClick, stopAllActiveAudio } from "../audio/audio-manager.ts";
 
@@ -23,10 +22,7 @@ export function initBriefing(): void {
 
   on(ServerEvents.PLAYER_READY_UPDATE, (data: PlayerReadyUpdatePayload) => {
     if (readyButtonEl && isPlayerReady) {
-      readyButtonEl.textContent = t("briefing.waiting_others", { 
-        ready: data.readyCount, 
-        total: data.totalPlayers 
-      });
+      readyButtonEl.textContent = `WAITING FOR OTHERS (${data.readyCount}/${data.totalPlayers})`;
     }
   });
 }
@@ -50,14 +46,14 @@ function renderBriefing(data: BriefingPayload): void {
         playTypewriterClick(); // Click sound
         emit(ClientEvents.PLAYER_READY);
         if (readyButtonEl) {
-          readyButtonEl.textContent = t("briefing.waiting_others_dots");
+          readyButtonEl.textContent = "WAITING FOR OTHERS...";
           readyButtonEl.classList.add("disabled");
           readyButtonEl.style.opacity = "0.7";
           readyButtonEl.style.pointerEvents = "none";
         }
       }
     }
-  }, t("common.ready"));
+  }, "READY");
   
   readyButtonEl = readyBtn as HTMLButtonElement;
 
@@ -69,7 +65,7 @@ function renderBriefing(data: BriefingPayload): void {
       stopAllActiveAudio();
       skipBtn.style.display = "none";
     }
-  }, t("common.skip"));
+  }, "SKIP");
 
   // Add spacebar listener for skipping
   const handleKeyDown = (e: KeyboardEvent) => {
@@ -82,10 +78,7 @@ function renderBriefing(data: BriefingPayload): void {
   mount(
     screen,
     h("div", { className: "panel flex-col items-center gap-md text-center fade-in", style: "max-width: 700px; position: relative;" },
-      h("p", { className: "subtitle" }, t("briefing.mission_progress", { 
-        current: data.puzzleIndex + 1, 
-        total: data.totalPuzzles 
-      })),
+      h("p", { className: "subtitle" }, `MISSION ${data.puzzleIndex + 1} / ${data.totalPuzzles}`),
       h("h2", { className: "title-lg mt-sm" }, data.puzzleTitle),
       h("div", { className: "mt-lg", style: "border-left: 2px solid var(--neon-cyan); padding-left: var(--space-md);" },
         textEl,
@@ -94,7 +87,7 @@ function renderBriefing(data: BriefingPayload): void {
         id: "briefing-status",
         className: "subtitle pulse mt-lg",
         style: "font-size: 0.8rem;",
-      }, t("briefing.incoming_transmission")),
+      }, "Incoming transmission..."),
       readyBtn,
       skipBtn
     ),

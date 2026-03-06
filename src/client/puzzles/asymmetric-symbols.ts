@@ -5,7 +5,6 @@
 import { h, $, mount, clear } from "../lib/dom.ts";
 import { emit, ClientEvents, getPlayerId } from "../lib/socket.ts";
 import { playGlitchHit, playSuccess } from "../audio/audio-manager.ts";
-import { t } from "../lib/i18n.ts";
 import type { PlayerView, RoleAssignment } from "@shared/types.ts";
 
 // All Greek letters for decoy spawning
@@ -55,17 +54,17 @@ function renderNavigatorView(container: HTMLElement, title: string, data: Record
   mount(
     container,
     h("div", { className: "puzzle-header" },
-      h("h2", { className: "title-lg" }, t("asymmetric_symbols.title")),
-      h("div", { className: "puzzle-role-badge" }, t("asymmetric_symbols.navigator_role")),
+      h("h2", { className: "title-lg" }, title),
+      h("div", { className: "puzzle-role-badge" }, "Navigator"),
     ),
-    h("p", { className: "subtitle mt-md" }, t("asymmetric_symbols.navigator_desc")),
+    h("p", { className: "subtitle mt-md" }, "Guide your Decoders — tell them which letters to catch!"),
     h("div", { id: "nav-current-word", className: "nav-word-display mt-lg" }, currentWord),
     h("div", { className: "mt-md" },
-      h("p", { className: "hud-label" }, t("common.submit")),
+      h("p", { className: "hud-label" }, "CAPTURED"),
       h("p", { id: "nav-captured", className: "nav-captured" }, captured.join("")),
     ),
     h("p", { id: "nav-progress", className: "nav-progress mt-md" },
-      `${t("common.word")} ${Math.min(currentIdx + 1, words.length)} / ${words.length} — ${completed.length} ${t("common.completed")}`),
+      `Word ${Math.min(currentIdx + 1, words.length)} / ${words.length} — ${completed.length} completed`),
     h("div", { id: "nav-arena", className: "decoder-arena mt-md navigator-arena" }) // Read-only arena
   );
 
@@ -87,12 +86,12 @@ function renderDecoderView(container: HTMLElement, title: string, data: Record<s
     container,
     h("div", { className: "puzzle-header" },
       h("h2", { className: "title-lg" }, title),
-      h("div", { className: "puzzle-role-badge" }, t("asymmetric_symbols.decoder_role")),
+      h("div", { className: "puzzle-role-badge" }, "Decoder"),
     ),
-    h("p", { className: "subtitle mt-md" }, t("asymmetric_symbols.decoder_desc")),
+    h("p", { className: "subtitle mt-md" }, "Catch the letters your Navigator calls out!"),
     h("div", { className: "mt-sm flex-row gap-md justify-center" },
-      h("p", { id: "decoder-progress", className: "subtitle" }, `${t("common.words")}: ${completedWords}/${totalWords}`),
-      h("p", { id: "decoder-captured", className: "subtitle" }, `${t("common.captured")}: ${(data.capturedLetters as string[])?.join("") ?? ""}`),
+      h("p", { id: "decoder-progress", className: "subtitle" }, `Words: ${completedWords}/${totalWords}`),
+      h("p", { id: "decoder-captured", className: "subtitle" }, `Captured: ${(data.capturedLetters as string[])?.join("") ?? ""}`),
     ),
     h("div", { id: "decoder-arena", className: "decoder-arena mt-md" }),
   );
