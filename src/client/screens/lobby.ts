@@ -36,6 +36,7 @@ let availableLevels: LevelSummary[] = [];
 let selectedLevelId: string | null = null;
 let selectedPuzzleIndex: number | null = null;
 let leaderboard: LeaderboardEntry[] = [];
+let activeTooltip: "join" | "create" | null = null;
 
 export function clearSavedSession() {
   localStorage.removeItem("odyssey_room_code");
@@ -84,7 +85,7 @@ export function initLobby(): void {
 function renderJoinView(container: HTMLElement): void {
   mount(
     container,
-    h("div", { className: "panel flex-col items-center gap-md", style: "max-width: 440px; width: 100%;" },
+    h("div", { className: "panel flex-col items-center gap-md", style: "max-width: 440px; width: 100%; position: relative;" },
       h("h1", { className: "title-xl glitch-text", "data-text": "ODYSSEY" }, "ODYSSEY"),
       h("p", { className: "subtitle mt-sm" }, "Cyber Protocol"),
       h("div", { className: "mt-xl flex-col gap-md items-center w-full" },
@@ -105,16 +106,20 @@ function renderJoinView(container: HTMLElement): void {
           maxlength: "8",
           autocomplete: "off",
         }),
-        h("div", { className: "flex-row gap-sm mt-sm" },
+        h("div", { className: "flex-row gap-sm mt-sm tooltip-container", style: "position: relative;" },
           h("button", {
             id: "btn-join",
-            className: "btn btn-primary",
+            className: "btn btn-primary tooltip-trigger",
             onClick: handleJoin,
+            onMouseEnter: () => showTooltip("join"),
+            onMouseLeave: hideTooltip,
           }, "Join"),
           h("button", {
             id: "btn-create",
-            className: "btn",
+            className: "btn tooltip-trigger",
             onClick: handleCreate,
+            onMouseEnter: () => showTooltip("create"),
+            onMouseLeave: hideTooltip,
           }, "Create Room"),
         ),
         h("p", { id: "lobby-error", className: "subtitle", style: "color: var(--neon-red); min-height: 1.4em;" }),
@@ -431,4 +436,46 @@ function setupSocketListeners(): void {
   } catch (err) {
     logger.error("Error setting up socket listeners in lobby", { err });
   }
+}
+
+function showTooltip(type: "join" | "create"): void {
+  activeTooltip = type;
+  // Create and show tooltip without re-rendering the entire view
+  const tooltip = renderTooltip(type);
+  document.body.appendChild(tooltip);
+}
+
+function hideTooltip(): void {
+  activeTooltip = null;
+  // Remove tooltip from document body
+  const existingTooltip = document.querySelector('.tooltip-bubble');
+  if (existingTooltip) {
+    existingTooltip.remove();
+  }
+}
+
+function renderTooltip(type: "join" | "create"): HTMLElement {
+  const tooltipText = type === "create" 
+    ? "Create a new room and become the host. You'll receive a room code to share with friends."
+    : "Enter a room code from someone who created a room to join their game session.";
+  
+  const targetButton = $(`#btn-${type}`) as HTMLElement;
+  if (!targetButton) return h("div", {});
+  
+  const rect = targetButton.getBoundingClientRect();
+  
+  // Position tooltip fixed to viewport
+  return h("div", {
+    className: "tooltip-bubble",
+    style: `
+      position: fixed;
+      top: ${rect.top - 10}px;
+      left: ${rect.left + (rect.width / 2)}px;
+      transform: translate(-50%, -100%);
+      z-index: 1000;
+    `
+  },
+    h("div", { className: "tooltip-content" }, tooltipText),
+    h("div", { className: "tooltip-arrow" })
+  );
 }
