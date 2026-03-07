@@ -529,6 +529,7 @@ export async function handleVictory(io: Server, room: Room): Promise<void> {
       glitchFinal: room.state.glitch.value,
       puzzlesCompleted: room.state.completedPuzzles.length,
       score: score,
+      totalPuzzles: room.state.totalPuzzles,
     }
       
     io.to(room.code).emit(ServerEvents.VICTORY, victoryPayload);
@@ -555,12 +556,14 @@ function handleDefeat(io: Server, room: Room, reason: "timer" | "glitch"): void 
     io.to(room.code).emit(ServerEvents.PHASE_CHANGE, {
       phase: GamePhase.DEFEAT,
       puzzleIndex: room.state.currentPuzzleIndex,
+      totalPuzzles: room.state.totalPuzzles,
     } as PhaseChangePayload);
 
     io.to(room.code).emit(ServerEvents.DEFEAT, {
       reason,
       puzzlesCompleted: room.state.completedPuzzles.length,
       puzzleReachedIndex: room.state.currentPuzzleIndex,
+      totalPuzzles: room.state.totalPuzzles,
     } as DefeatPayload);
 
     logger.info(`[Engine] DEFEAT! Room ${room.code} — reason: ${reason}`);

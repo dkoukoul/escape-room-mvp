@@ -166,6 +166,7 @@ export interface GameStartedPayload {
 export interface PhaseChangePayload {
   phase: GameState["phase"];
   puzzleIndex: number;
+  totalPuzzles: number;
 }
 
 export interface BriefingPayload {
@@ -215,12 +216,14 @@ export interface VictoryPayload {
   glitchFinal: number;
   puzzlesCompleted: number;
   score: number;
+  totalPuzzles: number;
 }
 
 export interface DefeatPayload {
   reason: "timer" | "glitch";
   puzzlesCompleted: number;
   puzzleReachedIndex: number;
+  totalPuzzles: number;
 }
 export interface LeaderboardListPayload {
   entries: LeaderboardEntry[];

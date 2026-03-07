@@ -143,7 +143,7 @@ async function boot() {
       try {
         // Update puzzle progress in HUD
         const progressEl = $("#hud-progress-value");
-        if (progressEl) progressEl.textContent = `${data.puzzleIndex + 1}/5`;
+        if (progressEl) progressEl.textContent = `${data.puzzleIndex + 1}/${data.totalPuzzles}`;
 
         // Play background music when first puzzle starts (if not already playing)
         if (data.phase === GamePhase.PLAYING && activeBackgroundMusic) {
