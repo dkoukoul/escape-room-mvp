@@ -143,6 +143,8 @@ export const asymmetricSymbolsHandler: PuzzleHandler = {
       return {
         ...baseView,
         viewData: {
+          solutionWords: data.solutionWords, // Add this for synchronization
+          currentWordIndex: data.currentWordIndex, // Add this for synchronization
           currentWordLength: currentWord.length,
           capturedLetters: data.capturedLetters,
           capturedCount: data.capturedLetters.filter(c => c !== "_").length,

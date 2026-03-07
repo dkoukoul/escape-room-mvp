@@ -116,10 +116,12 @@ function renderDecoderView(container: HTMLElement, title: string, data: Record<s
   const totalWords = data.totalWords as number;
   const completedWords = (data.completedWords as number) ?? 0;
   const currentWordLength = data.currentWordLength as number;
-
-  // Reconstruct current word from captured letters for pending letter tracking
   const capturedLetters = data.capturedLetters as string[];
-  const currentWord = "_".repeat(currentWordLength || 1); // Placeholder for tracking
+
+  // Get the actual current word from solution words for proper pending letter tracking
+  const solutionWords = data.solutionWords as string[];
+  const currentWordIndex = data.currentWordIndex as number;
+  const currentWord = solutionWords[currentWordIndex] ?? "";
 
   mount(
     container,
@@ -130,7 +132,7 @@ function renderDecoderView(container: HTMLElement, title: string, data: Record<s
     h("p", { className: "subtitle mt-md" }, "Catch the letters your Navigator calls out!"),
     h("div", { className: "mt-sm flex-row gap-md justify-center" },
       h("p", { id: "decoder-progress", className: "subtitle" }, `Words: ${completedWords}/${totalWords}`),
-      h("p", { id: "decoder-captured", className: "subtitle" }, `Captured: ${(data.capturedLetters as string[])?.join("") ?? ""}`),
+      h("p", { id: "decoder-captured", className: "subtitle" }, `Captured: ${capturedLetters?.join("") ?? ""}`),
     ),
     h("div", { id: "decoder-arena", className: "decoder-arena mt-md" }),
   );
@@ -140,7 +142,7 @@ function renderDecoderView(container: HTMLElement, title: string, data: Record<s
   activeDecoyRatio = decoyRatio;
   activeCurrentWord = currentWord;
 
-  // Initialize pending letters for the current word
+  // Initialize pending letters with the actual current word (same as Navigator)
   initPendingLetters(currentWord);
 
   // Start spawning letters
@@ -178,46 +180,48 @@ function startLetterSpawner(arenaId: string, intervalMs: number, lifetimeMs: num
     let xPercent: number;
     let yPercent: number;
     
-    // CRITICAL: We MUST consume exactly the same number of PRNG calls per spawn
-    // to keep all clients synchronized. Every spawn consumes exactly 5 PRNG values:
-    // 1. Letter type selection
-    // 2. Letter index selection  
-    // 3. Letter index selection (unused, but consumed for sync)
-    // 4. X position
-    // 5. Y position
+    // TRULY DETERMINISTIC APPROACH:
+    // Pre-generate ALL randomness for this spawn cycle to ensure perfect sync
+    // Every spawn consumes exactly 5 PRNG values in a FIXED order:
     
-    // PRNG call #1: Determine if this is a valid letter or decoy
+    // PRNG call #1: Type decision roll (0.0-1.0)
     const typeRoll = prng();
     
-    // PRNG call #2: Select letter index (will use different pools but same PRNG consumption)
-    const letterIndexRoll = prng();
+    // PRNG call #2: Letter selection roll (0.0-1.0) 
+    const letterRoll = prng();
     
-    // PRNG call #3: Consume another for sync (used differently based on type)
-    const letterIndexRoll2 = prng();
+    // PRNG call #3: Position X roll (0.0-1.0)
+    const xRoll = prng();
     
-    // Now apply the logic based on shouldSpawnValid
+    // PRNG call #4: Position Y roll (0.0-1.0)
+    const yRoll = prng();
+    
+    // PRNG call #5: Unused but consumed for sync
+    const dummyRoll = prng();
+    
+    // Now apply deterministic logic based on pre-generated rolls
     if (shouldSpawnValid && pendingLetters.length > 0) {
       // Spawn a valid letter from the word
-      const randomIndex = Math.floor(letterIndexRoll * pendingLetters.length);
+      const randomIndex = Math.floor(letterRoll * pendingLetters.length);
       letter = pendingLetters[randomIndex]!;
       isDecoy = false;
     } else {
       // Spawn a decoy letter (random Greek letter not in pending letters)
       const availableDecoys = GREEK_LETTERS.filter(l => !pendingLetters.includes(l));
       if (availableDecoys.length > 0) {
-        const randomIndex = Math.floor(letterIndexRoll * availableDecoys.length);
+        const randomIndex = Math.floor(letterRoll * availableDecoys.length);
         letter = availableDecoys[randomIndex]!;
       } else {
         // Fallback if all letters are in the word
-        const randomIndex = Math.floor(letterIndexRoll * GREEK_LETTERS.length);
+        const randomIndex = Math.floor(letterRoll * GREEK_LETTERS.length);
         letter = GREEK_LETTERS[randomIndex]!;
       }
       isDecoy = true;
     }
     
-    // PRNG calls #4 & #5: Position (same for all letters)
-    xPercent = (prng() * 85) + 5; // 5% to 90%
-    yPercent = (prng() * 85) + 5; // 5% to 90%
+    // Convert rolls to actual positions
+    xPercent = (xRoll * 85) + 5; // 5% to 90%
+    yPercent = (yRoll * 85) + 5; // 5% to 90%
     
     spawnLetter(arena, letter, isDecoy, lifetimeMs, interactable, xPercent, yPercent);
     
