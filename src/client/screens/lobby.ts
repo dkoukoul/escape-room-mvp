@@ -284,6 +284,7 @@ function renderRoomView(container: HTMLElement): void {
 
 function handleCreate(): void {
   try {
+    hideTooltip();
     const name = ($("#input-name") as HTMLInputElement)?.value.trim();
     if (!name) {
       showError("Enter your callsign.");
@@ -299,6 +300,7 @@ function handleCreate(): void {
 
 function handleJoin(): void {
   try {
+    hideTooltip();
     const name = ($("#input-name") as HTMLInputElement)?.value.trim();
     const code = ($("#input-room") as HTMLInputElement)?.value.trim().toLowerCase();
     if (!name) {
