@@ -16,6 +16,9 @@ import { renderCipherDecode, updateCipherDecode } from "../puzzles/cipher-decode
 import { renderCollaborativeAssembly, updateCollaborativeAssembly } from "../puzzles/collaborative-assembly.ts";
 import { renderAlphabetWall, updateAlphabetWall } from "../puzzles/alphabet-wall.ts";
 import { renderDemogorgonHunt, updateDemogorgonHunt } from "../puzzles/demogorgon-hunt.ts";
+import { renderLabyrinthNavigate, updateLabyrinthNavigate } from "../puzzles/labyrinth-navigate.ts";
+import { renderEchoRelay, updateEchoRelay } from "../puzzles/echo-relay.ts";
+import { renderStarAlignment, updateStarAlignment } from "../puzzles/star-alignment.ts";
 import logger from "@client/logger.ts";
 
 let currentPuzzleType: string | null = null;
@@ -67,6 +70,15 @@ function renderPuzzle(data: PuzzleStartPayload): void {
     case "demogorgon_hunt":
       renderDemogorgonHunt(container, data.playerView);
       break;
+    case "labyrinth_navigate":
+      renderLabyrinthNavigate(container, data.playerView);
+      break;
+    case "echo_relay":
+      renderEchoRelay(container, data.playerView);
+      break;
+    case "star_alignment":
+      renderStarAlignment(container, data.playerView);
+      break;
     default:
       mount(container, h("p", { className: "subtitle" }, `Unknown puzzle type: ${data.puzzleType}`));
   }
@@ -95,6 +107,15 @@ function updatePuzzle(view: PlayerView): void {
       break;
     case "demogorgon_hunt":
       updateDemogorgonHunt(view);
+      break;
+    case "labyrinth_navigate":
+      updateLabyrinthNavigate(view);
+      break;
+    case "echo_relay":
+      updateEchoRelay(view);
+      break;
+    case "star_alignment":
+      updateStarAlignment(view);
       break;
   }
 }

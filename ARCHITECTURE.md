@@ -49,12 +49,15 @@ escape-room-mvp/
 │   │   └── role-assigner.ts       #   Assigns roles to players per puzzle layout
 │   ├── puzzles/
 │   │   ├── puzzle-handler.ts      #   PuzzleHandler interface + registry
-│   │   ├── register.ts            #   Registers all 5 puzzle handlers
+│   │   ├── register.ts            #   Registers all 10 puzzle handlers
 │   │   ├── asymmetric-symbols.ts  #   Puzzle: one navigator sees solution, decoders click letters
 │   │   ├── rhythm-tap.ts          #   Puzzle: all players tap colors in sequence
 │   │   ├── collaborative-wiring.ts#   Puzzle: players coordinate wire connections
 │   │   ├── cipher-decode.ts       #   Puzzle: decode cipher text with role-based clues
-│   │   └── collaborative-assembly.ts # Puzzle: assemble fragments on a grid
+│   │   ├── collaborative-assembly.ts # Puzzle: assemble fragments on a grid
+│   │   ├── labyrinth-navigate.ts  #   Puzzle: maze navigation with split vision
+│   │   ├── echo-relay.ts          #   Puzzle: frequency tuning to decode garbled text
+│   │   └── star-alignment.ts      #   Puzzle: place stars to form constellation
 │   ├── repositories/
 │   │   ├── redis-service.ts       #   Room serialization/deserialization to Redis
 │   │   └── postgres-service.ts    #   Score CRUD via Prisma
@@ -85,7 +88,10 @@ escape-room-mvp/
 │   │   ├── rhythm-tap.ts
 │   │   ├── collaborative-wiring.ts
 │   │   ├── cipher-decode.ts
-│   │   └── collaborative-assembly.ts
+│   │   ├── collaborative-assembly.ts
+│   │   ├── labyrinth-navigate.ts
+│   │   ├── echo-relay.ts
+│   │   └── star-alignment.ts
 │   ├── styles/
 │   │   ├── style.css              #   Main styles (lobby, HUD, screens)
 │   │   ├── puzzles.css            #   Puzzle-specific styles
@@ -95,7 +101,7 @@ escape-room-mvp/
 │   └── types/                     #   Client-specific type augmentations
 │
 ├── config/                        # YAML level definitions
-│   ├── level_01.yaml              #   "The Akropolis Defragmentation" — 5 puzzles
+│   ├── level_01.yaml              #   "The Akropolis Defragmentation" — 8 puzzles
 │   └── sample-level               #   Reference/template level
 │
 ├── prisma/

@@ -90,6 +90,9 @@ export enum PuzzleType {
   COLLABORATIVE_ASSEMBLY = "collaborative_assembly",
   ALPHABET_WALL = "alphabet_wall",
   DEMOGORGON_HUNT = "demogorgon_hunt",
+  LABYRINTH_NAVIGATE = "labyrinth_navigate",
+  ECHO_RELAY = "echo_relay",
+  STAR_ALIGNMENT = "star_alignment",
 }
 
 // ---- Level Configuration (parsed from YAML) ----
