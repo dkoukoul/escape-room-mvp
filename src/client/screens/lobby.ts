@@ -87,8 +87,25 @@ function renderJoinView(container: HTMLElement): void {
     container,
     h("div", { className: "panel flex-col items-center gap-md", style: "max-width: 440px; width: 100%; position: relative;" },
       h("h1", { className: "title-xl glitch-text", "data-text": "ODYSSEY" }, "ODYSSEY"),
-      h("p", { className: "subtitle mt-sm" }, "Cyber Protocol"),
-      h("div", { className: "mt-xl flex-col gap-md items-center w-full" },
+      h("p", { className: "subtitle mt-sm mb-md" }, "Cyber Protocol"),
+      
+      h("div", { className: "flex-col gap-xs", style: "background: rgba(0, 240, 255, 0.05); border: 1px solid rgba(0, 240, 255, 0.15); padding: 1rem; border-radius: 4px; text-align: center; max-width: 100%; box-shadow: 0 0 10px rgba(0, 240, 255, 0.05);" },
+        h("p", { style: "font-size: 0.85rem; line-height: 1.5; opacity: 0.9;" }, 
+          h("strong", { style: "color: var(--neon-cyan); letter-spacing: 1px;" }, "HOW TO PLAY: "),
+          "Odyssey is a 2-player co-op escape game! One player must ",
+          h("strong", { style: "color: var(--neon-gold);" }, "Create a Room"),
+          " and share the secret code. Your partner uses that code to ",
+          h("strong", { style: "color: var(--neon-gold);" }, "Join"),
+          "."
+        ),
+        h("p", { style: "font-size: 0.85rem; line-height: 1.5; opacity: 0.9; margin-top: 0.5rem;" },
+          "You will see different clues on your screens. You must ",
+          h("strong", { style: "color: var(--neon-cyan);" }, "talk to each other"), 
+          " and cooperate to solve the puzzles!"
+        )
+      ),
+
+      h("div", { className: "mt-lg flex-col gap-md items-center w-full" },
         h("input", {
           id: "input-name",
           className: "input w-full",
