@@ -50,6 +50,9 @@ This documents every field in a level YAML config file. Maps to `LevelConfig` an
 - `"collaborative_wiring"` — Players toggle switches to power all columns
 - `"cipher_decode"` — Decode cipher text using a key visible only to one role
 - `"collaborative_assembly"` — Place fragments on a grid
+- `"labyrinth_navigate"` — Cartographer sees maze map; Runners navigate with local vision
+- `"echo_relay"` — Scribe sees garbled text; Tuners adjust frequency dials to decode
+- `"star_alignment"` — Players place stars of different colors to form a constellation
 
 ### `layout`
 
@@ -114,3 +117,64 @@ Roles are assigned by `role-assigner.ts`. Use `count: "remaining"` for the last 
 | `grid_rows`         | number | Grid height               |
 | `total_pieces`      | number | Number of pieces to place |
 | `snap_tolerance_px` | number | Snap distance in pixels   |
+
+### `labyrinth_navigate`
+
+| Field               | Type       | Description                                                       |
+| ------------------- | ---------- | ----------------------------------------------------------------- |
+| `rows`              | number     | Maze grid height                                                  |
+| `cols`              | number     | Maze grid width                                                   |
+| `grid`              | number[][] | 2D array: 0=floor, 1=wall, 2=trap, 3=exit, 4=landmark            |
+| `start_position`    | number[]   | `[row, col]` starting position for Runners                       |
+| `exit_position`     | number[]   | `[row, col]` exit position (win target)                           |
+| `landmarks`         | object[]   | Each has `row`, `col`, and `label` (name visible on map)          |
+| `traps`             | number[][] | Array of `[row, col]` trap positions (cause glitch when stepped)  |
+| `ping_delay_ms`     | number     | Delay (ms) before Runner's ping appears on Cartographer's map     |
+| `visibility_radius` | number     | How many tiles around the Runner are visible (1 or 2)             |
+
+### `echo_relay`
+
+| Field               | Type     | Description                                                          |
+| ------------------- | -------- | -------------------------------------------------------------------- |
+| `original_text`     | string   | The fully decoded target text                                        |
+| `dials`             | object[] | Frequency dials (see below)                                          |
+| `garble_characters` | string   | Pool of characters used for garbling (e.g., Greek alphabet)          |
+
+Each dial in `dials[]`:
+
+| Field                | Type     | Description                                          |
+| -------------------- | -------- | ---------------------------------------------------- |
+| `id`                 | string   | Unique dial identifier                               |
+| `label`              | string   | Display label (e.g., "Συχνότητα Α")                  |
+| `correct_value`      | number   | The value that correctly decodes affected characters  |
+| `min_value`          | number   | Slider minimum                                       |
+| `max_value`          | number   | Slider maximum                                       |
+| `step`               | number   | Slider step increment                                |
+| `affected_positions` | number[] | Character indices this dial controls (can overlap)   |
+
+### `star_alignment`
+
+| Field         | Type     | Description                                                  |
+| ------------- | -------- | ------------------------------------------------------------ |
+| `grid_rows`   | number   | Sky grid height                                              |
+| `grid_cols`   | number   | Sky grid width                                               |
+| `stars`       | object[] | Star definitions (see below)                                 |
+| `guide_lines` | object[] | Lines connecting target positions (constellation shape)      |
+
+Each star in `stars[]`:
+
+| Field        | Type               | Description                        |
+| ------------ | ------------------ | ---------------------------------- |
+| `id`         | string             | Unique star identifier             |
+| `color`      | `"gold"` \| `"blue"` | Determines which role can move it |
+| `start_row`  | number             | Initial row position               |
+| `start_col`  | number             | Initial column position            |
+| `target_row` | number             | Correct row position               |
+| `target_col` | number             | Correct column position            |
+
+Each guide line in `guide_lines[]`:
+
+| Field  | Type     | Description                          |
+| ------ | -------- | ------------------------------------ |
+| `from` | number[] | `[row, col]` start of line segment   |
+| `to`   | number[] | `[row, col]` end of line segment     |
