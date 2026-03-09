@@ -56,6 +56,27 @@ function createInitialGameState(): GameState {
   };
 }
 
+/**
+ * Fix room state after loading from Redis (migration for old/broken data)
+ * This ensures glitch state has proper camelCase properties
+ */
+function fixRoomState(room: Room): void {
+  // Fix glitch state if missing or malformed
+  if (!room.state.glitch) {
+    logger.warn(`[RoomManager] Fixing missing glitch state for room ${room.code}`);
+    room.state.glitch = { name: "", value: 0, maxValue: 100, decayRate: 0 };
+  } else {
+    // Ensure all required properties exist with defaults
+    const glitch = room.state.glitch as unknown as Record<string, unknown>;
+    room.state.glitch = {
+      name: (glitch.name as string) ?? "",
+      value: (glitch.value as number) ?? 0,
+      maxValue: (glitch.maxValue as number) ?? (glitch.max as number) ?? 100,
+      decayRate: (glitch.decayRate as number) ?? (glitch.decay_rate as number) ?? 0,
+    };
+  }
+}
+
 export async function createRoom(hostId: string, hostName: string): Promise<Room> {
   const code = generateRoomCode();
   const host: Player = {
@@ -249,6 +270,7 @@ export async function loadAllRooms(): Promise<void> {
     for (const code of codes) {
       const room = await RedisService.getRoom(code);
       if (room) {
+        fixRoomState(room); // Fix any malformed state from old rooms
         rooms.set(code, room);
       }
     }
