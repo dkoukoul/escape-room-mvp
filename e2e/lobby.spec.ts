@@ -2,7 +2,18 @@ import { test, expect } from "@playwright/test";
 
 test.describe("Lobby Page", () => {
   test.beforeEach(async ({ page }) => {
+    // Capture console errors for debugging
+    page.on("console", (msg) => {
+      if (msg.type() === "error") {
+        console.log(`[Browser Console Error]: ${msg.text()}`);
+      }
+    });
+    page.on("pageerror", (err) => {
+      console.log(`[Browser Page Error]: ${err.message}`);
+    });
     await page.goto("/");
+    // Wait for the app to initialize
+    await page.waitForSelector("#app", { timeout: 10000 });
   });
 
   test("should display lobby screen on initial load", async ({ page }) => {
