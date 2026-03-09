@@ -65,6 +65,7 @@ function renderBriefing(data: BriefingPayload): void {
     className: "btn btn-outline",
     style: "position: absolute; bottom: 20px; right: 20px; font-size: 0.7rem; opacity: 0.5; border-color: rgba(0, 240, 255, 0.3);",
     onclick: () => {
+      logger.debug("[Briefing] Skipping typewriter animation");
       isSkipping = true;
       stopAllActiveAudio();
       skipBtn.style.display = "none";

@@ -2,7 +2,7 @@
 // Puzzle Handler — Interface for all puzzle types
 // ============================================================
 
-import logger from "@client/logger.ts";
+import logger from "../utils/logger.ts";
 import type { Player, PuzzleConfig, PuzzleState, PlayerView } from "../../../shared/types.ts";
 
 /**

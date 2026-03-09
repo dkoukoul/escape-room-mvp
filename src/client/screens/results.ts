@@ -7,13 +7,16 @@ import { on, ServerEvents } from "../lib/socket.ts";
 import { showScreen, showHUD } from "../lib/router.ts";
 import { playSuccess, playFail } from "../audio/audio-manager.ts";
 import type { VictoryPayload, DefeatPayload } from "@shared/events.ts";
+import logger from "@client/logger.ts";
 
 export function initResults(): void {
   on(ServerEvents.VICTORY, (data: VictoryPayload) => {
+    logger.info(`[Results] Victory! Score: ${data.score}, Time: ${data.elapsedSeconds}s`);
     renderVictory(data);
   });
 
   on(ServerEvents.DEFEAT, (data: DefeatPayload) => {
+    logger.info(`[Results] Defeat! Reason: ${data.reason}, Puzzles completed: ${data.puzzlesCompleted}`);
     renderDefeat(data);
   });
 }
