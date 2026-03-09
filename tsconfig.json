@@ -21,12 +21,14 @@
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false,
 
+    "types": ["node"],
+
     "paths": {
       "@shared/*": ["./shared/*"],
       "@server/*": ["./src/server/*"],
       "@client/*": ["./src/client/*"]
     }
   },
-  "include": ["shared/**/*", "src/**/*"],
+  "include": ["shared/**/*", "src/**/*", "*.config.ts", "e2e/**/*"],
   "exclude": ["node_modules", "dist"]
 }
