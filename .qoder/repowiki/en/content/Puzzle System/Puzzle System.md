@@ -13,7 +13,6 @@
 - [src/server/puzzles/collaborative-wiring.ts](file://src/server/puzzles/collaborative-wiring.ts)
 - [src/server/puzzles/cipher-decode.ts](file://src/server/puzzles/cipher-decode.ts)
 - [src/server/puzzles/collaborative-assembly.ts](file://src/server/puzzles/collaborative-assembly.ts)
-- [src/server/puzzles/demogorgon-hunt.ts](file://src/server/puzzles/demogorgon-hunt.ts)
 - [src/client/puzzles/asymmetric-symbols.ts](file://src/client/puzzles/asymmetric-symbols.ts)
 - [src/client/puzzles/rhythm-tap.ts](file://src/client/puzzles/rhythm-tap.ts)
 - [src/client/puzzles/collaborative-wiring.ts](file://src/client/puzzles/collaborative-wiring.ts)
@@ -34,7 +33,7 @@
 10. [Appendices](#appendices)
 
 ## Introduction
-This document explains the puzzle system architecture and implementation for Project ODYSSEY. It covers the extensible puzzle handler interface, the registration system, the seven puzzle types currently implemented, the lifecycle from configuration to client rendering, the role-based visibility system, puzzle state management and validation, integration with the game engine, the configuration schema for custom puzzles, and the development workflow for adding new puzzle types.
+This document explains the puzzle system architecture and implementation for Project ODYSSEY. It covers the extensible puzzle handler interface, the registration system, the five puzzle types currently implemented, the lifecycle from configuration to client rendering, the role-based visibility system, puzzle state management and validation, integration with the game engine, the configuration schema for custom puzzles, and the development workflow for adding new puzzle types.
 
 ## Project Structure
 The puzzle system is organized around a shared contract (the PuzzleHandler interface) and a registry that binds puzzle types to implementations. Server-side handlers encapsulate state and logic, while client-side renderers consume role-specific view data to present UIs tailored to each player’s perspective.
@@ -52,7 +51,6 @@ P2["rhythm-tap.ts"]
 P3["collaborative-wiring.ts"]
 P4["cipher-decode.ts"]
 P5["collaborative-assembly.ts"]
-P6["demogorgon-hunt.ts"]
 end
 subgraph "Client"
 C1["client/puzzles/asymmetric-symbols.ts"]
@@ -67,8 +65,7 @@ IFACE --> P1
 IFACE --> P2
 IFACE --> P3
 IFACE --> P4
-IFACE --> P5
-IFACE --> P6
+IFace --> P5
 P1 --> C1
 P2 --> C2
 P3 --> C3
@@ -85,7 +82,6 @@ P5 --> C5
 - [src/server/puzzles/collaborative-wiring.ts](file://src/server/puzzles/collaborative-wiring.ts#L23-L92)
 - [src/server/puzzles/cipher-decode.ts](file://src/server/puzzles/cipher-decode.ts#L18-L53)
 - [src/server/puzzles/collaborative-assembly.ts](file://src/server/puzzles/collaborative-assembly.ts#L31-L86)
-- [src/server/puzzles/demogorgon-hunt.ts](file://src/server/puzzles/demogorgon-hunt.ts#L27-L71)
 - [src/client/puzzles/asymmetric-symbols.ts](file://src/client/puzzles/asymmetric-symbols.ts#L28-L41)
 - [src/client/puzzles/rhythm-tap.ts](file://src/client/puzzles/rhythm-tap.ts#L14-L23)
 - [src/client/puzzles/collaborative-wiring.ts](file://src/client/puzzles/collaborative-wiring.ts#L10-L21)
@@ -177,14 +173,12 @@ class RhythmTapHandler
 class WiringHandler
 class CipherDecodeHandler
 class AssemblyHandler
-class DemogorgonHuntHandler
 Registry --> PuzzleHandler : "stores"
 AsymmetricSymbolsHandler ..|> PuzzleHandler
 RhythmTapHandler ..|> PuzzleHandler
 WiringHandler ..|> PuzzleHandler
 CipherDecodeHandler ..|> PuzzleHandler
 AssemblyHandler ..|> PuzzleHandler
-DemogorgonHuntHandler ..|> PuzzleHandler
 ```
 
 **Diagram sources**
@@ -195,13 +189,13 @@ DemogorgonHuntHandler ..|> PuzzleHandler
 - [src/server/puzzles/collaborative-wiring.ts](file://src/server/puzzles/collaborative-wiring.ts#L23-L203)
 - [src/server/puzzles/cipher-decode.ts](file://src/server/puzzles/cipher-decode.ts#L18-L142)
 - [src/server/puzzles/collaborative-assembly.ts](file://src/server/puzzles/collaborative-assembly.ts#L31-L218)
-- [src/server/puzzles/demogorgon-hunt.ts](file://src/server/puzzles/demogorgon-hunt.ts#L27-L211)
+
 
 **Section sources**
 - [src/server/puzzles/puzzle-handler.ts](file://src/server/puzzles/puzzle-handler.ts#L12-L44)
 - [src/server/puzzles/register.ts](file://src/server/puzzles/register.ts#L14-L20)
 
-### Seven Implemented Puzzle Types
+### Five Implemented Puzzle Types
 
 #### Asymmetric Symbols
 - Objective: One role (Navigator) sees solutions; others (Decoders) catch flying letters.
@@ -347,42 +341,6 @@ Engine-->>Builder : "Updated PlayerView"
 - [src/server/puzzles/collaborative-assembly.ts](file://src/server/puzzles/collaborative-assembly.ts#L31-L218)
 - [src/client/puzzles/collaborative-assembly.ts](file://src/client/puzzles/collaborative-assembly.ts#L24-L183)
 
-#### Alphabet Wall
-- Status: Defined in the shared types enum and schema, but no server or client implementation files were found in the provided workspace snapshot. This indicates it is planned or pending implementation.
-
-**Section sources**
-- [shared/types.ts](file://shared/types.ts#L85-L93)
-- [config/SCHEMA.md](file://config/SCHEMA.md#L48-L52)
-
-#### Demogorgon Hunt
-- Objective: Place traps to intercept a moving entity along a path; one role (Eleven) gets partial location info; others (Trappers) see the board.
-- State: Grid/quadrant sizes, Demogorgon path, current position, traps placed, rounds, status override.
-- Actions: toggle_trap (add/remove), confirm_round (commits traps and advances).
-- View: Eleven sees quadrant; Trappers see board and traps.
-
-```mermaid
-flowchart TD
-Start(["Init"]) --> Choose["Choose random path"]
-Choose --> Round["Round begins"]
-Round --> Place["Place traps (per round limit)"]
-Place --> Confirm{"Confirm round?"}
-Confirm --> |No| Round
-Confirm --> |Yes| Move["Move Demogorgon along path"]
-Move --> Collide{"Trap hit?"}
-Collide --> |Yes| Win["Caught Demogorgon"]
-Collide --> |No| Progress{"Reached school or rounds exceeded?"}
-Progress --> |Yes| Lose["Demogorgon reaches school"]
-Progress --> |No| Round
-```
-
-**Diagram sources**
-- [src/server/puzzles/demogorgon-hunt.ts](file://src/server/puzzles/demogorgon-hunt.ts#L28-L71)
-- [src/server/puzzles/demogorgon-hunt.ts](file://src/server/puzzles/demogorgon-hunt.ts#L73-L150)
-- [src/server/puzzles/demogorgon-hunt.ts](file://src/server/puzzles/demogorgon-hunt.ts#L157-L210)
-
-**Section sources**
-- [src/server/puzzles/demogorgon-hunt.ts](file://src/server/puzzles/demogorgon-hunt.ts#L27-L211)
-
 ### Puzzle Lifecycle: Configuration to Client Rendering
 - Configuration loading: Levels are defined in YAML and validated; each puzzle entry includes type, layout, and data.
 - Registration: Handlers are registered by type; the engine retrieves handlers by type.
@@ -437,14 +395,13 @@ Examples:
 - Asymmetric Symbols: Navigator sees solutions; Decoders see capture state.
 - Cipher Decode: Cryptographer sees key; Scribes see encrypted text.
 - Collaborative Assembly: Architect sees blueprint; Builders see their pieces.
-- Demogorgon Hunt: Eleven sees quadrant hints; Trappers see the board.
 
 **Section sources**
 - [config/SCHEMA.md](file://config/SCHEMA.md#L54-L64)
 - [src/server/puzzles/asymmetric-symbols.ts](file://src/server/puzzles/asymmetric-symbols.ts#L103-L154)
 - [src/server/puzzles/cipher-decode.ts](file://src/server/puzzles/cipher-decode.ts#L96-L140)
 - [src/server/puzzles/collaborative-assembly.ts](file://src/server/puzzles/collaborative-assembly.ts#L147-L216)
-- [src/server/puzzles/demogorgon-hunt.ts](file://src/server/puzzles/demogorgon-hunt.ts#L157-L210)
+
 
 ### Puzzle State Management and Validation
 - State shape: PuzzleState holds puzzleId, type, status, and data (typed by handler).
@@ -460,7 +417,7 @@ Examples:
 - [src/server/puzzles/collaborative-wiring.ts](file://src/server/puzzles/collaborative-wiring.ts#L142-L145)
 - [src/server/puzzles/cipher-decode.ts](file://src/server/puzzles/cipher-decode.ts#L91-L94)
 - [src/server/puzzles/collaborative-assembly.ts](file://src/server/puzzles/collaborative-assembly.ts#L142-L145)
-- [src/server/puzzles/demogorgon-hunt.ts](file://src/server/puzzles/demogorgon-hunt.ts#L152-L155)
+
 
 ### Integration with the Game Engine
 - The engine drives transitions and invokes handlers generically via the registry.
@@ -485,7 +442,6 @@ Reg --> H2["rhythm-tap.ts"]
 Reg --> H3["collaborative-wiring.ts"]
 Reg --> H4["cipher-decode.ts"]
 Reg --> H5["collaborative-assembly.ts"]
-Reg --> H6["demogorgon-hunt.ts"]
 H1 --> C1["client/asymmetric-symbols.ts"]
 H2 --> C2["client/rhythm-tap.ts"]
 H3 --> C3["client/collaborative-wiring.ts"]
@@ -502,7 +458,7 @@ H5 --> C5["client/collaborative-assembly.ts"]
 - [src/server/puzzles/collaborative-wiring.ts](file://src/server/puzzles/collaborative-wiring.ts#L23-L203)
 - [src/server/puzzles/cipher-decode.ts](file://src/server/puzzles/cipher-decode.ts#L18-L142)
 - [src/server/puzzles/collaborative-assembly.ts](file://src/server/puzzles/collaborative-assembly.ts#L31-L218)
-- [src/server/puzzles/demogorgon-hunt.ts](file://src/server/puzzles/demogorgon-hunt.ts#L27-L211)
+
 - [src/client/puzzles/asymmetric-symbols.ts](file://src/client/puzzles/asymmetric-symbols.ts#L28-L105)
 - [src/client/puzzles/rhythm-tap.ts](file://src/client/puzzles/rhythm-tap.ts#L14-L83)
 - [src/client/puzzles/collaborative-wiring.ts](file://src/client/puzzles/collaborative-wiring.ts#L10-L65)

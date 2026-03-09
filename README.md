@@ -123,9 +123,9 @@ Server runs on `:3000`, client on `:5173`.
 
 1.  Define the puzzle logic in `src/server/puzzles/[type].ts` (implement `PuzzleHandler` interface).
 2.  Register it in `src/server/puzzles/register.ts`.
-3.  Create a client renderer in `src/client/puzzles/[type].ts`.
-4.  Add a `case` in `src/client/screens/puzzle.ts`.
-5.  Add the new type to `PuzzleType` union in `shared/types.ts`.
-6.  Add a new entry in your `.yaml` level file.
+3.  Create a client renderer in `src/client/puzzles/[type].ts` with `render*()` and `update*()` exports.
+4.  Add a `case` in `src/client/screens/puzzle.ts` (both `renderPuzzle` and `updatePuzzle`).
+5.  Add the new type to `PuzzleType` enum in `shared/types.ts`.
+6.  Add a new entry in your `.yaml` level file under `puzzles:`.
 
 > See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed how-to guides.

@@ -49,7 +49,7 @@ escape-room-mvp/
 │   │   └── role-assigner.ts       #   Assigns roles to players per puzzle layout
 │   ├── puzzles/
 │   │   ├── puzzle-handler.ts      #   PuzzleHandler interface + registry
-│   │   ├── register.ts            #   Registers all 5 puzzle handlers
+│   │   ├── register.ts            #   Registers all puzzle handlers
 │   │   ├── asymmetric-symbols.ts  #   Puzzle: one navigator sees solution, decoders click letters
 │   │   ├── rhythm-tap.ts          #   Puzzle: all players tap colors in sequence
 │   │   ├── collaborative-wiring.ts#   Puzzle: players coordinate wire connections
@@ -81,11 +81,11 @@ escape-room-mvp/
 │   │   ├── puzzle.ts              #   Puzzle container: dispatches to correct renderer by type
 │   │   └── results.ts             #   Victory/defeat screen with score
 │   ├── puzzles/                   #   Client-side puzzle renderers (one per puzzle type)
-│   │   ├── asymmetric-symbols.ts
-│   │   ├── rhythm-tap.ts
-│   │   ├── collaborative-wiring.ts
-│   │   ├── cipher-decode.ts
-│   │   └── collaborative-assembly.ts
+│   │   ├── asymmetric-symbols.ts  #   Asymmetric information puzzle
+│   │   ├── rhythm-tap.ts          #   Rhythm/memory puzzle
+│   │   ├── collaborative-wiring.ts#   Logic/circuit puzzle
+│   │   ├── cipher-decode.ts       #   Cipher/decryption puzzle
+│   │   └── collaborative-assembly.ts #   Assembly/spatial puzzle
 │   ├── styles/
 │   │   ├── style.css              #   Main styles (lobby, HUD, screens)
 │   │   ├── puzzles.css            #   Puzzle-specific styles
