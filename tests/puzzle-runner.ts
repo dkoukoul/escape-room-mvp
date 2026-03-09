@@ -21,7 +21,7 @@ import {
   type PlayerListPayload,
 } from "../shared/events.ts";
 
-const SERVER_URL = process.env.SERVER_URL || "http://localhost:3000";
+const SERVER_URL = `http://localhost:${process.env.SERVER_PORT || 3000}`;
 const TIMEOUT = 30000;
 
 const PLAYER_1 = { name: "TestPlayer_Alpha" };

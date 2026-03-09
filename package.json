@@ -15,7 +15,7 @@
     "test:client": "vitest run",
     "test:client:watch": "vitest",
     "test:client:coverage": "vitest run --coverage",
-    "test:puzzles": "bun run e2e/puzzle-runner.ts"
+    "test:puzzles": "bun run tests/puzzle-runner.ts"
   },
   "dependencies": {
     "@browserbasehq/sdk": "^2.7.0",
