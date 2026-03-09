@@ -69,7 +69,7 @@ export default defineConfig({
   /* Run local dev server before starting the tests */
   webServer: {
     command: "bun run dev",
-    url: "http://localhost:5173",
+    url: `http://localhost:${process.env.CLIENT_PORT || "5173"}`,
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
   },
