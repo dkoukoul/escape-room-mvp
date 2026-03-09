@@ -457,20 +457,36 @@ async function handlePuzzleComplete(io: Server, room: Room, level: LevelConfig):
  */
 function addGlitch(io: Server, room: Room, delta: number): void {
   try {
-    const oldValue = room.state.glitch.value;
+    // Defensive check: ensure glitch state is valid
+    if (!room.state.glitch) {
+      logger.error("Glitch state is missing", { roomCode: room.code });
+      return;
+    }
+    
+    // Ensure maxValue is set (fallback for config loading issues)
+    const maxValue = room.state.glitch.maxValue ?? 100;
+    const oldValue = room.state.glitch.value ?? 0;
+    
     room.state.glitch.value = Math.min(
-      room.state.glitch.value + delta,
-      room.state.glitch.maxValue
+      oldValue + delta,
+      maxValue
     );
+    room.state.glitch.maxValue = maxValue; // Ensure it's set
 
     logger.info(`[Engine] Glitch updated`, { 
       oldValue, 
       delta, 
       newValue: room.state.glitch.value,
+      maxValue,
       roomCode: room.code 
     });
 
-    persistRoom(room).catch(err => logger.error("Failed to persist room on glitch update", { err, roomCode: room.code }));
+    persistRoom(room).catch(err => {
+      const errorDetails = err instanceof Error 
+        ? { message: err.message, stack: err.stack }
+        : { value: String(err) };
+      logger.error("Failed to persist room on glitch update", { err: errorDetails, roomCode: room.code });
+    });
 
     logger.info(`[Engine] Emitting GLITCH_UPDATE to room ${room.code}`, { glitch: room.state.glitch });
     io.to(room.code).emit(ServerEvents.GLITCH_UPDATE, {
@@ -482,7 +498,10 @@ function addGlitch(io: Server, room: Room, delta: number): void {
       handleDefeat(io, room, "glitch");
     }
   } catch (err) {
-    logger.error("Error adding glitch", { err, roomCode: room.code, delta });
+    const errorDetails = err instanceof Error 
+      ? { message: err.message, stack: err.stack, name: err.name }
+      : { value: String(err) };
+    logger.error("Error adding glitch", { err: errorDetails, roomCode: room.code, delta, glitchState: room.state.glitch });
   }
 }
 
