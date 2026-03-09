@@ -31,7 +31,7 @@ import type { RoleAssignment, PlayerView } from "../shared/types.ts";
 // - Victory condition
 // ============================================================
 
-const SERVER_URL = process.env.SERVER_URL || "http://localhost:3000";
+const SERVER_URL = `http://localhost:${process.env.SERVER_PORT || 3000}`;
 const TIMEOUT = 30000;
 
 // Test player configurations

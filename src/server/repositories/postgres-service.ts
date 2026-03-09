@@ -1,6 +1,6 @@
-import { PrismaClient } from "../../../prisma/generated/prisma/client"
-import { PrismaPg } from "@prisma/adapter-pg"
-import { Pool } from "pg"
+
+import { PrismaClient } from "../../../generated/prisma/client"
+import { PrismaPg } from "@prisma/adapter-pg";
 import logger from "../utils/logger.ts"
 
 export interface CreateGameScoreDTO {
@@ -13,8 +13,7 @@ export interface CreateGameScoreDTO {
 }
 
 // Lazy initialization to avoid errors during module load
-let pool: Pool | null = null;
-let prisma: PrismaClient | null = null;
+let prisma: PrismaClient;
 
 function getPrisma(): PrismaClient {
   if (!prisma) {
@@ -23,13 +22,9 @@ function getPrisma(): PrismaClient {
       logger.warn("[Postgres] DATABASE_URL not set - score storage will be disabled");
       throw new Error("DATABASE_URL not configured");
     }
-    
-    pool = new Pool({
-      connectionString: databaseUrl,
-    });
-    
-    const adapter = new PrismaPg(pool);
+    const adapter = new PrismaPg({ connectionString: databaseUrl });
     prisma = new PrismaClient({ adapter });
+
     logger.info("[Postgres] Prisma client initialized");
   }
   return prisma;

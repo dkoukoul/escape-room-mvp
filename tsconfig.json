@@ -29,6 +29,6 @@
       "@client/*": ["./src/client/*"]
     }
   },
-  "include": ["shared/**/*", "src/**/*", "*.config.ts", "e2e/**/*"],
+  "include": ["shared/**/*", "src/**/*", "*.config.ts", "tests/**/*"],
   "exclude": ["node_modules", "dist"]
 }
