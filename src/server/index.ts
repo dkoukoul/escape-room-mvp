@@ -51,9 +51,13 @@ const subClient = pubClient.duplicate();
 
 const PORT = parseInt(process.env.SERVER_PORT || "3000");
 
+// CORS configuration - allow all origins in production or specific dev origin
+const corsOrigin = process.env.CORS_ORIGIN || 
+  (process.env.NODE_ENV === "production" ? true : `http://localhost:${process.env.CLIENT_PORT || "5173"}`);
+
 const io = new Server(PORT, {
   cors: {
-    origin: `http://localhost:${process.env.CLIENT_PORT || "5173"}`,
+    origin: corsOrigin,
     methods: ["GET", "POST"],
   },
 });

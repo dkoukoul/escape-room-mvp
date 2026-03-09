@@ -489,6 +489,8 @@ async function storeScore(room: Room, victoryPayload: VictoryPayload) {
     const roomName = room.code;
     const playedAt = new Date();
 
+    logger.info(`[Engine] Attempting to store score for room ${room.code}`, { score, userNames });
+    
     await postgresService.createGameScore({
       roomName,
       userNames,
@@ -499,7 +501,10 @@ async function storeScore(room: Room, victoryPayload: VictoryPayload) {
     });
     logger.info(`[Engine] Score recorded for room ${room.code}`);
   } catch (err) {
-    logger.error(`[Engine] Failed to record score for room ${room.code}`, { err });
+    const errorDetails = err instanceof Error 
+      ? { message: err.message, stack: err.stack, name: err.name }
+      : { value: String(err) };
+    logger.error(`[Engine] Failed to record score for room ${room.code}`, { err: errorDetails });
   }
 }
 
@@ -508,8 +513,23 @@ async function storeScore(room: Room, victoryPayload: VictoryPayload) {
  */
 export async function handleVictory(io: Server, room: Room): Promise<void> {
   try {
+    if (!room || !room.code) {
+      logger.error("handleVictory called with invalid room", { roomCode: room?.code });
+      return;
+    }
+    
+    logger.info(`[Engine] Starting victory handling for room ${room.code}`);
+    
+    // Verify room has players
+    const playerCount = room.players.size;
+    logger.info(`[Engine] Room ${room.code} has ${playerCount} players`);
+    
     room.state.phase = GamePhase.VICTORY;
-    persistRoom(room).catch(err => logger.error("Failed to persist room on victory", { err, roomCode: room.code }));
+    persistRoom(room).catch(err => logger.error("Failed to persist room on victory", { 
+      errMessage: err instanceof Error ? err.message : String(err),
+      errStack: err instanceof Error ? err.stack : undefined,
+      roomCode: room.code 
+    }));
     
     const timer = roomTimers.get(room.code);
     timer?.stop();
@@ -518,6 +538,7 @@ export async function handleVictory(io: Server, room: Room): Promise<void> {
       ? Math.floor((Date.now() - room.state.startedAt) / 1000)
       : 0;
 
+    logger.info(`[Engine] Emitting PHASE_CHANGE VICTORY for room ${room.code}`);
     io.to(room.code).emit(ServerEvents.PHASE_CHANGE, {
       phase: GamePhase.VICTORY,
       puzzleIndex: room.state.currentPuzzleIndex,
@@ -530,14 +551,18 @@ export async function handleVictory(io: Server, room: Room): Promise<void> {
       puzzlesCompleted: room.state.completedPuzzles.length,
       score: score,
     }
-      
+    
+    logger.info(`[Engine] Emitting VICTORY for room ${room.code}`, { score, elapsed, glitch: room.state.glitch.value });
     io.to(room.code).emit(ServerEvents.VICTORY, victoryPayload);
 
     logger.info(`[Engine] VICTORY! Room ${room.code} completed in ${elapsed}s`);
     await storeScore(room, victoryPayload);
     cleanupRoom(room.code);
   } catch (err) {
-    logger.error("Error handling victory", { err, roomCode: room.code });
+    const errorDetails = err instanceof Error 
+      ? { message: err.message, stack: err.stack, name: err.name }
+      : { value: String(err) };
+    logger.error("Error handling victory", { err: errorDetails, roomCode: room?.code });
   }
 }
 
