@@ -151,4 +151,4 @@ src/public/assets/audio/*
 
 # Playwright
 playwright-report/*
-
+test-results/*
