@@ -5,6 +5,7 @@
 
 import type { PuzzleHandler } from "./puzzle-handler.ts";
 import type { Player, PuzzleConfig, PuzzleState, PlayerView } from "../../../shared/types.ts";
+import logger from "../utils/logger.ts";
 
 interface CipherData {
   cipherKey: Record<string, string>;       // Α→Ω mapping
@@ -17,6 +18,8 @@ interface CipherData {
 
 export const cipherDecodeHandler: PuzzleHandler = {
   init(players: Player[], config: PuzzleConfig): PuzzleState {
+    logger.debug(`[CipherDecode] Initializing puzzle for ${players.length} players`);
+    
     const data = config.data as {
       cipher_key: Record<string, string>;
       sentences: { encrypted: string; decoded: string; hint: string }[];
@@ -44,6 +47,8 @@ export const cipherDecodeHandler: PuzzleHandler = {
       attempts: {},
     };
 
+    logger.info(`[CipherDecode] Puzzle initialized with ${selectedSentences.length} sentences`);
+
     return {
       puzzleId: config.id,
       type: "cipher_decode" as any,
@@ -65,7 +70,10 @@ export const cipherDecodeHandler: PuzzleHandler = {
       const submission = (data.text as string).toUpperCase().trim();
       const currentSentence = puzzleData.sentences[puzzleData.currentSentenceIndex];
 
-      if (!currentSentence) return { state, glitchDelta: 0 };
+      if (!currentSentence) {
+        logger.warn(`[CipherDecode] No current sentence for player ${playerId}`);
+        return { state, glitchDelta: 0 };
+      }
 
       // Track attempts
       if (!puzzleData.attempts[playerId]) {
@@ -73,13 +81,17 @@ export const cipherDecodeHandler: PuzzleHandler = {
       }
       puzzleData.attempts[playerId]!.push(submission);
 
+      logger.debug(`[CipherDecode] Player ${playerId} submitted: "${submission}"`);
+
       if (submission === currentSentence.decoded) {
         // Correct!
+        logger.info(`[CipherDecode] Correct decode by player ${playerId}: "${submission}"`);
         puzzleData.completedSentences++;
         puzzleData.currentSentenceIndex++;
         puzzleData.attempts = {}; // Reset attempts for next sentence
       } else {
         // Wrong
+        logger.debug(`[CipherDecode] Wrong submission by player ${playerId}: "${submission}" (expected: "${currentSentence.decoded}")`);
         puzzleData.wrongSubmissions++;
         glitchDelta = 5;
       }

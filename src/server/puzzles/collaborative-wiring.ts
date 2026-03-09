@@ -5,6 +5,7 @@
 
 import type { PuzzleHandler } from "./puzzle-handler.ts";
 import type { Player, PuzzleConfig, PuzzleState, PlayerView } from "../../../shared/types.ts";
+import logger from "../utils/logger.ts";
 
 interface WiringData {
   gridSize: number;                        // Number of columns
@@ -22,6 +23,8 @@ interface WiringData {
 
 export const collaborativeWiringHandler: PuzzleHandler = {
   init(players: Player[], config: PuzzleConfig): PuzzleState {
+    logger.debug(`[CollaborativeWiring] Initializing puzzle for ${players.length} players`);
+    
     const data = config.data as {
       grid_size: number;
       switches_per_player: number;
@@ -83,6 +86,8 @@ export const collaborativeWiringHandler: PuzzleHandler = {
       boardsSolved: 0,
     };
 
+    logger.info(`[CollaborativeWiring] Puzzle initialized: ${totalSwitches} switches, ${roundsToPlay} round(s)`);
+
     return {
       puzzleId: config.id,
       type: "collaborative_wiring" as any,
@@ -106,6 +111,7 @@ export const collaborativeWiringHandler: PuzzleHandler = {
 
       // Only allow toggling your own switches
       if (!playerSwitches.includes(switchIdx)) {
+        logger.warn(`[CollaborativeWiring] Player ${playerId} tried to toggle switch ${switchIdx} (not assigned)`);
         return { state, glitchDelta: 0 };
       }
 
@@ -115,11 +121,13 @@ export const collaborativeWiringHandler: PuzzleHandler = {
         puzzleData.solutionMatrix,
         puzzleData.gridSize
       );
+      logger.debug(`[CollaborativeWiring] Player ${playerId} toggled switch ${switchIdx}`);
     } else if (action === "check_solution") {
       puzzleData.attempts++;
       const allLit = puzzleData.columnsLit.every(Boolean);
       if (allLit) {
         puzzleData.boardsSolved++;
+        logger.info(`[CollaborativeWiring] Board solved! Progress: ${puzzleData.boardsSolved}/${puzzleData.roundsToPlay}`);
         if (puzzleData.boardsSolved < puzzleData.roundsToPlay) {
           // Move to next board
           puzzleData.currentRound++;
@@ -132,6 +140,7 @@ export const collaborativeWiringHandler: PuzzleHandler = {
           );
         }
       } else {
+        logger.debug(`[CollaborativeWiring] Incorrect solution check by player ${playerId} (attempt ${puzzleData.attempts})`);
         glitchDelta = 4;
       }
     }

@@ -5,6 +5,7 @@
 
 import type { PuzzleHandler } from "./puzzle-handler.ts";
 import type { Player, PuzzleConfig, PuzzleState, PlayerView } from "../../../shared/types.ts";
+import logger from "../utils/logger.ts";
 
 interface RhythmData {
   sequences: string[][];         // All sequences to complete
@@ -18,6 +19,8 @@ interface RhythmData {
 
 export const rhythmTapHandler: PuzzleHandler = {
   init(players: Player[], config: PuzzleConfig): PuzzleState {
+    logger.debug(`[RhythmTap] Initializing puzzle for ${players.length} players`);
+    
     const data = config.data as {
       sequences: string[][];
       rounds_to_win?: number;
@@ -46,6 +49,8 @@ export const rhythmTapHandler: PuzzleHandler = {
       hopliteSuccesses: 0,
       currentSequence: selectedSequences[0] ?? []
     };
+
+    logger.info(`[RhythmTap] Puzzle initialized: ${selectedSequences.length} sequences, need ${roundsToWin} to win`);
 
     return {
       puzzleId: config.id,
@@ -82,6 +87,7 @@ export const rhythmTapHandler: PuzzleHandler = {
       }
       if (correct) {
         puzzleData.hopliteSuccesses++;
+        logger.info(`[RhythmTap] Correct sequence! Progress: ${puzzleData.hopliteSuccesses}/${puzzleData.roundsToWin}`);
 
         // Advance round
         puzzleData.currentRound++;
@@ -92,6 +98,7 @@ export const rhythmTapHandler: PuzzleHandler = {
         }
 
       } else {
+        logger.debug(`[RhythmTap] Incorrect sequence by player ${playerId}`);
         glitchDelta = 3; // penalty only once
       }
     }

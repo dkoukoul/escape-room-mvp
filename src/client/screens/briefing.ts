@@ -7,6 +7,7 @@ import { on, emit, ServerEvents, ClientEvents } from "../lib/socket.ts";
 import { showScreen } from "../lib/router.ts";
 import type { BriefingPayload, PlayerReadyUpdatePayload } from "@shared/events.ts";
 import { playBriefingIntro, playTypewriterClick, stopAllActiveAudio } from "../audio/audio-manager.ts";
+import logger from "@client/logger.ts";
 
 let typewriterTimer: ReturnType<typeof setInterval> | null = null;
 let readyButtonEl: HTMLButtonElement | null = null;
@@ -15,12 +16,14 @@ let isSkipping = false;
 
 export function initBriefing(): void {
   on(ServerEvents.BRIEFING, (data: BriefingPayload) => {
+    logger.info(`[Briefing] Showing briefing for puzzle ${data.puzzleIndex + 1}/${data.totalPuzzles}: ${data.puzzleTitle}`);
     isPlayerReady = false;
     isSkipping = false;
     renderBriefing(data);
   });
 
   on(ServerEvents.PLAYER_READY_UPDATE, (data: PlayerReadyUpdatePayload) => {
+    logger.debug(`[Briefing] Player ready update: ${data.readyCount}/${data.totalPlayers}`);
     if (readyButtonEl && isPlayerReady) {
       readyButtonEl.textContent = `WAITING FOR OTHERS (${data.readyCount}/${data.totalPlayers})`;
     }
@@ -43,6 +46,7 @@ function renderBriefing(data: BriefingPayload): void {
     onclick: () => {
       if (!isPlayerReady) {
         isPlayerReady = true;
+        logger.info("[Briefing] Player marked as ready");
         playTypewriterClick(); // Click sound
         emit(ClientEvents.PLAYER_READY);
         if (readyButtonEl) {
