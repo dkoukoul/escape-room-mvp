@@ -86,7 +86,8 @@ export async function startGame(io: Server, room: Room, startingPuzzleIndex?: nu
     room.state.levelId = level.id;
     room.state.currentPuzzleIndex = startingPuzzleIndex ?? 0;
     room.state.totalPuzzles = level.puzzles.length;
-    room.state.glitch = level.glitch;
+    // Copy glitch state to avoid modifying the level config
+    room.state.glitch = { ...level.glitch };
     room.state.timer = {
       totalSeconds: level.timer_seconds,
       remainingSeconds: level.timer_seconds,
@@ -365,7 +366,7 @@ export async function handlePuzzleAction(
     const result = handler.handleAction(room.state.puzzleState, playerId, action, data);
     room.state.puzzleState = result.state;
     
-    logger.info(`[Engine] Puzzle action processed`, { 
+    logger.debug(`[Engine] Puzzle action processed`, { 
       action, 
       glitchDelta: result.glitchDelta, 
       playerId,
