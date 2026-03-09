@@ -501,7 +501,7 @@ The puzzle system is modular, data-driven, and role-aware. The extensible handle
 ### Configuration Schema for Custom Puzzles
 - Level-level fields: id, title, story, min_players, max_players, timer_seconds, glitch, theme_css, puzzles, audio_cues.
 - Puzzle-level fields: id, type, title, briefing, glitch_penalty, layout, data, audio_cues.
-- Valid puzzle types include asymmetric_symbols, rhythm_tap, collaborative_wiring, cipher_decode, collaborative_assembly, alphabet_wall, demogorgon_hunt.
+- Valid puzzle types include asymmetric_symbols, rhythm_tap, collaborative_wiring, cipher_decode, collaborative_assembly.
 - Per-type data fields are documented in the schema for each puzzle.
 
 **Section sources**
