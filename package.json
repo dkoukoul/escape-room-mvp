@@ -11,7 +11,7 @@
     "start:server": "NODE_ENV=production bun src/server/index.ts",
     "start:client": "NODE_ENV=production vite",
     "typecheck": "bunx tsc --noEmit",
-    "test": "bun test",
+    "test": "bun test src/server",
     "test:client": "vitest run",
     "test:client:watch": "vitest",
     "test:client:coverage": "vitest run --coverage",
@@ -22,6 +22,7 @@
     "playwright:install-deps": "playwright install-deps"
   },
   "dependencies": {
+    "@browserbasehq/sdk": "^2.7.0",
     "@prisma/adapter-pg": "^7.4.2",
     "@prisma/client": "^7.4.2",
     "@socket.io/redis-adapter": "^8.3.0",
@@ -29,6 +30,7 @@
     "chokidar": "^5.0.0",
     "ioredis": "^5.10.00",
     "pg": "^8.20.0",
+    "playwright-core": "^1.58.2",
     "prisma": "^7.4.2",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
