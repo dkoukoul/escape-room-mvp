@@ -4,6 +4,10 @@ import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+// Bun automatically loads .env file, but we ensure the port is consistent
+const CLIENT_PORT = process.env.CLIENT_PORT || "5173";
+const SERVER_PORT = process.env.SERVER_PORT || "3003";
+
 /**
  * Playwright configuration for end-to-end testing
  * @see https://playwright.dev/docs/test-configuration
@@ -29,7 +33,7 @@ export default defineConfig({
   /* Shared settings for all the projects below */
   use: {
     /* Base URL to use in actions like `await page.goto('/')` */
-    baseURL: process.env.PLAYWRIGHT_BASE_URL || "http://localhost:5173",
+    baseURL: `http://localhost:${CLIENT_PORT}`,
 
     /* Collect trace when retrying the failed test */
     trace: "on-first-retry",
@@ -68,9 +72,13 @@ export default defineConfig({
 
   /* Run local dev server before starting the tests */
   webServer: {
-    command: "bun run dev",
-    url: `http://localhost:${process.env.CLIENT_PORT || "5173"}`,
+    command: "bun run dev:client",
+    url: `http://localhost:${CLIENT_PORT}`,
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
+    env: {
+      CLIENT_PORT,
+      SERVER_PORT,
+    },
   },
 });
