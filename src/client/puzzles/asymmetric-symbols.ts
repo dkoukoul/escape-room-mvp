@@ -103,6 +103,10 @@ function renderNavigatorView(container: HTMLElement, title: string, data: Record
   activeDecoyRatio = decoyRatio;
   activeCurrentWord = currentWord;
 
+  // Initialize PRNG seed and spawn counter for initial render
+  prngSeed = 1234567;
+  globalSpawnCounter = 0;
+
   // Initialize pending letters for the current word
   initPendingLetters(currentWord);
 
@@ -142,6 +146,10 @@ function renderDecoderView(container: HTMLElement, title: string, data: Record<s
   activeDecoyRatio = decoyRatio;
   activeCurrentWord = currentWord;
 
+  // Initialize PRNG seed and spawn counter for initial render
+  prngSeed = 1234567;
+  globalSpawnCounter = 0;
+
   // Initialize pending letters with the actual current word (same as Navigator)
   initPendingLetters(currentWord);
 
@@ -155,9 +163,9 @@ function startLetterSpawner(arenaId: string, intervalMs: number, lifetimeMs: num
   const arena = $(`#${arenaId}`);
   if (!arena) return;
 
-  // Reset PRNG seed AND spawn counter so all clients generate the same sequence
-  prngSeed = 1234567;
-  globalSpawnCounter = 0;
+  // NOTE: PRNG seed and spawn counter are NOT reset here anymore.
+  // They are only reset when the word changes (in updateAsymmetricSymbols).
+  // This ensures all clients stay in sync even if they receive updates at different times.
   
   // Reset pending letters counter for batch spawning
   let lettersSpawnedInBatch = 0;
@@ -278,66 +286,62 @@ export function updateAsymmetricSymbols(view: PlayerView): void {
   const lifetimeMs = (data.letterLifetimeMs as number) ?? 4000;
   const decoyRatio = (data.decoyRatio as number) ?? 0.3;
 
-  // Restart spawner if config changed (e.g. hot reload)
-  if (spawnMs !== activeSpawnMs || lifetimeMs !== activeLifetimeMs || decoyRatio !== activeDecoyRatio) {
+  // Get solution words and current word index for both roles
+  // IMPORTANT: Both Navigator and Decoder must use the actual word letters for PRNG sync
+  const solutionWords = data.solutionWords as string[];
+  const currentWordIndex = data.currentWordIndex as number;
+  const currentWord = solutionWords?.[currentWordIndex] ?? "";
+  const captured = data.capturedLetters as string[];
+
+  // Check if word changed - if so, reset PRNG and pending letters for sync
+  const wordChanged = currentWord !== activeCurrentWord && currentWord !== "" && currentWord !== "✓";
+  const configChanged = spawnMs !== activeSpawnMs || lifetimeMs !== activeLifetimeMs || decoyRatio !== activeDecoyRatio;
+
+  if (wordChanged || configChanged) {
     activeSpawnMs = spawnMs;
     activeLifetimeMs = lifetimeMs;
     activeDecoyRatio = decoyRatio;
 
+    if (wordChanged) {
+      // Word changed: reset PRNG seed and pending letters for all clients
+      activeCurrentWord = currentWord;
+      initPendingLetters(currentWord);
+      prngSeed = 1234567;
+      globalSpawnCounter = 0;
+    }
+
     const isDecoder = view.role !== "Navigator";
     const arenaId = isDecoder ? "decoder-arena" : "nav-arena";
     startLetterSpawner(arenaId, spawnMs, lifetimeMs, decoyRatio, isDecoder);
+  } else {
+    // Update pending letters based on what's been captured
+    updatePendingLetters(captured);
   }
 
   if (view.role === "Navigator") {
-    const words = data.solutionWords as string[];
-    const currentIdx = data.currentWordIndex as number;
-    const captured = data.capturedLetters as string[];
     const completed = data.completedWords as string[];
-    const currentWord = words[currentIdx] ?? "✓";
-
-    // Check if word changed and reset pending letters
-    if (currentWord !== activeCurrentWord && currentWord !== "✓") {
-      activeCurrentWord = currentWord;
-      initPendingLetters(currentWord);
-    } else {
-      // Update pending letters based on what's been captured
-      updatePendingLetters(captured);
-    }
 
     const wordEl = $("#nav-current-word");
-    if (wordEl) wordEl.textContent = currentWord;
+    if (wordEl) wordEl.textContent = currentWord || "✓";
 
     const capturedEl = $("#nav-captured");
     if (capturedEl) capturedEl.textContent = captured.join("");
 
     const progressEl = $("#nav-progress");
     if (progressEl) {
-      progressEl.textContent = `Word ${Math.min(currentIdx + 1, words.length)} / ${words.length} — ${completed.length} completed`;
+      progressEl.textContent = `Word ${Math.min(currentWordIndex + 1, solutionWords.length)} / ${solutionWords.length} — ${completed.length} completed`;
     }
 
     if (completed.length > 0) playSuccess();
   } else {
     const completedWords = (data.completedWords as number) ?? 0;
     const totalWords = data.totalWords as number;
-    const captured = data.capturedLetters as string[];
-    const currentWordLength = data.currentWordLength as number;
 
     const progressEl = $("#decoder-progress");
     if (progressEl) progressEl.textContent = `Words: ${completedWords}/${totalWords}`;
 
     const capturedEl = $("#decoder-captured");
     if (capturedEl) capturedEl.textContent = `Captured: ${captured.join("")}`;
-    
-    // Update pending letters based on captured count
-    const currentWord = "_".repeat(currentWordLength || 1);
-    if (currentWord !== activeCurrentWord) {
-      activeCurrentWord = currentWord;
-      initPendingLetters(currentWord);
-    } else {
-      // Update pending letters based on what's been captured
-      updatePendingLetters(captured);
-    }
   }
 }
 
