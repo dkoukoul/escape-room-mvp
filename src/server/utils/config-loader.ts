@@ -12,7 +12,6 @@ import type { LevelConfig, LevelSummary } from "../../../shared/types.ts";
 const CONFIG_DIR = resolve(import.meta.dir, "../../../config");
 
 // In-memory config store
-// TODO: REDIS — cache parsed configs in Redis for multi-instance consistency
 const levels = new Map<string, LevelConfig>();
 
 let watcherReady = false;
@@ -50,6 +49,19 @@ function loadConfigFile(filePath: string): void {
     if (!config.id) {
       logger.warn(`[ConfigLoader] Skipping ${filePath} — missing 'id' field`);
       return;
+    }
+
+    // Transform glitch property names from snake_case to camelCase
+    // YAML uses: max, decay_rate, name
+    // TypeScript expects: maxValue, decayRate, name
+    const glitchRaw = config.glitch as unknown as Record<string, unknown>;
+    if (glitchRaw && typeof glitchRaw === "object") {
+      config.glitch = {
+        name: (glitchRaw.name as string) ?? "",
+        value: (glitchRaw.value as number) ?? 0,
+        maxValue: (glitchRaw.maxValue as number) ?? (glitchRaw.max as number) ?? 100,
+        decayRate: (glitchRaw.decayRate as number) ?? (glitchRaw.decay_rate as number) ?? 0,
+      };
     }
 
     if (levels.has(config.id)) {

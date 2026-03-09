@@ -113,6 +113,7 @@ async function boot() {
     // Glitch updates
     on(ServerEvents.GLITCH_UPDATE, (data: GlitchUpdatePayload) => {
       try {
+        logger.info(`[Client] Received GLITCH_UPDATE`, { glitch: data.glitch });
         const { value, maxValue } = data.glitch;
         const percent = (value / maxValue) * 100;
 

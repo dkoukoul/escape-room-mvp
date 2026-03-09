@@ -63,7 +63,12 @@ export const asymmetricSymbolsHandler: PuzzleHandler = {
     if (action === "capture_letter") {
       const letter = data.letter as string;
       const currentWord = puzzleData.solutionWords[puzzleData.currentWordIndex];
-      if (!currentWord) return { state, glitchDelta: 0 };
+      if (!currentWord) {
+        console.log(`[AsymmetricSymbols] No current word, returning early`);
+        return { state, glitchDelta: 0 };
+      }
+
+      console.log(`[AsymmetricSymbols] Capture attempt: letter="${letter}", currentWord="${currentWord}", capturedLetters="${puzzleData.capturedLetters.join("")}"`);
 
       let insertIndex = -1;
       for (let i = 0; i < currentWord.length; i++) {
@@ -75,6 +80,7 @@ export const asymmetricSymbolsHandler: PuzzleHandler = {
 
       if (insertIndex !== -1) {
         // Correct capture
+        console.log(`[AsymmetricSymbols] Correct capture at index ${insertIndex}`);
         puzzleData.capturedLetters[insertIndex] = letter;
         puzzleData.capturedBy[`${puzzleData.currentWordIndex}-${insertIndex}`] = playerId;
 
@@ -87,11 +93,13 @@ export const asymmetricSymbolsHandler: PuzzleHandler = {
         }
       } else {
         // Wrong letter
+        console.log(`[AsymmetricSymbols] Wrong letter "${letter}" - adding glitch penalty`);
         puzzleData.wrongCaptures++;
         glitchDelta = 5; // From config.glitch_penalty
       }
     }
 
+    console.log(`[AsymmetricSymbols] Returning glitchDelta: ${glitchDelta}`);
     return { state: { ...state, data: puzzleData as unknown as Record<string, unknown> }, glitchDelta };
   },
 

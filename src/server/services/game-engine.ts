@@ -365,10 +365,18 @@ export async function handlePuzzleAction(
     const result = handler.handleAction(room.state.puzzleState, playerId, action, data);
     room.state.puzzleState = result.state;
     
+    logger.info(`[Engine] Puzzle action processed`, { 
+      action, 
+      glitchDelta: result.glitchDelta, 
+      playerId,
+      roomCode: room.code 
+    });
+    
     persistRoom(room).catch(err => logger.error("Failed to persist room on puzzle action", { err, roomCode: room.code }));
 
     // Apply glitch penalty
     if (result.glitchDelta > 0) {
+      logger.info(`[Engine] Adding glitch penalty: ${result.glitchDelta}`);
       addGlitch(io, room, result.glitchDelta);
     }
 
@@ -449,13 +457,22 @@ async function handlePuzzleComplete(io: Server, room: Room, level: LevelConfig):
  */
 function addGlitch(io: Server, room: Room, delta: number): void {
   try {
+    const oldValue = room.state.glitch.value;
     room.state.glitch.value = Math.min(
       room.state.glitch.value + delta,
       room.state.glitch.maxValue
     );
 
+    logger.info(`[Engine] Glitch updated`, { 
+      oldValue, 
+      delta, 
+      newValue: room.state.glitch.value,
+      roomCode: room.code 
+    });
+
     persistRoom(room).catch(err => logger.error("Failed to persist room on glitch update", { err, roomCode: room.code }));
 
+    logger.info(`[Engine] Emitting GLITCH_UPDATE to room ${room.code}`, { glitch: room.state.glitch });
     io.to(room.code).emit(ServerEvents.GLITCH_UPDATE, {
       glitch: room.state.glitch,
     } as GlitchUpdatePayload);

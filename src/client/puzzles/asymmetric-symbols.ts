@@ -265,11 +265,13 @@ function spawnLetter(arena: HTMLElement, letter: string, isDecoy: boolean, lifet
 }
 
 function handleLetterClick(el: HTMLElement, letter: string): void {
+  console.log(`[AsymmetricSymbols] Letter clicked: "${letter}"`);
   const puzzleActionMsg = {
     puzzleId: currentView?.puzzleId ?? "",
     action: "capture_letter",
     data: { letter }
   };
+  console.log(`[AsymmetricSymbols] Sending PUZZLE_ACTION:`, puzzleActionMsg);
   // Send capture action to server
   emit(ClientEvents.PUZZLE_ACTION, puzzleActionMsg);
 
