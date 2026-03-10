@@ -39,7 +39,7 @@ export const rhythmTapHandler: PuzzleHandler = {
     const roundsToPlay = data.rounds_to_play || allSequences.length;
     const selectedSequences = allSequences.slice(0, roundsToPlay);
     const roundsToWin = data.rounds_to_win || selectedSequences.length;
-    const hoplite = players.find(p => p.role === "hoplite");
+    const hoplite = players.find(p => p.role?.toLowerCase() === "hoplite");
     const puzzleData: RhythmData = {
       sequences: selectedSequences,
       currentRound: 0,
