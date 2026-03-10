@@ -206,10 +206,12 @@ async function runCollaborativeWiringPuzzle(
   const mySwitches1 = view1.viewData.mySwitches as number[];
   const mySwitches2 = view2.viewData.mySwitches as number[];
   const columnsLit = view1.viewData.columnsLit as boolean[];
+  const switchStates = view1.viewData.switchStates as boolean[];
 
   log(`  Player 1 switches: [${mySwitches1.join(", ")}]`, colors.blue);
   log(`  Player 2 switches: [${mySwitches2.join(", ")}]`, colors.blue);
   log(`  Target columns: ${columnsLit.length}`, colors.blue);
+  log(`  Total switches: ${switchStates.length}`, colors.blue);
 
   // Wrong solution check first (glitch penalty)
   log("  Testing wrong solution check (glitch penalty)...", colors.yellow);
@@ -220,27 +222,53 @@ async function runCollaborativeWiringPuzzle(
   });
   await delay(500);
 
-  // The wiring puzzle uses XOR logic. We need to find the right combination.
-  // For the test, we'll try a systematic approach: toggle switches and check
-  log("  Solving wiring puzzle...", colors.blue);
+  // The wiring puzzle uses XOR logic. Based on the solution matrix in level_01.yaml:
+  // Switch 0: affects cols 0,1
+  // Switch 1: affects cols 1,2
+  // Switch 2: affects cols 2,3
+  // Switch 3: affects cols 3,4
+  // Switch 4: affects cols 4,5
+  // Switch 5: affects cols 0,5
+  // 
+  // To light all columns with XOR logic:
+  // Col 0: switch0 ⊕ switch5 = true
+  // Col 1: switch0 ⊕ switch1 = true
+  // Col 2: switch1 ⊕ switch2 = true
+  // Col 3: switch2 ⊕ switch3 = true
+  // Col 4: switch3 ⊕ switch4 = true
+  // Col 5: switch4 ⊕ switch5 = true
+  //
+  // Solution: switches 0, 2, 4 ON (and 1, 3, 5 OFF)
+  // Let's verify: 0=ON, 1=OFF, 2=ON, 3=OFF, 4=ON, 5=OFF
+  // Col 0: 1 ⊕ 0 = 1 ✓, Col 1: 1 ⊕ 0 = 1 ✓, Col 2: 0 ⊕ 1 = 1 ✓
+  // Col 3: 1 ⊕ 0 = 1 ✓, Col 4: 0 ⊕ 1 = 1 ✓, Col 5: 1 ⊕ 0 = 1 ✓
   
-  // Toggle all switches for both players
-  for (const switchIdx of mySwitches1) {
-    socket1.emit(ClientEvents.PUZZLE_ACTION, {
-      puzzleId: puzzleStart1.puzzleId,
-      action: "toggle_switch",
-      data: { switchIndex: switchIdx },
-    });
-    await delay(100);
-  }
+  log("  Solving wiring puzzle with calculated solution...", colors.blue);
   
-  for (const switchIdx of mySwitches2) {
-    socket2.emit(ClientEvents.PUZZLE_ACTION, {
-      puzzleId: puzzleStart1.puzzleId,
-      action: "toggle_switch",
-      data: { switchIndex: switchIdx },
-    });
-    await delay(100);
+  // Determine which player has which switches and toggle accordingly
+  // Target: switches 0, 2, 4 should be ON
+  const targetSwitches = [0, 2, 4];
+  
+  for (const switchIdx of targetSwitches) {
+    // Check if this switch needs to be toggled (if it's currently off)
+    if (!switchStates[switchIdx]) {
+      if (mySwitches1.includes(switchIdx)) {
+        socket1.emit(ClientEvents.PUZZLE_ACTION, {
+          puzzleId: puzzleStart1.puzzleId,
+          action: "toggle_switch",
+          data: { switchIndex: switchIdx },
+        });
+        log(`    Player 1 toggles switch ${switchIdx}`, colors.blue);
+      } else if (mySwitches2.includes(switchIdx)) {
+        socket2.emit(ClientEvents.PUZZLE_ACTION, {
+          puzzleId: puzzleStart1.puzzleId,
+          action: "toggle_switch",
+          data: { switchIndex: switchIdx },
+        });
+        log(`    Player 2 toggles switch ${switchIdx}`, colors.blue);
+      }
+      await delay(200);
+    }
   }
 
   // Set up completion listener before checking solution
@@ -249,48 +277,28 @@ async function runCollaborativeWiringPuzzle(
     waitForEvent<PuzzleCompletedPayload>(socket2, ServerEvents.PUZZLE_COMPLETED, 5000).catch(() => null),
   ]);
 
-  // Try different combinations
-  let solved = false;
-  const maxAttempts = 10;
+  // Check solution
+  log("  Checking solution...", colors.blue);
+  socket1.emit(ClientEvents.PUZZLE_ACTION, {
+    puzzleId: puzzleStart1.puzzleId,
+    action: "check_solution",
+    data: {},
+  });
   
-  for (let attempt = 0; attempt < maxAttempts && !solved; attempt++) {
-    socket1.emit(ClientEvents.PUZZLE_ACTION, {
-      puzzleId: puzzleStart1.puzzleId,
-      action: "check_solution",
-      data: {},
-    });
-    
-    // Check if we got completion
-    const completed = await Promise.race([
-      completionPromise,
-      delay(500).then(() => null),
-    ]);
-    
-    if (completed) {
-      solved = true;
-      break;
-    }
-    
-    // If not solved, toggle some switches and try again
-    // Toggle player 1's first switch
-    if (mySwitches1.length > 0) {
-      socket1.emit(ClientEvents.PUZZLE_ACTION, {
-        puzzleId: puzzleStart1.puzzleId,
-        action: "toggle_switch",
-        data: { switchIndex: mySwitches1[0] },
-      });
-    }
-    await delay(200);
-  }
-
-  if (solved) {
+  // Wait for completion
+  const completed = await Promise.race([
+    completionPromise,
+    delay(1000).then(() => null),
+  ]);
+  
+  if (completed) {
     result.completed = true;
     log(`  ✅ Puzzle 2 completed!`, colors.green);
   } else {
-    log(`  ⚠️ Puzzle 2 not completed (expected in test environment)`, colors.yellow);
+    log(`  ⚠️ Puzzle 2 not completed (may need different solution)`, colors.yellow);
   }
 
-  await delay(3500);
+  await delay(4000);
 }
 
 async function runRhythmTapPuzzle(
@@ -322,6 +330,12 @@ async function runRhythmTapPuzzle(
   const currentSequence = hopliteView.viewData.currentSequence as string[];
   log(`  Sequence: [${currentSequence.join(", ")}]`, colors.blue);
 
+  // Set up completion listeners first
+  const completionPromise = Promise.all([
+    waitForEvent<PuzzleCompletedPayload>(socket1, ServerEvents.PUZZLE_COMPLETED, 5000),
+    waitForEvent<PuzzleCompletedPayload>(socket2, ServerEvents.PUZZLE_COMPLETED, 5000),
+  ]);
+
   // Wrong sequence first
   log("  Testing wrong sequence (glitch penalty)...", colors.yellow);
   hopliteSocket.emit(ClientEvents.PUZZLE_ACTION, {
@@ -340,15 +354,14 @@ async function runRhythmTapPuzzle(
   });
 
   try {
-    await waitForEvent<PuzzleCompletedPayload>(socket1, ServerEvents.PUZZLE_COMPLETED, 5000);
-    await waitForEvent<PuzzleCompletedPayload>(socket2, ServerEvents.PUZZLE_COMPLETED, 5000);
+    await completionPromise;
     result.completed = true;
     log(`  ✅ Puzzle 3 completed!`, colors.green);
   } catch {
     log(`  ⚠️ Puzzle 3 not completed`, colors.yellow);
   }
 
-  await delay(3500);
+  await delay(4000);
 }
 
 async function runCipherDecodePuzzle(
@@ -416,7 +429,7 @@ async function runCipherDecodePuzzle(
     log(`  ⚠️ Puzzle 4 not completed`, colors.yellow);
   }
 
-  await delay(3500);
+  await delay(4000);
 }
 
 async function runCollaborativeAssemblyPuzzle(
@@ -451,10 +464,15 @@ async function runCollaborativeAssemblyPuzzle(
 
   log(`  Builder has ${myPieces.length} pieces`, colors.blue);
 
+  // Set up completion listener first
+  const completionPromise = Promise.all([
+    waitForEvent<PuzzleCompletedPayload>(socket1, ServerEvents.PUZZLE_COMPLETED, 10000),
+    waitForEvent<PuzzleCompletedPayload>(socket2, ServerEvents.PUZZLE_COMPLETED, 10000),
+  ]);
+
+  // Test wrong placement first with the first piece
   if (myPieces.length > 0) {
     const firstPiece = myPieces[0]!;
-
-    // Wrong placement first
     log("  Testing wrong placement (glitch penalty)...", colors.yellow);
     builderSocket.emit(ClientEvents.PUZZLE_ACTION, {
       puzzleId: puzzleStart1.puzzleId,
@@ -462,33 +480,44 @@ async function runCollaborativeAssemblyPuzzle(
       data: { pieceId: firstPiece.id, col: 99, row: 99 },
     });
     await delay(500);
+  }
 
-    // Rotate if needed
-    const blueprintPiece = blueprint.find((p) => p.id === firstPiece.id);
-    if (blueprintPiece && blueprintPiece.rotation !== firstPiece.rotation) {
+  // Place all pieces correctly
+  for (const piece of myPieces) {
+    const blueprintPiece = blueprint.find((p) => p.id === piece.id);
+    if (!blueprintPiece) continue;
+
+    // Rotate to correct rotation if needed
+    let currentRotation = piece.rotation;
+    while (currentRotation !== blueprintPiece.rotation) {
       builderSocket.emit(ClientEvents.PUZZLE_ACTION, {
         puzzleId: puzzleStart1.puzzleId,
         action: "rotate_piece",
-        data: { pieceId: firstPiece.id },
+        data: { pieceId: piece.id },
       });
       await delay(200);
+      currentRotation = (currentRotation + 90) % 360;
     }
 
-    // Correct placement
-    if (blueprintPiece) {
-      log("  Placing piece correctly...", colors.blue);
-      builderSocket.emit(ClientEvents.PUZZLE_ACTION, {
-        puzzleId: puzzleStart1.puzzleId,
-        action: "place_piece",
-        data: { pieceId: firstPiece.id, col: blueprintPiece.col, row: blueprintPiece.row },
-      });
-    }
+    // Place the piece
+    log(`  Placing piece ${piece.id} at (${blueprintPiece.col}, ${blueprintPiece.row})...`, colors.blue);
+    builderSocket.emit(ClientEvents.PUZZLE_ACTION, {
+      puzzleId: puzzleStart1.puzzleId,
+      action: "place_piece",
+      data: { pieceId: piece.id, col: blueprintPiece.col, row: blueprintPiece.row },
+    });
+    await delay(300);
   }
 
-  // Note: Assembly puzzle won't complete with just one piece placed
-  log(`  ⚠️ Puzzle 5 partially tested (placed 1 piece)`, colors.yellow);
+  try {
+    await completionPromise;
+    result.completed = true;
+    log(`  ✅ Puzzle 5 completed!`, colors.green);
+  } catch {
+    log(`  ⚠️ Puzzle 5 not completed`, colors.yellow);
+  }
 
-  await delay(3500);
+  await delay(4000);
 }
 
 // ============================================================
@@ -604,29 +633,29 @@ async function runTests(): Promise<void> {
     socket2.emit(ClientEvents.INTRO_COMPLETE);
 
     // Run all puzzles - each puzzle waits for its own briefing
+    // Note: Briefing is broadcast to all players, so we only need to wait on one socket
     // Puzzle 1
     const briefing1 = await waitForEvent<BriefingPayload>(socket1, ServerEvents.BRIEFING);
-    await waitForEvent<BriefingPayload>(socket2, ServerEvents.BRIEFING);
+    const nextBriefing2 = waitForEvent<BriefingPayload>(socket1, ServerEvents.BRIEFING);
     await runAsymmetricSymbolsPuzzle(socket1, socket2, briefing1);
+    const briefing2 = await nextBriefing2;
     
     // Puzzle 2
-    const briefing2 = await waitForEvent<BriefingPayload>(socket1, ServerEvents.BRIEFING);
-    await waitForEvent<BriefingPayload>(socket2, ServerEvents.BRIEFING);
+    const nextBriefing3 = waitForEvent<BriefingPayload>(socket1, ServerEvents.BRIEFING);
     await runCollaborativeWiringPuzzle(socket1, socket2, briefing2);
+    const briefing3 = await nextBriefing3;
     
     // Puzzle 3
-    const briefing3 = await waitForEvent<BriefingPayload>(socket1, ServerEvents.BRIEFING);
-    await waitForEvent<BriefingPayload>(socket2, ServerEvents.BRIEFING);
+    const nextBriefing4 = waitForEvent<BriefingPayload>(socket1, ServerEvents.BRIEFING);
     await runRhythmTapPuzzle(socket1, socket2, briefing3);
+    const briefing4 = await nextBriefing4;
     
     // Puzzle 4
-    const briefing4 = await waitForEvent<BriefingPayload>(socket1, ServerEvents.BRIEFING);
-    await waitForEvent<BriefingPayload>(socket2, ServerEvents.BRIEFING);
+    const nextBriefing5 = waitForEvent<BriefingPayload>(socket1, ServerEvents.BRIEFING);
     await runCipherDecodePuzzle(socket1, socket2, briefing4);
+    const briefing5 = await nextBriefing5;
     
     // Puzzle 5
-    const briefing5 = await waitForEvent<BriefingPayload>(socket1, ServerEvents.BRIEFING);
-    await waitForEvent<BriefingPayload>(socket2, ServerEvents.BRIEFING);
     await runCollaborativeAssemblyPuzzle(socket1, socket2, briefing5);
 
     // Wait for victory
