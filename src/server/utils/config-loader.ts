@@ -3,13 +3,15 @@
 // ============================================================
 
 import { readFileSync, readdirSync } from "fs";
-import { join, resolve } from "path";
+import { join, resolve, dirname } from "path";
+import { fileURLToPath } from "url";
 import { parse as parseYAML } from "yaml";
 import { watch } from "chokidar";
 import { validateAll } from "./config-validator.ts";
 import type { LevelConfig, LevelSummary } from "../../../shared/types.ts";
 
-const CONFIG_DIR = resolve(import.meta.dir, "../../../config");
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const CONFIG_DIR = resolve(__dirname, "../../../config");
 
 // In-memory config store
 const levels = new Map<string, LevelConfig>();
