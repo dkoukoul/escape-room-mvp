@@ -134,41 +134,36 @@ async function runAsymmetricSymbolsPuzzle(
   // TODO: Re-enable after fixing glitch initialization
   log("  Skipping wrong captures (glitch debugging)...", colors.yellow);
 
-  // Solve correctly - capture each letter of the word
-  const currentWord = solutionWords[0]!;
-  log(`  Solving word: ${currentWord}`, colors.blue);
-  
-  // Split the word into individual Greek letters and capture them
-  const letters = Array.from(currentWord);
-  log(`  Letters to capture: [${letters.join(", ")}]`, colors.blue);
-  
-  // Capture all but the last letter first
-  for (let i = 0; i < letters.length - 1; i++) {
-    const letter = letters[i]!;
-    log(`    Capturing: ${letter}`, colors.blue);
-    decoderSocket.emit(ClientEvents.PUZZLE_ACTION, {
-      puzzleId: puzzleStart1.puzzleId,
-      action: "capture_letter",
-      data: { letter },
-    });
-    await delay(400);
-  }
-
-  // Set up completion listeners BEFORE sending the final letter
+  // Set up completion listeners BEFORE solving the last word
   log("  Setting up completion listeners...", colors.blue);
   const completionPromise = Promise.all([
-    waitForEvent<PuzzleCompletedPayload>(socket1, ServerEvents.PUZZLE_COMPLETED, 10000),
-    waitForEvent<PuzzleCompletedPayload>(socket2, ServerEvents.PUZZLE_COMPLETED, 10000),
+    waitForEvent<PuzzleCompletedPayload>(socket1, ServerEvents.PUZZLE_COMPLETED, 15000),
+    waitForEvent<PuzzleCompletedPayload>(socket2, ServerEvents.PUZZLE_COMPLETED, 15000),
   ]);
 
-  // Now send the final letter which will trigger completion
-  const finalLetter = letters[letters.length - 1]!;
-  log(`    Capturing final letter: ${finalLetter}`, colors.blue);
-  decoderSocket.emit(ClientEvents.PUZZLE_ACTION, {
-    puzzleId: puzzleStart1.puzzleId,
-    action: "capture_letter",
-    data: { letter: finalLetter },
-  });
+  // Solve all words - the puzzle only completes when ALL words are done
+  for (let wordIdx = 0; wordIdx < solutionWords.length; wordIdx++) {
+    const currentWord = solutionWords[wordIdx]!;
+    log(`  Solving word ${wordIdx + 1}/${solutionWords.length}: ${currentWord}`, colors.blue);
+    
+    // Split the word into individual Greek letters and capture them
+    const letters = Array.from(currentWord);
+    log(`    Letters to capture: [${letters.join(", ")}]`, colors.blue);
+    
+    // Capture all letters of this word
+    for (let i = 0; i < letters.length; i++) {
+      const letter = letters[i]!;
+      log(`      Capturing: ${letter}`, colors.blue);
+      decoderSocket.emit(ClientEvents.PUZZLE_ACTION, {
+        puzzleId: puzzleStart1.puzzleId,
+        action: "capture_letter",
+        data: { letter },
+      });
+      await delay(400);
+    }
+    
+    log(`    ✅ Word ${wordIdx + 1} completed`, colors.green);
+  }
 
   // Wait for puzzle completion
   log("  Waiting for puzzle completion...", colors.blue);
@@ -205,13 +200,33 @@ async function runCollaborativeWiringPuzzle(
   const view2 = puzzleStart2.playerView;
   const mySwitches1 = view1.viewData.mySwitches as number[];
   const mySwitches2 = view2.viewData.mySwitches as number[];
-  const columnsLit = view1.viewData.columnsLit as boolean[];
-  const switchStates = view1.viewData.switchStates as boolean[];
+  const gridSize = view1.viewData.gridSize as number;
+  const roundsToPlay = view1.viewData.roundsToPlay as number;
 
   log(`  Player 1 switches: [${mySwitches1.join(", ")}]`, colors.blue);
   log(`  Player 2 switches: [${mySwitches2.join(", ")}]`, colors.blue);
-  log(`  Target columns: ${columnsLit.length}`, colors.blue);
-  log(`  Total switches: ${switchStates.length}`, colors.blue);
+  log(`  Target columns: ${gridSize}`, colors.blue);
+  log(`  Rounds to play: ${roundsToPlay}`, colors.blue);
+
+  // Track current state from puzzle updates
+  let currentSwitchStates: boolean[] = [...(view1.viewData.switchStates as boolean[])];
+  let currentColumnsLit: boolean[] = [...(view1.viewData.columnsLit as boolean[])];
+  let currentBoardsSolved = 0;
+
+  // Listen for puzzle updates to track state
+  const updateListener = (data: PuzzleUpdatePayload) => {
+    const viewData = data.playerView.viewData as Record<string, unknown>;
+    if (viewData.switchStates) {
+      currentSwitchStates = [...(viewData.switchStates as boolean[])];
+    }
+    if (viewData.columnsLit) {
+      currentColumnsLit = [...(viewData.columnsLit as boolean[])];
+    }
+    if (typeof viewData.boardsSolved === 'number') {
+      currentBoardsSolved = viewData.boardsSolved;
+    }
+  };
+  socket1.on(ServerEvents.PUZZLE_UPDATE, updateListener);
 
   // Wrong solution check first (glitch penalty)
   log("  Testing wrong solution check (glitch penalty)...", colors.yellow);
@@ -222,80 +237,77 @@ async function runCollaborativeWiringPuzzle(
   });
   await delay(500);
 
-  // The wiring puzzle uses XOR logic. Based on the solution matrix in level_01.yaml:
-  // Switch 0: affects cols 0,1
-  // Switch 1: affects cols 1,2
-  // Switch 2: affects cols 2,3
-  // Switch 3: affects cols 3,4
-  // Switch 4: affects cols 4,5
-  // Switch 5: affects cols 0,5
-  // 
-  // To light all columns with XOR logic:
-  // Col 0: switch0 ⊕ switch5 = true
-  // Col 1: switch0 ⊕ switch1 = true
-  // Col 2: switch1 ⊕ switch2 = true
-  // Col 3: switch2 ⊕ switch3 = true
-  // Col 4: switch3 ⊕ switch4 = true
-  // Col 5: switch4 ⊕ switch5 = true
-  //
-  // Solution: switches 0, 2, 4 ON (and 1, 3, 5 OFF)
-  // Let's verify: 0=ON, 1=OFF, 2=ON, 3=OFF, 4=ON, 5=OFF
-  // Col 0: 1 ⊕ 0 = 1 ✓, Col 1: 1 ⊕ 0 = 1 ✓, Col 2: 0 ⊕ 1 = 1 ✓
-  // Col 3: 1 ⊕ 0 = 1 ✓, Col 4: 0 ⊕ 1 = 1 ✓, Col 5: 1 ⊕ 0 = 1 ✓
+  // Set up completion listener before solving
+  const completionPromise = Promise.all([
+    waitForEvent<PuzzleCompletedPayload>(socket1, ServerEvents.PUZZLE_COMPLETED, 15000),
+    waitForEvent<PuzzleCompletedPayload>(socket2, ServerEvents.PUZZLE_COMPLETED, 15000),
+  ]);
+
+  // Solve all rounds - try different switch combinations
+  log("  Solving wiring puzzle...", colors.blue);
   
-  log("  Solving wiring puzzle with calculated solution...", colors.blue);
+  const totalSwitches = currentSwitchStates.length;
+  const maxAttemptsPerRound = Math.min(32, Math.pow(2, Math.min(totalSwitches, 5)));
   
-  // Determine which player has which switches and toggle accordingly
-  // Target: switches 0, 2, 4 should be ON
-  const targetSwitches = [0, 2, 4];
-  
-  for (const switchIdx of targetSwitches) {
-    // Check if this switch needs to be toggled (if it's currently off)
-    if (!switchStates[switchIdx]) {
-      if (mySwitches1.includes(switchIdx)) {
-        socket1.emit(ClientEvents.PUZZLE_ACTION, {
-          puzzleId: puzzleStart1.puzzleId,
-          action: "toggle_switch",
-          data: { switchIndex: switchIdx },
-        });
-        log(`    Player 1 toggles switch ${switchIdx}`, colors.blue);
-      } else if (mySwitches2.includes(switchIdx)) {
-        socket2.emit(ClientEvents.PUZZLE_ACTION, {
-          puzzleId: puzzleStart1.puzzleId,
-          action: "toggle_switch",
-          data: { switchIndex: switchIdx },
-        });
-        log(`    Player 2 toggles switch ${switchIdx}`, colors.blue);
+  for (let round = 0; round < roundsToPlay; round++) {
+    log(`    Round ${round + 1}/${roundsToPlay}...`, colors.blue);
+    
+    let roundSolved = false;
+    
+    // Try different combinations
+    for (let attempt = 0; attempt < maxAttemptsPerRound && !roundSolved; attempt++) {
+      // Generate target state from attempt number
+      const targetState: boolean[] = [];
+      for (let i = 0; i < totalSwitches; i++) {
+        targetState.push(((attempt >> i) & 1) === 1);
       }
+      
+      // Toggle switches to match target state
+      for (let i = 0; i < totalSwitches; i++) {
+        if (currentSwitchStates[i] !== targetState[i]) {
+          const socket = mySwitches1.includes(i) ? socket1 : socket2;
+          socket.emit(ClientEvents.PUZZLE_ACTION, {
+            puzzleId: puzzleStart1.puzzleId,
+            action: "toggle_switch",
+            data: { switchIndex: i },
+          });
+          await delay(50);
+        }
+      }
+      
+      await delay(100);
+      
+      // Check solution
+      socket1.emit(ClientEvents.PUZZLE_ACTION, {
+        puzzleId: puzzleStart1.puzzleId,
+        action: "check_solution",
+        data: {},
+      });
+      
       await delay(200);
+      
+      // Check if round was solved
+      if (currentBoardsSolved > round) {
+        roundSolved = true;
+        log(`      ✅ Round ${round + 1} solved!`, colors.green);
+      }
+    }
+    
+    if (!roundSolved) {
+      log(`      ⚠️ Round ${round + 1} not solved`, colors.yellow);
     }
   }
 
-  // Set up completion listener before checking solution
-  const completionPromise = Promise.all([
-    waitForEvent<PuzzleCompletedPayload>(socket1, ServerEvents.PUZZLE_COMPLETED, 5000).catch(() => null),
-    waitForEvent<PuzzleCompletedPayload>(socket2, ServerEvents.PUZZLE_COMPLETED, 5000).catch(() => null),
-  ]);
+  // Clean up listener
+  socket1.off(ServerEvents.PUZZLE_UPDATE, updateListener);
 
-  // Check solution
-  log("  Checking solution...", colors.blue);
-  socket1.emit(ClientEvents.PUZZLE_ACTION, {
-    puzzleId: puzzleStart1.puzzleId,
-    action: "check_solution",
-    data: {},
-  });
-  
   // Wait for completion
-  const completed = await Promise.race([
-    completionPromise,
-    delay(1000).then(() => null),
-  ]);
-  
-  if (completed) {
+  try {
+    await completionPromise;
     result.completed = true;
     log(`  ✅ Puzzle 2 completed!`, colors.green);
-  } else {
-    log(`  ⚠️ Puzzle 2 not completed (may need different solution)`, colors.yellow);
+  } catch {
+    log(`  ⚠️ Puzzle 2 not completed`, colors.yellow);
   }
 
   await delay(4000);
@@ -636,35 +648,35 @@ async function runTests(): Promise<void> {
     // Note: Briefing is broadcast to all players, so we only need to wait on one socket
     // Puzzle 1
     const briefing1 = await waitForEvent<BriefingPayload>(socket1, ServerEvents.BRIEFING);
-    const nextBriefing2 = waitForEvent<BriefingPayload>(socket1, ServerEvents.BRIEFING);
     await runAsymmetricSymbolsPuzzle(socket1, socket2, briefing1);
-    const briefing2 = await nextBriefing2;
+    // Wait for next briefing after puzzle completion (3s transition delay + buffer)
+    const briefing2 = await waitForEvent<BriefingPayload>(socket1, ServerEvents.BRIEFING, 10000);
     
     // Puzzle 2
-    const nextBriefing3 = waitForEvent<BriefingPayload>(socket1, ServerEvents.BRIEFING);
     await runCollaborativeWiringPuzzle(socket1, socket2, briefing2);
-    const briefing3 = await nextBriefing3;
+    const briefing3 = await waitForEvent<BriefingPayload>(socket1, ServerEvents.BRIEFING, 10000);
     
     // Puzzle 3
-    const nextBriefing4 = waitForEvent<BriefingPayload>(socket1, ServerEvents.BRIEFING);
     await runRhythmTapPuzzle(socket1, socket2, briefing3);
-    const briefing4 = await nextBriefing4;
+    const briefing4 = await waitForEvent<BriefingPayload>(socket1, ServerEvents.BRIEFING, 10000);
     
     // Puzzle 4
-    const nextBriefing5 = waitForEvent<BriefingPayload>(socket1, ServerEvents.BRIEFING);
     await runCipherDecodePuzzle(socket1, socket2, briefing4);
-    const briefing5 = await nextBriefing5;
+    const briefing5 = await waitForEvent<BriefingPayload>(socket1, ServerEvents.BRIEFING, 10000);
     
-    // Puzzle 5
+    // Puzzle 5 - Set up victory listener before running puzzle
+    const victoryPromise = Promise.all([
+      waitForEvent<VictoryPayload>(socket1, ServerEvents.VICTORY, 15000),
+      waitForEvent<VictoryPayload>(socket2, ServerEvents.VICTORY, 15000),
+    ]);
     await runCollaborativeAssemblyPuzzle(socket1, socket2, briefing5);
 
     // Wait for victory
     log("\nWaiting for victory...", colors.blue);
-    const victory = await waitForEvent<VictoryPayload>(socket1, ServerEvents.VICTORY, 10000);
-    await waitForEvent<VictoryPayload>(socket2, ServerEvents.VICTORY, 10000);
+    const [victory1] = await victoryPromise;
 
     results.victory = true;
-    results.score = victory.score;
+    results.score = victory1.score;
     results.totalGlitchPenalties = glitchUpdates.length;
 
     log("\n" + "=".repeat(60), colors.bright);
