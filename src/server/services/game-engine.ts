@@ -129,6 +129,13 @@ export async function startGame(io: Server, room: Room, startingPuzzleIndex?: nu
     roomTimers.set(room.code, timer);
     timer.start();
 
+    // Notify Telegram about game start
+    logger.gameEvent('game_started', {
+      roomCode: room.code,
+      levelId: level.id,
+      playerCount: players.length,
+    });
+
     // If jumping, send the briefing immediately
     if (isJumping) {
       await startPuzzleBriefing(io, room, level, room.state.currentPuzzleIndex);
@@ -593,6 +600,16 @@ export async function handleVictory(io: Server, room: Room, level: LevelConfig):
     io.to(room.code).emit(ServerEvents.VICTORY, victoryPayload);
 
     logger.info(`[Engine] VICTORY! Room ${room.code} completed in ${elapsed}s`);
+    
+    // Notify Telegram about victory
+    logger.gameEvent('game_victory', {
+      roomCode: room.code,
+      score: victoryPayload.score,
+      elapsedSeconds: victoryPayload.elapsedSeconds,
+      glitchFinal: victoryPayload.glitchFinal,
+      puzzlesCompleted: victoryPayload.puzzlesCompleted,
+    });
+    
     await storeScore(room, victoryPayload);
     cleanupRoom(room.code);
   } catch (err) {
@@ -626,6 +643,15 @@ function handleDefeat(io: Server, room: Room, reason: "timer" | "glitch"): void 
     } as DefeatPayload);
 
     logger.info(`[Engine] DEFEAT! Room ${room.code} — reason: ${reason}`);
+    
+    // Notify Telegram about defeat
+    logger.gameEvent('game_defeat', {
+      roomCode: room.code,
+      reason,
+      puzzlesCompleted: room.state.completedPuzzles.length,
+      puzzleReachedIndex: room.state.currentPuzzleIndex,
+    });
+    
     cleanupRoom(room.code);
   } catch (err) {
     logger.error("Error handling defeat", { err, roomCode: room.code, reason });

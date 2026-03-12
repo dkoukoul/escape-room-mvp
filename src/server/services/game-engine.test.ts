@@ -90,6 +90,7 @@ mock.module("../utils/logger.ts", () => ({
     error: mock(),
     warn: mock(),
     debug: mock(),
+    gameEvent: mock(),
   },
 }));
 
@@ -294,7 +295,7 @@ describe("Game Engine", () => {
       room.state.completedPuzzles = ["p1", "p2"];
       room.state.glitch.value = 10;
       
-      await handleVictory(io, room);
+      await handleVictory(io, room, mockLevel);
       
       expect(room.state.phase).toBe(GamePhase.VICTORY);
       expect(mockTimerStop).toHaveBeenCalled();
