@@ -152,3 +152,6 @@ src/public/assets/audio/*
 # generated
 prisma/generated/*
 generated/*
+
+# notes
+notes/*

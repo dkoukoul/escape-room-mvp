@@ -27,11 +27,12 @@
 
 ## Update Summary
 **Changes Made**
-- Fixed critical scoring calculation bug in calculateScore function - now properly uses level.timer_seconds instead of hardcoded constants
-- Enhanced fairness in scoring calculations by making time-based scoring proportional to intended difficulty and time constraints of each level
-- Removed TODO comment regarding Redis persistence for timer state in game-engine.ts
-- Improved score calculation algorithm to provide fairer gameplay experiences across different level difficulties
-- Updated scoring system to eliminate arbitrary constants and use level-specific time limits
+- Integrated Telegram notification system into game engine for automatic game event notifications
+- Added comprehensive Telegram transport with error handling and cooldown mechanisms
+- Implemented automatic notifications for game starts, victories, and defeats with rich metadata
+- Enhanced logging infrastructure with game event tracking capabilities
+- Added environment variable configuration for Telegram bot integration
+- Implemented structured game event notifications with room codes, player counts, scores, and completion statistics
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -40,17 +41,18 @@
 4. [Architecture Overview](#architecture-overview)
 5. [Detailed Component Analysis](#detailed-component-analysis)
 6. [Enhanced Error Handling and Logging](#enhanced-error-handling-and-logging)
-7. [Glitch Management System](#glitch-management-system)
-8. [Scoring System Enhancement](#scoring-system-enhancement)
-9. [Dependency Analysis](#dependency-analysis)
-10. [Performance Considerations](#performance-considerations)
-11. [Troubleshooting Guide](#troubleshooting-guide)
-12. [Conclusion](#conclusion)
+7. [Telegram Notification System](#telegram-notification-system)
+8. [Glitch Management System](#glitch-management-system)
+9. [Scoring System Enhancement](#scoring-system-enhancement)
+10. [Dependency Analysis](#dependency-analysis)
+11. [Performance Considerations](#performance-considerations)
+12. [Troubleshooting Guide](#troubleshooting-guide)
+13. [Conclusion](#conclusion)
 
 ## Introduction
 This document describes the Game Engine that powers Project ODYSSEY, a co-op escape room experience for 2–6 players. The engine orchestrates game phases, puzzle lifecycle, asynchronous roles, and persistent state across a real-time multiplayer environment. It is implemented with Bun (server), Socket.io (real-time), and a vanilla TypeScript/Vite client. Levels and puzzles are configured via YAML, enabling rapid iteration without touching core engine code.
 
-**Updated** Enhanced with comprehensive error handling, defensive programming, robust glitch management, improved game state immutability, and a fixed critical scoring calculation bug that ensures fairer gameplay experiences.
+**Updated** Enhanced with comprehensive error handling, defensive programming, robust glitch management, improved game state immutability, a fixed critical scoring calculation bug, and integrated Telegram notification system for automated game event communications.
 
 ## Project Structure
 The repository is organized into server, client, shared, and data layers:
@@ -80,6 +82,7 @@ PG["src/server/repositories/postgres-service.ts"]
 RS["src/server/repositories/redis-service.ts"]
 SL["src/server/utils/logger.ts"]
 CLD["src/server/utils/config-loader.ts"]
+TL["Telegram Transport Layer"]
 end
 subgraph "Shared"
 ST["shared/types.ts"]
@@ -96,6 +99,7 @@ GE --> TH
 GE --> TM
 GE --> PG
 GE --> SL
+GE --> TL
 TH --> RG
 RG --> AS
 CM --> CL
@@ -108,29 +112,29 @@ CLD --> ST
 ```
 
 **Diagram sources**
-- [src/client/main.ts](file://src/client/main.ts#L1-L266)
-- [src/client/lib/socket.ts](file://src/client/lib/socket.ts#L1-L85)
-- [src/client/screens/puzzle.ts](file://src/client/screens/puzzle.ts#L1-L101)
-- [src/client/logger.ts](file://src/client/logger.ts#L1-L38)
-- [src/server/index.ts](file://src/server/index.ts#L1-L321)
-- [src/server/services/game-engine.ts](file://src/server/services/game-engine.ts#L1-L794)
-- [src/server/services/room-manager.ts](file://src/server/services/room-manager.ts#L1-L283)
-- [src/server/services/role-assigner.ts](file://src/server/services/role-assigner.ts#L1-L78)
-- [src/server/puzzles/puzzle-handler.ts](file://src/server/puzzles/puzzle-handler.ts#L1-L56)
-- [src/server/puzzles/register.ts](file://src/server/puzzles/register.ts#L1-L21)
-- [src/server/puzzles/asymmetric-symbols.ts](file://src/server/puzzles/asymmetric-symbols.ts#L1-L170)
-- [src/server/utils/timer.ts](file://src/server/utils/timer.ts#L1-L81)
-- [src/server/repositories/postgres-service.ts](file://src/server/repositories/postgres-service.ts#L1-L83)
-- [src/server/repositories/redis-service.ts](file://src/server/repositories/redis-service.ts#L1-L50)
-- [src/server/utils/logger.ts](file://src/server/utils/logger.ts#L1-L21)
-- [src/server/utils/config-loader.ts](file://src/server/utils/config-loader.ts#L1-L147)
-- [shared/types.ts](file://shared/types.ts#L1-L181)
-- [shared/events.ts](file://shared/events.ts#L1-L228)
-- [shared/logger.ts](file://shared/logger.ts#L1-L22)
+- [src/client/main.ts:1-266](file://src/client/main.ts#L1-L266)
+- [src/client/lib/socket.ts:1-85](file://src/client/lib/socket.ts#L1-L85)
+- [src/client/screens/puzzle.ts:1-101](file://src/client/screens/puzzle.ts#L1-L101)
+- [src/client/logger.ts:1-38](file://src/client/logger.ts#L1-L38)
+- [src/server/index.ts:1-321](file://src/server/index.ts#L1-L321)
+- [src/server/services/game-engine.ts:1-820](file://src/server/services/game-engine.ts#L1-L820)
+- [src/server/services/room-manager.ts:1-283](file://src/server/services/room-manager.ts#L1-L283)
+- [src/server/services/role-assigner.ts:1-78](file://src/server/services/role-assigner.ts#L1-L78)
+- [src/server/puzzles/puzzle-handler.ts:1-56](file://src/server/puzzles/puzzle-handler.ts#L1-L56)
+- [src/server/puzzles/register.ts:1-21](file://src/server/puzzles/register.ts#L1-L21)
+- [src/server/puzzles/asymmetric-symbols.ts:1-170](file://src/server/puzzles/asymmetric-symbols.ts#L1-L170)
+- [src/server/utils/timer.ts:1-81](file://src/server/utils/timer.ts#L1-L81)
+- [src/server/repositories/postgres-service.ts:1-83](file://src/server/repositories/postgres-service.ts#L1-L83)
+- [src/server/repositories/redis-service.ts:1-50](file://src/server/repositories/redis-service.ts#L1-L50)
+- [src/server/utils/logger.ts:1-181](file://src/server/utils/logger.ts#L1-L181)
+- [src/server/utils/config-loader.ts:1-147](file://src/server/utils/config-loader.ts#L1-L147)
+- [shared/types.ts:1-181](file://shared/types.ts#L1-L181)
+- [shared/events.ts:1-228](file://shared/events.ts#L1-L228)
+- [shared/logger.ts:1-22](file://shared/logger.ts#L1-L22)
 
 **Section sources**
-- [ARCHITECTURE.md](file://ARCHITECTURE.md#L35-L107)
-- [README.md](file://README.md#L79-L98)
+- [ARCHITECTURE.md:35-107](file://ARCHITECTURE.md#L35-L107)
+- [README.md:79-98](file://README.md#L79-L98)
 
 ## Core Components
 - Game Engine: Central state machine managing phases (lobby → level_intro → briefing → playing → puzzle_transition → … → victory/defeat), timers, glitch mechanics, and scoring
@@ -141,24 +145,24 @@ CLD --> ST
 - Postgres Service: Score persistence and leaderboard queries with enhanced error handling
 - Redis Service: Persistent room storage with comprehensive error logging
 - Client: Socket.io wrapper, screen orchestration, puzzle renderers, and structured logging
-- Logger Infrastructure: Unified logging system with Winston for server and custom logger for client
+- Logger Infrastructure: Unified logging system with Winston for server and custom logger for client, now enhanced with Telegram notification capabilities
 - Config Loader: YAML-based level configuration loading with hot-reload and property normalization
 
-**Updated** Enhanced with defensive copying of configuration objects to prevent direct modifications, improved logging granularity for production environments, robust error handling across all components, and a fixed critical scoring calculation bug that ensures fairer gameplay experiences.
+**Updated** Enhanced with defensive copying of configuration objects to prevent direct modifications, improved logging granularity for production environments, robust error handling across all components, a fixed critical scoring calculation bug that ensures fairer gameplay experiences, and integrated Telegram notification system for automated game event communications.
 
 **Section sources**
-- [src/server/services/game-engine.ts](file://src/server/services/game-engine.ts#L1-L794)
-- [src/server/services/room-manager.ts](file://src/server/services/room-manager.ts#L1-L283)
-- [src/server/services/role-assigner.ts](file://src/server/services/role-assigner.ts#L1-L78)
-- [src/server/puzzles/puzzle-handler.ts](file://src/server/puzzles/puzzle-handler.ts#L1-L56)
-- [src/server/utils/timer.ts](file://src/server/utils/timer.ts#L1-L81)
-- [src/server/repositories/postgres-service.ts](file://src/server/repositories/postgres-service.ts#L1-L83)
-- [src/server/repositories/redis-service.ts](file://src/server/repositories/redis-service.ts#L1-L50)
-- [src/client/main.ts](file://src/client/main.ts#L1-L266)
-- [src/client/logger.ts](file://src/client/logger.ts#L1-L38)
-- [src/server/utils/logger.ts](file://src/server/utils/logger.ts#L1-L21)
-- [shared/logger.ts](file://shared/logger.ts#L1-L22)
-- [src/server/utils/config-loader.ts](file://src/server/utils/config-loader.ts#L1-L147)
+- [src/server/services/game-engine.ts:1-820](file://src/server/services/game-engine.ts#L1-L820)
+- [src/server/services/room-manager.ts:1-283](file://src/server/services/room-manager.ts#L1-L283)
+- [src/server/services/role-assigner.ts:1-78](file://src/server/services/role-assigner.ts#L1-L78)
+- [src/server/puzzles/puzzle-handler.ts:1-56](file://src/server/puzzles/puzzle-handler.ts#L1-L56)
+- [src/server/utils/timer.ts:1-81](file://src/server/utils/timer.ts#L1-L81)
+- [src/server/repositories/postgres-service.ts:1-83](file://src/server/repositories/postgres-service.ts#L1-L83)
+- [src/server/repositories/redis-service.ts:1-50](file://src/server/repositories/redis-service.ts#L1-L50)
+- [src/client/main.ts:1-266](file://src/client/main.ts#L1-L266)
+- [src/client/logger.ts:1-38](file://src/client/logger.ts#L1-L38)
+- [src/server/utils/logger.ts:1-181](file://src/server/utils/logger.ts#L1-L181)
+- [shared/logger.ts:1-22](file://shared/logger.ts#L1-L22)
+- [src/server/utils/config-loader.ts:1-147](file://src/server/utils/config-loader.ts#L1-L147)
 
 ## Architecture Overview
 The system uses a real-time, event-driven architecture with enhanced error handling, robust state management, and defensive programming practices:
@@ -170,6 +174,7 @@ The system uses a real-time, event-driven architecture with enhanced error handl
 - Robust glitch management with defensive programming and fallback mechanisms
 - **Enhanced** Game state immutability through defensive copying of configuration objects
 - **Enhanced** Fair scoring system using level-specific time constraints instead of arbitrary constants
+- **Enhanced** Integrated Telegram notification system for automated game event communications
 
 ```mermaid
 sequenceDiagram
@@ -181,6 +186,7 @@ participant Room as "Room Manager"
 participant Timer as "GameTimer"
 participant DB as "PostgresService"
 participant Redis as "RedisService"
+participant Telegram as "Telegram Transport"
 Browser->>Socket : connect()
 Browser->>Server : ClientEvents.CREATE_ROOM / JOIN_ROOM
 Server->>Room : create/join
@@ -191,6 +197,7 @@ Browser->>Server : ClientEvents.START_GAME
 Server->>Engine : startGame(io, room)
 Engine->>Engine : Create shallow copy of level.glitch
 Engine->>Timer : start(totalSeconds)
+Engine->>Telegram : gameEvent(game_started)
 Engine-->>Browser : ServerEvents.GAME_STARTED
 Engine-->>Browser : ServerEvents.PHASE_CHANGE(level_intro)
 Browser->>Server : ClientEvents.INTRO_COMPLETE
@@ -220,6 +227,7 @@ end
 opt Victory
 Engine-->>Browser : ServerEvents.VICTORY
 Engine->>DB : createGameScore(...)
+Engine->>Telegram : gameEvent(game_victory)
 DB-->>Engine : ack/error
 Engine->>Redis : persistRoom()
 Redis-->>Engine : ack/error
@@ -227,13 +235,14 @@ end
 ```
 
 **Diagram sources**
-- [src/client/main.ts](file://src/client/main.ts#L1-L266)
-- [src/client/lib/socket.ts](file://src/client/lib/socket.ts#L1-L85)
-- [src/server/index.ts](file://src/server/index.ts#L1-L321)
-- [src/server/services/game-engine.ts](file://src/server/services/game-engine.ts#L1-L794)
-- [src/server/utils/timer.ts](file://src/server/utils/timer.ts#L1-L81)
-- [src/server/repositories/postgres-service.ts](file://src/server/repositories/postgres-service.ts#L1-L83)
-- [src/server/repositories/redis-service.ts](file://src/server/repositories/redis-service.ts#L1-L50)
+- [src/client/main.ts:1-266](file://src/client/main.ts#L1-L266)
+- [src/client/lib/socket.ts:1-85](file://src/client/lib/socket.ts#L1-L85)
+- [src/server/index.ts:1-321](file://src/server/index.ts#L1-L321)
+- [src/server/services/game-engine.ts:1-820](file://src/server/services/game-engine.ts#L1-L820)
+- [src/server/utils/timer.ts:1-81](file://src/server/utils/timer.ts#L1-L81)
+- [src/server/repositories/postgres-service.ts:1-83](file://src/server/repositories/postgres-service.ts#L1-L83)
+- [src/server/repositories/redis-service.ts:1-50](file://src/server/repositories/redis-service.ts#L1-L50)
+- [src/server/utils/logger.ts:1-181](file://src/server/utils/logger.ts#L1-L181)
 
 ## Detailed Component Analysis
 
@@ -248,15 +257,16 @@ Responsibilities:
 - **Enhanced** Comprehensive error handling with structured logging and metadata
 - **Enhanced** Robust glitch management with defensive programming and fallback mechanisms
 - **Enhanced** Fair scoring system using level-specific time constraints
+- **Enhanced** Integrated Telegram notification system for automated game event communications
 
 Key flows:
-- startGame: validates level, creates defensive copy of glitch state, initializes state, starts global timer, emits start events
+- startGame: validates level, creates defensive copy of glitch state, initializes state, starts global timer, emits start events, and sends Telegram notification with room code, level ID, and player count
 - handlePlayerReady: advances from briefing to puzzle when all players are ready
 - handlePuzzleAction: delegates to the active handler with debug logging, applies glitch penalties, and rebroadcasts views
-- handleVictory/handleDefeat: computes score using level.timer_seconds, persists to DB, and cleans up timers with enhanced logging
+- handleVictory/handleDefeat: computes score using level.timer_seconds, persists to DB, sends Telegram notifications with comprehensive metadata including scores, completion times, and puzzle statistics, and cleans up timers with enhanced logging
 - **Enhanced** addGlitch: centralized glitch management with comprehensive validation and error handling
 
-**Updated** Enhanced error handling with comprehensive error metadata including error messages, stack traces, and error names for better debugging. Improved logging coverage for victory handling processes including room validation, player verification, persistence attempts, and event emissions. Implemented defensive copying of level configuration objects to prevent direct mutations. Fixed critical scoring calculation bug to ensure fairer gameplay experiences.
+**Updated** Enhanced error handling with comprehensive error metadata including error messages, stack traces, and error names for better debugging. Improved logging coverage for victory handling processes including room validation, player verification, persistence attempts, and event emissions. Implemented defensive copying of level configuration objects to prevent direct mutations. Fixed critical scoring calculation bug to ensure fairer gameplay experiences. Integrated Telegram notification system for automated game event communications.
 
 ```mermaid
 flowchart TD
@@ -275,22 +285,20 @@ Completed --> Next{"More puzzles?"}
 Next -- Yes --> Briefing
 Next -- No --> Victory["handleVictory<br/>VICTORY<br/>storeScore"]
 Timer --> Expire["handleDefeat(reason=timer)"]
-Victory --> Store["storeScore<br/>with enhanced error handling"]
+Victory --> TelegramVictory["Telegram: game_victory<br/>with score, time, glitches"]
+TelegramVictory --> Store["storeScore<br/>with enhanced error handling"]
 Store --> Log["Structured logging with metadata"]
+Expire --> TelegramDefeat["Telegram: game_defeat<br/>with reason and stats"]
+TelegramDefeat --> Cleanup["Cleanup room resources"]
 ```
 
 **Diagram sources**
-- [src/server/services/game-engine.ts](file://src/server/services/game-engine.ts#L57-L139)
-- [src/server/services/game-engine.ts](file://src/server/services/game-engine.ts#L169-L202)
-- [src/server/services/game-engine.ts](file://src/server/services/game-engine.ts#L207-L246)
-- [src/server/services/game-engine.ts](file://src/server/services/game-engine.ts#L273-L340)
-- [src/server/services/game-engine.ts](file://src/server/services/game-engine.ts#L345-L404)
-- [src/server/services/game-engine.ts](file://src/server/services/game-engine.ts#L409-L445)
-- [src/server/services/game-engine.ts](file://src/server/services/game-engine.ts#L509-L542)
-- [src/server/services/game-engine.ts](file://src/server/services/game-engine.ts#L531-L584)
+- [src/server/services/game-engine.ts:125-147](file://src/server/services/game-engine.ts#L125-L147)
+- [src/server/services/game-engine.ts:595-621](file://src/server/services/game-engine.ts#L595-L621)
+- [src/server/services/game-engine.ts:626-659](file://src/server/services/game-engine.ts#L626-L659)
 
 **Section sources**
-- [src/server/services/game-engine.ts](file://src/server/services/game-engine.ts#L1-L794)
+- [src/server/services/game-engine.ts:1-820](file://src/server/services/game-engine.ts#L1-L820)
 
 ### Room Manager
 Responsibilities:
@@ -310,7 +318,7 @@ Integration:
 **Updated** Enhanced with comprehensive error logging for all persistence operations including room creation, joining, leaving, and state synchronization. Implemented automatic room state migration to fix legacy configurations and ensure consistent glitch state properties.
 
 **Section sources**
-- [src/server/services/room-manager.ts](file://src/server/services/room-manager.ts#L1-L283)
+- [src/server/services/room-manager.ts:1-283](file://src/server/services/room-manager.ts#L1-L283)
 
 ### Role Assigner
 Responsibilities:
@@ -322,7 +330,7 @@ Behavior:
 - Ensures deterministic assignment per puzzle start
 
 **Section sources**
-- [src/server/services/role-assigner.ts](file://src/server/services/role-assigner.ts#L1-L78)
+- [src/server/services/role-assigner.ts:1-78](file://src/server/services/role-assigner.ts#L1-L78)
 
 ### Puzzle Handler Interface and Registry
 Responsibilities:
@@ -339,8 +347,8 @@ Registration:
 - All puzzle handlers are imported and registered at startup
 
 **Section sources**
-- [src/server/puzzles/puzzle-handler.ts](file://src/server/puzzles/puzzle-handler.ts#L1-L56)
-- [src/server/puzzles/register.ts](file://src/server/puzzles/register.ts#L1-L21)
+- [src/server/puzzles/puzzle-handler.ts:1-56](file://src/server/puzzles/puzzle-handler.ts#L1-L56)
+- [src/server/puzzles/register.ts:1-21](file://src/server/puzzles/register.ts#L1-L21)
 
 ### Example Puzzle: Asymmetric Symbols
 Logic highlights:
@@ -352,8 +360,8 @@ Client rendering:
 - The puzzle screen dispatches to the appropriate renderer based on type
 
 **Section sources**
-- [src/server/puzzles/asymmetric-symbols.ts](file://src/server/puzzles/asymmetric-symbols.ts#L1-L170)
-- [src/client/screens/puzzle.ts](file://src/client/screens/puzzle.ts#L1-L101)
+- [src/server/puzzles/asymmetric-symbols.ts:1-170](file://src/server/puzzles/asymmetric-symbols.ts#L1-L170)
+- [src/client/screens/puzzle.ts:1-101](file://src/client/screens/puzzle.ts#L1-L101)
 
 ### Timer
 Responsibilities:
@@ -362,8 +370,8 @@ Responsibilities:
 - Emit periodic updates and expire on zero
 
 **Section sources**
-- [src/server/utils/timer.ts](file://src/server/utils/timer.ts#L1-L81)
-- [src/server/services/game-engine.ts](file://src/server/services/game-engine.ts#L591-L617)
+- [src/server/utils/timer.ts:1-81](file://src/server/utils/timer.ts#L1-L81)
+- [src/server/services/game-engine.ts:679-705](file://src/server/services/game-engine.ts#L679-L705)
 
 ### Postgres Service
 Responsibilities:
@@ -377,8 +385,8 @@ Schema:
 **Updated** Enhanced error handling with comprehensive error metadata including error messages, stack traces, and error names for better debugging.
 
 **Section sources**
-- [src/server/repositories/postgres-service.ts](file://src/server/repositories/postgres-service.ts#L1-L83)
-- [shared/types.ts](file://shared/types.ts#L174-L182)
+- [src/server/repositories/postgres-service.ts:1-83](file://src/server/repositories/postgres-service.ts#L1-L83)
+- [shared/types.ts:174-182](file://shared/types.ts#L174-L182)
 
 ### Redis Service
 Responsibilities:
@@ -389,7 +397,7 @@ Responsibilities:
 **Updated** Enhanced with comprehensive error logging for Redis operations including connection errors, save operations, and room restoration attempts.
 
 **Section sources**
-- [src/server/repositories/redis-service.ts](file://src/server/repositories/redis-service.ts#L1-L50)
+- [src/server/repositories/redis-service.ts:1-50](file://src/server/repositories/redis-service.ts#L1-L50)
 
 ### Config Loader
 Responsibilities:
@@ -405,7 +413,7 @@ Key Features:
 **Updated** Enhanced with comprehensive property normalization from YAML snake_case to TypeScript camelCase format, ensuring consistent runtime behavior across different configuration sources.
 
 **Section sources**
-- [src/server/utils/config-loader.ts](file://src/server/utils/config-loader.ts#L1-L147)
+- [src/server/utils/config-loader.ts:1-147](file://src/server/utils/config-loader.ts#L1-L147)
 
 ### Client: Socket Wrapper and Screens
 Responsibilities:
@@ -422,20 +430,21 @@ Event wiring:
 **Updated** Enhanced with configurable log levels and structured logging capabilities for better debugging and operational visibility.
 
 **Section sources**
-- [src/client/lib/socket.ts](file://src/client/lib/socket.ts#L1-L85)
-- [src/client/main.ts](file://src/client/main.ts#L1-L266)
-- [src/client/screens/puzzle.ts](file://src/client/screens/puzzle.ts#L1-L101)
-- [src/client/logger.ts](file://src/client/logger.ts#L1-L38)
+- [src/client/lib/socket.ts:1-85](file://src/client/lib/socket.ts#L1-L85)
+- [src/client/main.ts:1-266](file://src/client/main.ts#L1-L266)
+- [src/client/screens/puzzle.ts:1-101](file://src/client/screens/puzzle.ts#L1-L101)
+- [src/client/logger.ts:1-38](file://src/client/logger.ts#L1-L38)
 
 ## Enhanced Error Handling and Logging
 
 ### Server-Side Logging Infrastructure
-The server implements a comprehensive logging system using Winston with structured logging capabilities:
+The server implements a comprehensive logging system using Winston with structured logging capabilities and enhanced Telegram integration:
 
 - **Log Levels**: DEBUG, INFO, WARN, ERROR with configurable thresholds
 - **Structured Metadata**: All log entries include timestamps, levels, messages, and contextual metadata
 - **Error Context**: Comprehensive error metadata including error messages, stack traces, and error names
 - **Component-Specific Logging**: Each module maintains its own logger instance with appropriate context
+- **Enhanced** Telegram Notification Integration: Automatic Telegram alerts for critical errors and game events
 
 ### Key Logging Enhancements
 - **Error Metadata**: All error logs now include comprehensive metadata such as error messages, stack traces, and error names
@@ -444,6 +453,8 @@ The server implements a comprehensive logging system using Winston with structur
 - **Persistence Attempts**: Comprehensive logging for Redis and database operations with success/failure indicators
 - **Event Emissions**: Structured logging for all server-client communications and state changes
 - **Production Optimization**: Reduced logging verbosity by changing puzzle action processing from INFO to DEBUG level
+- **Enhanced** Game Event Tracking: Structured logging specifically for game events with comprehensive metadata
+- **Enhanced** Telegram Integration: Automatic notifications for game starts, victories, and defeats
 
 ### Client-Side Logging
 The client implements a lightweight logging system with configurable levels:
@@ -466,17 +477,51 @@ try {
 }
 ```
 
-**Updated** Enhanced logging granularity with puzzle action processing now using DEBUG level instead of INFO to reduce production log noise while maintaining detailed debugging information.
+**Updated** Enhanced logging granularity with puzzle action processing now using DEBUG level instead of INFO to reduce production log noise while maintaining detailed debugging information. Integrated comprehensive Telegram notification system for automated game event communications.
 
 **Section sources**
-- [src/server/utils/logger.ts](file://src/server/utils/logger.ts#L1-L21)
-- [src/server/services/game-engine.ts](file://src/server/services/game-engine.ts#L496-L526)
-- [src/server/services/game-engine.ts](file://src/server/services/game-engine.ts#L531-L584)
-- [src/server/services/room-manager.ts](file://src/server/services/room-manager.ts#L78-L244)
-- [src/server/repositories/postgres-service.ts](file://src/server/repositories/postgres-service.ts#L42-L54)
-- [src/server/repositories/redis-service.ts](file://src/server/repositories/redis-service.ts#L9-L15)
-- [src/client/logger.ts](file://src/client/logger.ts#L1-L38)
-- [shared/logger.ts](file://shared/logger.ts#L1-L22)
+- [src/server/utils/logger.ts:1-181](file://src/server/utils/logger.ts#L1-L181)
+- [src/server/services/game-engine.ts:131-137](file://src/server/services/game-engine.ts#L131-L137)
+- [src/server/services/game-engine.ts:604-611](file://src/server/services/game-engine.ts#L604-L611)
+- [src/server/services/game-engine.ts:647-653](file://src/server/services/game-engine.ts#L647-L653)
+- [src/server/services/room-manager.ts:78-244](file://src/server/services/room-manager.ts#L78-L244)
+- [src/server/repositories/postgres-service.ts:42-54](file://src/server/repositories/postgres-service.ts#L42-L54)
+- [src/server/repositories/redis-service.ts:9-15](file://src/server/repositories/redis-service.ts#L9-L15)
+- [src/client/logger.ts:1-38](file://src/client/logger.ts#L1-L38)
+- [shared/logger.ts:1-22](file://shared/logger.ts#L1-L22)
+
+## Telegram Notification System
+
+### Integrated Telegram Transport Layer
+The Telegram notification system is implemented as a custom Winston transport that automatically handles error notifications and game event communications:
+
+**Telegram Transport Features:**
+- **Automatic Error Alerts**: Critical errors trigger Telegram notifications with cooldown protection (1-minute minimum between alerts)
+- **Game Event Notifications**: Automatic notifications for game starts, victories, and defeats with comprehensive metadata
+- **MarkdownV2 Formatting**: Rich text formatting with bold headers and code blocks for readability
+- **Environment Configuration**: Seamless integration using TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID environment variables
+- **Non-blocking Operations**: Notifications don't interfere with normal game operations
+
+**Error Alert Mechanism:**
+- **Cooldown Protection**: Prevents spam by limiting error notifications to once per minute
+- **Structured Error Messages**: Includes error messages, stack traces, and contextual metadata
+- **Escaped Markdown**: Special characters are properly escaped to prevent Markdown parsing issues
+
+**Game Event Notification Formats:**
+- **Game Started**: Room code, level ID, and player count
+- **Victory**: Room code, score, completion time, glitch count, and puzzles completed
+- **Defeat**: Room code, reason, puzzles completed, and puzzle reached index
+
+**Environment Configuration:**
+- **TELEGRAM_BOT_TOKEN**: Bot token for authentication with Telegram API
+- **TELEGRAM_CHAT_ID**: Target chat ID for receiving notifications
+- **Automatic Activation**: Transport is added to Winston logger when both environment variables are present
+
+**Section sources**
+- [src/server/utils/logger.ts:1-181](file://src/server/utils/logger.ts#L1-L181)
+- [src/server/services/game-engine.ts:131-137](file://src/server/services/game-engine.ts#L131-L137)
+- [src/server/services/game-engine.ts:604-611](file://src/server/services/game-engine.ts#L604-L611)
+- [src/server/services/game-engine.ts:647-653](file://src/server/services/game-engine.ts#L647-L653)
 
 ## Glitch Management System
 
@@ -524,13 +569,13 @@ CheckDefeat -- No --> Complete["Complete successfully"]
 ```
 
 **Diagram sources**
-- [src/server/services/game-engine.ts](file://src/server/services/game-engine.ts#L458-L506)
+- [src/server/services/game-engine.ts:458-506](file://src/server/services/game-engine.ts#L458-L506)
 
 **Section sources**
-- [src/server/services/game-engine.ts](file://src/server/services/game-engine.ts#L458-L506)
-- [src/client/main.ts](file://src/client/main.ts#L113-L140)
-- [shared/types.ts](file://shared/types.ts#L51-L56)
-- [shared/events.ts](file://shared/events.ts#L205-L207)
+- [src/server/services/game-engine.ts:458-506](file://src/server/services/game-engine.ts#L458-L506)
+- [src/client/main.ts:113-140](file://src/client/main.ts#L113-L140)
+- [shared/types.ts:51-56](file://shared/types.ts#L51-L56)
+- [shared/events.ts:205-207](file://shared/events.ts#L205-L207)
 
 ## Scoring System Enhancement
 
@@ -560,18 +605,19 @@ The scoring system has been enhanced with a critical bug fix that ensures fairer
 - Final score: `Math.max(0, timeScore - glitchPenalty)`
 
 **Section sources**
-- [src/server/services/game-engine.ts](file://src/server/services/game-engine.ts#L509-L514)
-- [src/server/services/game-engine.ts](file://src/server/services/game-engine.ts#L584-L589)
+- [src/server/services/game-engine.ts:509-514](file://src/server/services/game-engine.ts#L509-L514)
+- [src/server/services/game-engine.ts:584-589](file://src/server/services/game-engine.ts#L584-L589)
 
 ## Dependency Analysis
 High-level dependencies:
 - Server entry depends on Game Engine, Room Manager, Puzzle Registry, Timer, and Postgres
 - Game Engine depends on Room Manager, Role Assigner, Timer, Postgres, and Puzzle Registry
 - Client depends on Socket wrapper and event definitions
-- **Enhanced** All components depend on unified logging infrastructure
+- **Enhanced** All components depend on unified logging infrastructure with Telegram integration
 - **Enhanced** Glitch management system integrates with all puzzle handlers
 - **Enhanced** Config Loader provides normalized configuration data to Game Engine
 - **Enhanced** Scoring system now depends on level-specific timer constraints
+- **Enhanced** Telegram notification system integrates with Winston logging infrastructure
 
 ```mermaid
 graph LR
@@ -594,27 +640,30 @@ SL --> SHL
 AG --> SHL
 CS --> ST["LevelConfig.timer_seconds"]
 CLD --> ST["Normalized Config Types"]
+TL["Telegram Transport"] --> SL
+TL --> ENV["TELEGRAM_BOT_TOKEN<br/>TELEGRAM_CHAT_ID"]
+ENV --> TL
 ```
 
 **Diagram sources**
-- [src/server/index.ts](file://src/server/index.ts#L1-L321)
-- [src/server/services/game-engine.ts](file://src/server/services/game-engine.ts#L1-L794)
-- [src/server/services/room-manager.ts](file://src/server/services/room-manager.ts#L1-L283)
-- [src/server/services/role-assigner.ts](file://src/server/services/role-assigner.ts#L1-L78)
-- [src/server/puzzles/puzzle-handler.ts](file://src/server/puzzles/puzzle-handler.ts#L1-L56)
-- [src/server/utils/timer.ts](file://src/server/utils/timer.ts#L1-L81)
-- [src/server/repositories/postgres-service.ts](file://src/server/repositories/postgres-service.ts#L1-L83)
-- [src/client/main.ts](file://src/client/main.ts#L1-L266)
-- [src/client/lib/socket.ts](file://src/client/lib/socket.ts#L1-L85)
-- [src/client/screens/puzzle.ts](file://src/client/screens/puzzle.ts#L1-L101)
-- [src/client/logger.ts](file://src/client/logger.ts#L1-L38)
-- [src/server/utils/logger.ts](file://src/server/utils/logger.ts#L1-L21)
-- [shared/logger.ts](file://shared/logger.ts#L1-L22)
-- [src/server/utils/config-loader.ts](file://src/server/utils/config-loader.ts#L1-L147)
+- [src/server/index.ts:1-321](file://src/server/index.ts#L1-L321)
+- [src/server/services/game-engine.ts:1-820](file://src/server/services/game-engine.ts#L1-L820)
+- [src/server/services/room-manager.ts:1-283](file://src/server/services/room-manager.ts#L1-L283)
+- [src/server/services/role-assigner.ts:1-78](file://src/server/services/role-assigner.ts#L1-L78)
+- [src/server/puzzles/puzzle-handler.ts:1-56](file://src/server/puzzles/puzzle-handler.ts#L1-L56)
+- [src/server/utils/timer.ts:1-81](file://src/server/utils/timer.ts#L1-L81)
+- [src/server/repositories/postgres-service.ts:1-83](file://src/server/repositories/postgres-service.ts#L1-L83)
+- [src/client/main.ts:1-266](file://src/client/main.ts#L1-L266)
+- [src/client/lib/socket.ts:1-85](file://src/client/lib/socket.ts#L1-L85)
+- [src/client/screens/puzzle.ts:1-101](file://src/client/screens/puzzle.ts#L1-L101)
+- [src/client/logger.ts:1-38](file://src/client/logger.ts#L1-L38)
+- [src/server/utils/logger.ts:1-181](file://src/server/utils/logger.ts#L1-L181)
+- [shared/logger.ts:1-22](file://shared/logger.ts#L1-L22)
+- [src/server/utils/config-loader.ts:1-147](file://src/server/utils/config-loader.ts#L1-L147)
 
 **Section sources**
-- [src/server/index.ts](file://src/server/index.ts#L1-L321)
-- [src/server/services/game-engine.ts](file://src/server/services/game-engine.ts#L1-L794)
+- [src/server/index.ts:1-321](file://src/server/index.ts#L1-L321)
+- [src/server/services/game-engine.ts:1-820](file://src/server/services/game-engine.ts#L1-L820)
 
 ## Performance Considerations
 - Real-time updates: Keep puzzle update payloads minimal; avoid frequent full-state replays
@@ -627,6 +676,8 @@ CLD --> ST["Normalized Config Types"]
 - **Enhanced** Client-side glitch HUD: Optimized DOM manipulation with efficient CSS property updates
 - **Enhanced** Game state immutability: Defensive copying of configuration objects adds negligible overhead for security benefits
 - **Enhanced** Scoring performance: Fixed scoring calculation eliminates unnecessary constant operations and improves algorithmic efficiency
+- **Enhanced** Telegram integration: Non-blocking notifications don't interfere with game operations; cooldown protection prevents spam
+- **Enhanced** Environment variable loading: Telegram configuration is checked once during logger initialization
 
 ## Troubleshooting Guide
 Common issues and diagnostics:
@@ -642,6 +693,8 @@ Common issues and diagnostics:
 - **Enhanced** Persistence failures: Monitor error logs for failed room saves and implement retry strategies
 - **Enhanced** Configuration object mutations: Verify that level configurations are not being directly modified by checking for defensive copying
 - **Enhanced** Scoring inconsistencies: Verify that level.timer_seconds is properly loaded and used in calculateScore function
+- **Enhanced** Telegram notification issues: Check TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID environment variables; verify network connectivity to Telegram API
+- **Enhanced** Game event tracking: Use logger.gameEvent() calls to monitor game progress and verify notification delivery
 
 Operational checks:
 - Server logs indicate initialization steps and error contexts with comprehensive metadata
@@ -652,20 +705,24 @@ Operational checks:
 - **Enhanced** Glitch state monitoring: Track glitch value changes and persistence failures
 - **Enhanced** Production logging: Verify that puzzle action processing uses DEBUG level to minimize log noise
 - **Enhanced** Scoring verification: Compare calculated scores with expected level-specific time constraints
+- **Enhanced** Telegram configuration: Verify environment variables are properly set and logger indicates Telegram transport activation
+- **Enhanced** Game event verification: Monitor Telegram channel for automatic notifications during game sessions
 
 **Section sources**
-- [src/server/index.ts](file://src/server/index.ts#L64-L84)
-- [src/server/services/game-engine.ts](file://src/server/services/game-engine.ts#L591-L617)
-- [src/server/repositories/postgres-service.ts](file://src/server/repositories/postgres-service.ts#L1-L83)
-- [src/client/main.ts](file://src/client/main.ts#L1-L266)
-- [src/server/utils/logger.ts](file://src/server/utils/logger.ts#L1-L21)
-- [src/client/logger.ts](file://src/client/logger.ts#L1-L38)
+- [src/server/index.ts:64-84](file://src/server/index.ts#L64-L84)
+- [src/server/services/game-engine.ts:679-705](file://src/server/services/game-engine.ts#L679-L705)
+- [src/server/repositories/postgres-service.ts:1-83](file://src/server/repositories/postgres-service.ts#L1-L83)
+- [src/client/main.ts:1-266](file://src/client/main.ts#L1-L266)
+- [src/server/utils/logger.ts:1-181](file://src/server/utils/logger.ts#L1-L181)
+- [src/client/logger.ts:1-38](file://src/client/logger.ts#L1-L38)
 
 ## Conclusion
-The Game Engine provides a robust, extensible foundation for co-op escape rooms with significantly enhanced error handling, defensive programming, and comprehensive glitch management capabilities. The enhanced addGlitch function exemplifies these improvements with its comprehensive validation, fallback mechanisms, and graceful error handling. The robust logging system with Winston provides consistent error tracking across all components, while the client-side logging infrastructure offers configurable verbosity levels for different deployment scenarios.
+The Game Engine provides a robust, extensible foundation for co-op escape rooms with significantly enhanced error handling, defensive programming, comprehensive glitch management capabilities, and integrated Telegram notification system. The enhanced addGlitch function exemplifies these improvements with its comprehensive validation, fallback mechanisms, and graceful error handling. The robust logging system with Winston provides consistent error tracking across all components, while the client-side logging infrastructure offers configurable verbosity levels for different deployment scenarios.
 
 **Critical Bug Fix**: The most significant enhancement is the fix to the critical scoring calculation bug in the `calculateScore` function. The scoring algorithm now properly uses `level.timer_seconds` instead of hardcoded constants (1000 seconds and 1000 glitch penalty caps). This ensures scores are proportional to intended difficulty and time constraints of each level, providing fairer gameplay experiences across different level designs.
 
-**Additional Improvements**: The removal of the TODO comment regarding Redis persistence for timer state indicates progress toward more robust state management. The enhanced game state immutability through defensive copying of configuration objects ensures game stability and prevents configuration corruption. The adjustment to DEBUG level logging for puzzle actions reduces production log noise while maintaining detailed debugging information.
+**Telegram Notification Integration**: The most notable addition is the comprehensive Telegram notification system that automatically communicates game events to administrators and operators. This system provides real-time visibility into game progress with rich metadata including room codes, player counts, scores, completion times, and puzzle statistics. The integration is seamless, non-blocking, and includes intelligent error handling with cooldown protection.
 
-The separation of concerns across server, client, and shared modules yields maintainability and clarity for both contributors and operators, now enhanced with comprehensive error handling, defensive programming, resilient state management, improved configuration safety, and a fairer scoring system that makes the overall system significantly more robust and production-ready.
+**Additional Improvements**: The removal of the TODO comment regarding Redis persistence for timer state indicates progress toward more robust state management. The enhanced game state immutability through defensive copying of configuration objects ensures game stability and prevents configuration corruption. The adjustment to DEBUG level logging for puzzle actions reduces production log noise while maintaining detailed debugging information. The integration of Telegram notifications enhances operational oversight and provides immediate alerts for critical game events.
+
+The separation of concerns across server, client, and shared modules yields maintainability and clarity for both contributors and operators, now enhanced with comprehensive error handling, defensive programming, resilient state management, improved configuration safety, a fairer scoring system, and comprehensive Telegram notification capabilities that make the overall system significantly more robust, production-ready, and operable.
