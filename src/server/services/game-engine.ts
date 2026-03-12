@@ -171,7 +171,7 @@ async function startPuzzleBriefing(io: Server, room: Room, level: LevelConfig, p
   try {
     const puzzle = level.puzzles[puzzleIndex];
     if (!puzzle) {
-      await handleVictory(io, room);
+      await handleVictory(io, room, level);
       return;
     }
 
@@ -443,7 +443,7 @@ async function handlePuzzleComplete(io: Server, room: Room, level: LevelConfig):
 
     setTimeout(async () => {
       if (nextIndex >= level.puzzles.length) {
-        await handleVictory(io, room);
+        await handleVictory(io, room, level);
       } else {
         await startPuzzleBriefing(io, room, level, nextIndex);
       }
@@ -506,10 +506,10 @@ function addGlitch(io: Server, room: Room, delta: number): void {
   }
 }
 
-function calculateScore(elapsedSeconds: number, glitchFinal: number): number {
+function calculateScore(elapsedSeconds: number, levelTime: number, glitchFinal: number): number {
   // (Remaining seconds * 10) - (Glitch final * 50)
-  const timeScore = Math.max(0, 1000 - elapsedSeconds);
-  const glitchPenalty = Math.min(1000, glitchFinal * 50);
+  const timeScore = Math.max(0, levelTime - elapsedSeconds) * 10;
+  const glitchPenalty =  glitchFinal * 50;
   return Math.max(0, timeScore - glitchPenalty);
 }
 
@@ -548,7 +548,7 @@ async function storeScore(room: Room, victoryPayload: VictoryPayload) {
 /**
  * Handle victory
  */
-export async function handleVictory(io: Server, room: Room): Promise<void> {
+export async function handleVictory(io: Server, room: Room, level: LevelConfig): Promise<void> {
   try {
     if (!room || !room.code) {
       logger.error("handleVictory called with invalid room", { roomCode: room?.code });
@@ -581,7 +581,7 @@ export async function handleVictory(io: Server, room: Room): Promise<void> {
       puzzleIndex: room.state.currentPuzzleIndex,
     } as PhaseChangePayload);
 
-    const score = calculateScore(elapsed, room.state.glitch.value);
+    const score = calculateScore(elapsed, level.timer_seconds, room.state.glitch.value);
     const victoryPayload: VictoryPayload = {
       elapsedSeconds: elapsed,
       glitchFinal: room.state.glitch.value,

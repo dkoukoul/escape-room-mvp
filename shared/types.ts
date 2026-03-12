@@ -45,7 +45,6 @@ export interface GameState {
   startedAt: number | null;
   completedPuzzles: string[];
   readyPlayers: string[]; // Players who pressed "Ready"
-  // TODO: REDIS — persist GameState for crash recovery
 }
 
 export interface GlitchState {
