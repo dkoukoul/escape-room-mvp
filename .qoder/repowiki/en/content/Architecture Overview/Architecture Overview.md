@@ -4,6 +4,7 @@
 **Referenced Files in This Document**
 - [ARCHITECTURE.md](file://ARCHITECTURE.md)
 - [README.md](file://README.md)
+- [TESTING.md](file://TESTING.md)
 - [events.ts](file://shared/events.ts)
 - [types.ts](file://shared/types.ts)
 - [index.ts](file://src/server/index.ts)
@@ -17,18 +18,36 @@
 - [puzzle.ts](file://src/client/screens/puzzle.ts)
 - [postgres-service.ts](file://src/server/repositories/postgres-service.ts)
 - [redis-service.ts](file://src/server/repositories/redis-service.ts)
+- [vitest.config.ts](file://vitest.config.ts)
+- [playwright.config.ts](file://playwright.config.ts)
+- [setup.ts](file://src/client/__tests__/setup.ts)
+- [example.test.ts](file://src/client/__tests__/example.test.ts)
+- [cipher-decode.test.ts](file://src/server/puzzles/cipher-decode.test.ts)
+- [collaborative-wiring.test.ts](file://src/server/puzzles/collaborative-wiring.test.ts)
+- [room-manager.test.ts](file://src/server/services/room-manager.test.ts)
+- [lobby.spec.ts](file://e2e/lobby.spec.ts)
+- [puzzles.spec.ts](file://e2e/puzzles.spec.ts)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Updated testing infrastructure documentation to reflect Bun's built-in test runner adoption
+- Removed references to Playwright framework from architecture overview
+- Added comprehensive testing workflow documentation covering unit, integration, and E2E testing
+- Updated development workflow to reflect new testing approach
+- Enhanced testing configuration documentation with Vitest and Playwright setup
 
 ## Table of Contents
 1. [Introduction](#introduction)
 2. [Project Structure](#project-structure)
 3. [Core Components](#core-components)
 4. [Architecture Overview](#architecture-overview)
-5. [Detailed Component Analysis](#detailed-component-analysis)
-6. [Dependency Analysis](#dependency-analysis)
-7. [Performance Considerations](#performance-considerations)
-8. [Troubleshooting Guide](#troubleshooting-guide)
-9. [Conclusion](#conclusion)
+5. [Testing Infrastructure](#testing-infrastructure)
+6. [Detailed Component Analysis](#detailed-component-analysis)
+7. [Dependency Analysis](#dependency-analysis)
+8. [Performance Considerations](#performance-considerations)
+9. [Troubleshooting Guide](#troubleshooting-guide)
+10. [Conclusion](#conclusion)
 
 ## Introduction
 This document presents the architecture of Project ODYSSEY, a co-op escape room engine built with a clean architecture approach. The system separates concerns across three layers:
@@ -38,6 +57,8 @@ This document presents the architecture of Project ODYSSEY, a co-op escape room 
 
 It is event-driven, config-first, and data-driven. The design emphasizes modularity, pluggable puzzle handlers, typed event systems, and scalable service architecture.
 
+**Updated** The project now uses Bun's built-in test runner as the primary testing infrastructure, replacing previous testing frameworks and adopting a comprehensive testing strategy with unit, integration, and end-to-end testing approaches.
+
 ## Project Structure
 The repository is organized into:
 - shared/: Shared contracts (types, events, logger) consumed by both client and server.
@@ -45,16 +66,20 @@ The repository is organized into:
 - src/client/: Vite-served client with screens, puzzle renderers, routing, and Socket.io wrapper.
 - config/: YAML-based level definitions.
 - prisma/: Prisma schema and configuration for PostgreSQL.
+- src/client/__tests__/: Client-side unit tests with Vitest and DOM mocking.
+- src/server/puzzles/: Server-side puzzle logic with Bun test runner.
+- e2e/: End-to-end tests using Playwright for browser automation.
 
 ```mermaid
 graph TB
-subgraph "Client"
+subgraph "Client Layer"
 C_MAIN["src/client/main.ts"]
 C_SOCKET["src/client/lib/socket.ts"]
 C_SCREENS["src/client/screens/*"]
 C_PUZZLES["src/client/puzzles/*"]
+C_TESTS["src/client/__tests__/*"]
 end
-subgraph "Server"
+subgraph "Server Layer"
 S_ENTRY["src/server/index.ts"]
 S_ENGINE["src/server/services/game-engine.ts"]
 S_ROOM["src/server/services/room-manager.ts"]
@@ -63,10 +88,19 @@ S_PUZZLE_REG["src/server/puzzles/register.ts"]
 S_CONFIG["src/server/utils/config-loader.ts"]
 S_REDIS["src/server/repositories/redis-service.ts"]
 S_PG["src/server/repositories/postgres-service.ts"]
+S_SERVER_TESTS["src/server/puzzles/*.test.ts"]
+S_ROOM_TESTS["src/server/services/room-manager.test.ts"]
 end
-subgraph "Shared"
+subgraph "Shared Layer"
 SH_TYPES["shared/types.ts"]
 SH_EVENTS["shared/events.ts"]
+end
+subgraph "Testing Infrastructure"
+T_VITEST["Vitest Config"]
+T_PLAYWRIGHT["Playwright Config"]
+T_CLIENT_TESTS["Client Unit Tests"]
+T_SERVER_TESTS["Server Unit Tests"]
+T_E2E_TESTS["End-to-End Tests"]
 end
 subgraph "External"
 EXT_WS["Socket.io Server"]
@@ -89,6 +123,8 @@ S_REDIS --> EXT_REDIS
 SH_TYPES -.-> S_ENGINE
 SH_EVENTS -.-> S_ENTRY
 SH_EVENTS -.-> C_SOCKET
+T_VITEST --> C_TESTS
+T_PLAYWRIGHT --> T_E2E_TESTS
 ```
 
 **Diagram sources**
@@ -102,6 +138,8 @@ SH_EVENTS -.-> C_SOCKET
 - [main.ts](file://src/client/main.ts#L1-L266)
 - [events.ts](file://shared/events.ts#L1-L228)
 - [types.ts](file://shared/types.ts#L1-L187)
+- [vitest.config.ts](file://vitest.config.ts#L1-L42)
+- [playwright.config.ts](file://playwright.config.ts#L1-L85)
 
 **Section sources**
 - [ARCHITECTURE.md](file://ARCHITECTURE.md#L35-L107)
@@ -125,6 +163,10 @@ SH_EVENTS -.-> C_SOCKET
   - RedisService persists rooms and scores; PostgresService stores scores via Prisma.
 - Client
   - Socket wrapper, typed event handlers, screen router, and puzzle renderers.
+- Testing Infrastructure
+  - Bun's built-in test runner for unit tests with comprehensive mocking and coverage.
+  - Playwright for end-to-end browser automation testing.
+  - Vitest configuration with happy-dom environment for client-side testing.
 
 **Section sources**
 - [events.ts](file://shared/events.ts#L28-L90)
@@ -149,15 +191,20 @@ Project ODYSSEY follows clean architecture with clear boundaries:
 
 Event-driven communication uses Socket.io with typed events. The system is config-first and data-driven, enabling new levels and puzzles without changing core engine code.
 
+**Updated** The architecture now includes a comprehensive testing infrastructure that supports multiple testing approaches: unit testing with Bun's test runner, client-side DOM testing with Vitest, and end-to-end testing with Playwright.
+
 ```mermaid
 graph TB
 CLIENT["Client (Vite + Vanilla TS)"]
 SERVER["Server (Bun + Socket.io)"]
 DATA_REDIS["Redis"]
 DATA_PG["PostgreSQL"]
+TESTING["Testing Infrastructure"]
 CLIENT -- "Typed Events" --> SERVER
 SERVER -- "Room CRUD" --> DATA_REDIS
 SERVER -- "Scores" --> DATA_PG
+CLIENT -.-> TESTING
+SERVER -.-> TESTING
 subgraph "Server Services"
 RM["RoomManager"]
 GE["GameEngine"]
@@ -177,6 +224,42 @@ SERVER --> RH
 - [config-loader.ts](file://src/server/utils/config-loader.ts#L25-L135)
 - [redis-service.ts](file://src/server/repositories/redis-service.ts#L39-L67)
 - [postgres-service.ts](file://src/server/repositories/postgres-service.ts#L24-L67)
+
+## Testing Infrastructure
+The project employs a multi-layered testing strategy using modern JavaScript testing tools:
+
+### Unit Testing with Bun
+- **Primary Test Runner**: Bun's built-in test runner provides fast, native JavaScript testing.
+- **Server-Side Tests**: Located alongside source files with `.test.ts` extension.
+- **Mocking**: Comprehensive mocking of Redis, database connections, and external dependencies.
+- **Coverage**: Automatic coverage reporting for server-side logic.
+
+### Client-Side Testing with Vitest
+- **Environment**: happy-dom for fast DOM simulation without browser overhead.
+- **Setup**: Global test setup with socket mocking and logger stubs.
+- **Coverage**: Dedicated coverage reporting for client-side code.
+- **Aliases**: Path aliases configured for clean imports (@client, @shared).
+
+### End-to-End Testing with Playwright
+- **Browser Automation**: Multi-browser testing across Chrome, Firefox, Safari, and mobile devices.
+- **Real Environment**: Tests run against the actual development server.
+- **WebSocket Integration**: Direct WebSocket testing for real-time features.
+- **Cross-Platform**: Mobile viewport testing and responsive design validation.
+
+### Testing Workflow
+- **Development**: `bun test --watch` for continuous feedback during development.
+- **CI/CD**: Automated testing pipeline with parallel execution and coverage reporting.
+- **Manual Testing**: Browser-based manual verification for complex scenarios.
+
+**Section sources**
+- [TESTING.md](file://TESTING.md#L1-L102)
+- [vitest.config.ts](file://vitest.config.ts#L1-L42)
+- [playwright.config.ts](file://playwright.config.ts#L1-L85)
+- [setup.ts](file://src/client/__tests__/setup.ts#L1-L54)
+- [example.test.ts](file://src/client/__tests__/example.test.ts#L1-L59)
+- [cipher-decode.test.ts](file://src/server/puzzles/cipher-decode.test.ts#L1-L74)
+- [collaborative-wiring.test.ts](file://src/server/puzzles/collaborative-wiring.test.ts#L1-L63)
+- [room-manager.test.ts](file://src/server/services/room-manager.test.ts#L1-L56)
 
 ## Detailed Component Analysis
 
@@ -416,6 +499,9 @@ PG --> DB["PostgreSQL"]
   - Socket.io for real-time bidirectional events.
   - Redis for distributed room state and multi-instance scaling.
   - PostgreSQL via Prisma for durable scoring.
+  - Bun for native JavaScript testing and development.
+  - Vitest for client-side DOM testing with happy-dom.
+  - Playwright for end-to-end browser automation.
 
 ```mermaid
 graph TB
@@ -476,8 +562,8 @@ S_PUZZLE_IF --> SH_TYPES
 - Redis TTL: Rooms expire after inactivity to free memory; adjust TTL for production needs.
 - Timer efficiency: GameEngine maintains per-room timers and stops them on game end to prevent leaks.
 - Scalability: Redis adapter enables horizontal scaling across instances.
-
-[No sources needed since this section provides general guidance]
+- Testing performance: Bun's native test runner provides faster execution than traditional JavaScript test runners.
+- DOM testing speed: happy-dom environment in Vitest provides fast browser simulation for client tests.
 
 ## Troubleshooting Guide
 - Socket connection errors
@@ -489,6 +575,10 @@ S_PUZZLE_IF --> SH_TYPES
   - Validate DATABASE_URL and Prisma client initialization.
 - Level loading problems
   - Inspect YAML parsing and validation logs; ensure required fields exist.
+- Testing issues
+  - **Updated** For Bun test runner: verify test file extensions (.test.ts) and proper module imports.
+  - **Updated** For Vitest: ensure happy-dom environment is properly configured and mocks are correctly set up.
+  - **Updated** For Playwright: check browser compatibility and network connectivity for E2E tests.
 
 **Section sources**
 - [index.ts](file://src/server/index.ts#L54-L61)
@@ -498,4 +588,6 @@ S_PUZZLE_IF --> SH_TYPES
 - [config-loader.ts](file://src/server/utils/config-loader.ts#L46-L64)
 
 ## Conclusion
-Project ODYSSEY’s architecture cleanly separates client, server, and data concerns while embracing event-driven, config-first, and data-driven design. The typed event system, pluggable puzzle handlers, and modular services enable rapid iteration and scalability. The combination of Redis and PostgreSQL ensures both real-time collaboration and durable scoring, while the Socket.io-based real-time layer delivers responsive, synchronized gameplay.
+Project ODYSSEY's architecture cleanly separates client, server, and data concerns while embracing event-driven, config-first, and data-driven design. The typed event system, pluggable puzzle handlers, and modular services enable rapid iteration and scalability. The combination of Redis and PostgreSQL ensures both real-time collaboration and durable scoring, while the Socket.io-based real-time layer delivers responsive, synchronized gameplay.
+
+**Updated** The architecture now includes a comprehensive testing infrastructure that supports multiple testing approaches, ensuring code quality across the entire development lifecycle. The adoption of Bun's built-in test runner, Vitest for client-side DOM testing, and Playwright for end-to-end browser automation provides robust coverage and reliable development workflow. This multi-layered testing strategy enhances maintainability, reduces regression risks, and accelerates development cycles while maintaining the system's architectural integrity.

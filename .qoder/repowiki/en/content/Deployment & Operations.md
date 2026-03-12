@@ -10,11 +10,19 @@
 - [src/server/index.ts](file://src/server/index.ts)
 - [src/server/repositories/postgres-service.ts](file://src/server/repositories/postgres-service.ts)
 - [src/server/repositories/redis-service.ts](file://src/server/repositories/redis-service.ts)
+- [src/server/services/room-manager.ts](file://src/server/services/room-manager.ts)
 - [prisma.config.ts](file://prisma.config.ts)
 - [prisma/schema.prisma](file://prisma/schema.prisma)
 - [vite.config.ts](file://vite.config.ts)
 - [ARCHITECTURE.md](file://ARCHITECTURE.md)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Updated Redis connection management section to reflect enhanced retry strategies and error handling improvements
+- Revised server startup section to clarify that Redis adapter initialization has been removed
+- Updated architecture diagrams to remove Redis adapter references
+- Enhanced Redis service reliability documentation with improved connection resilience
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -34,7 +42,7 @@ This document provides comprehensive deployment and operations guidance for Proj
 ## Project Structure
 Project ODYSSEY is a Bun-based real-time co-op escape room server with a Vite client, Socket.io for real-time communication, Redis for room/session persistence, and PostgreSQL with Prisma for score persistence. The repository includes:
 - Containerization and orchestration: Dockerfile, docker-compose files, entrypoint script
-- Server runtime: Bun, Socket.io, Redis adapter, Prisma client
+- Server runtime: Bun, Socket.io, Redis direct connection, Prisma client
 - Client runtime: Vite, proxy configuration for Socket.io
 - Database: Prisma schema and configuration
 - Utilities: Environment-driven ports, CORS configuration, and development overrides
@@ -46,7 +54,7 @@ DC["docker-compose.yml"]
 DCO["docker-compose.override.yml"]
 end
 subgraph "Application"
-APP["Bun Server<br/>Socket.io + Redis Adapter"]
+APP["Bun Server<br/>Socket.io + Direct Redis Connection"]
 CLI["Vite Client<br/>Proxy /socket.io"]
 end
 subgraph "Data"
@@ -83,9 +91,9 @@ APP --> PG
   - docker-compose.yml defines three services: app, postgres, and redis, with health checks, environment injection, and volume mounts.
   - docker-compose.override.yml enables development mode with hot reload, dual ports, and development environment variables.
 - Application server
-  - Socket.io server listens on a configurable port, uses Redis adapter for multi-instance synchronization, and loads room state and configurations at startup.
+  - Socket.io server listens on a configurable port and manages real-time connections directly.
   - PostgresService uses Prisma with a connection string from environment variables.
-  - RedisService persists rooms with TTL and logs connection events.
+  - RedisService provides enhanced connection management with retry strategies and error handling.
 - Client
   - Vite proxy routes Socket.io traffic to the server port and supports allowed hosts configuration.
 
@@ -100,7 +108,7 @@ APP --> PG
 - [vite.config.ts](file://vite.config.ts#L27-L32)
 
 ## Architecture Overview
-The deployment architecture integrates the Bun server, Vite client, Redis, and PostgreSQL. The server uses Socket.io with a Redis adapter to support horizontal scaling across instances. Prisma manages PostgreSQL schema and queries for leaderboards and persisted scores.
+The deployment architecture integrates the Bun server, Vite client, Redis, and PostgreSQL. The server uses direct Redis connections for room persistence and Socket.io for real-time communication. Prisma manages PostgreSQL schema and queries for leaderboards and persisted scores.
 
 ```mermaid
 graph TB
@@ -113,7 +121,6 @@ end
 subgraph "App Layer"
 S1["Server Instance 1"]
 S2["Server Instance N"]
-SI["Socket.io Redis Adapter"]
 end
 subgraph "Data Layer"
 RD["Redis"]
@@ -122,9 +129,8 @@ end
 B --> LB
 LB --> S1
 LB --> S2
-S1 --> SI
-S2 --> SI
-SI --> RD
+S1 --> RD
+S2 --> RD
 S1 --> PG
 S2 --> PG
 ```
@@ -200,7 +206,7 @@ App-->>Dev : logs and ports
 ### Environment Variables and Secrets Management
 - Required variables
   - DATABASE_URL: Postgres connection string for Prisma.
-  - REDIS_URL: Redis connection string for Socket.io adapter and RedisService.
+  - REDIS_URL: Redis connection string for direct RedisService connection.
   - SERVER_PORT: Server port for the Bun application.
   - CLIENT_PORT: Vite dev server port (development).
   - VITE_ALLOWED_HOSTS: Comma-separated allowed hosts for Vite dev server.
@@ -219,43 +225,80 @@ App-->>Dev : logs and ports
 - [src/server/repositories/redis-service.ts](file://src/server/repositories/redis-service.ts#L6-L7)
 - [vite.config.ts](file://vite.config.ts#L10-L13)
 
-### Scaling and Horizontal Scaling with Redis Adapter
-- Horizontal scaling
-  - Socket.io adapter uses Redis pub/sub to synchronize events across instances.
-  - Configure REDIS_URL to point to a managed Redis instance for production.
-- Room persistence
-  - RedisService serializes rooms with TTL to persist across restarts and scale-out scenarios.
-- Recommendations
-  - Use a managed Redis cluster for high availability and performance.
-  - Monitor Redis memory usage and latency; consider sharding or replication.
+### Enhanced Redis Connection Management
+**Updated** Enhanced with comprehensive retry strategies and error handling improvements
+
+The Redis service now implements robust connection management with automatic retry capabilities and intelligent error handling:
+
+- **Retry Strategy**: Configured with exponential backoff (up to 10 seconds between retries) and maximum 10 retry attempts
+- **Error Cooldown**: Prevents log spam by limiting Redis error messages to once every 30 seconds
+- **Connection Events**: Comprehensive logging for connect, error, and reconnect events
+- **Request Retries**: Up to 3 retry attempts per individual request for improved reliability
 
 ```mermaid
-sequenceDiagram
-participant C1 as "Client A"
-participant S1 as "Server Instance 1"
-participant RA as "Redis Adapter"
-participant S2 as "Server Instance 2"
-participant C2 as "Client B"
-C1->>S1 : "JOIN_ROOM"
-S1->>RA : publish "room : join"
-RA->>S2 : subscribe "room : join"
-S2-->>C2 : broadcast "PLAYER_LIST_UPDATE"
+flowchart TD
+Start(["Redis Connection Attempt"]) --> CheckRetry{"Retry Count < 10?"}
+CheckRetry --> |Yes| CalcDelay["Calculate Delay<br/>(Exponential Backoff)"]
+CalcDelay --> Wait["Wait for Calculated Time"]
+Wait --> Connect["Attempt Connection"]
+CheckRetry --> |No| LogError["Log Max Retries Reached"]
+Connect --> Success{"Connection<br/>Successful?"}
+Success --> |Yes| LogConnect["Log Connection Success"]
+Success --> |No| CheckRetry
+LogConnect --> Ready["Redis Ready"]
+LogError --> End(["Operation Failed"])
+Ready --> End
 ```
 
 **Diagram sources**
-- [src/server/index.ts](file://src/server/index.ts#L47-L61)
-- [src/server/repositories/redis-service.ts](file://src/server/repositories/redis-service.ts#L39-L67)
+- [src/server/repositories/redis-service.ts](file://src/server/repositories/redis-service.ts#L8-L18)
+- [src/server/repositories/redis-service.ts](file://src/server/repositories/redis-service.ts#L26-L32)
 
 **Section sources**
-- [src/server/index.ts](file://src/server/index.ts#L47-L61)
-- [src/server/repositories/redis-service.ts](file://src/server/repositories/redis-service.ts#L39-L67)
+- [src/server/repositories/redis-service.ts](file://src/server/repositories/redis-service.ts#L8-L18)
+- [src/server/repositories/redis-service.ts](file://src/server/repositories/redis-service.ts#L22-L36)
+
+### Simplified Server Startup
+**Updated** Server startup has been simplified by removing Redis adapter initialization
+
+The server startup process has been streamlined to improve reliability and reduce complexity:
+
+- **Direct Redis Connection**: The server now uses direct Redis connections instead of Socket.io Redis adapter
+- **Enhanced Room Persistence**: Room management continues to use RedisService for persistence with improved error handling
+- **Simplified Initialization**: Reduced startup complexity by eliminating adapter-specific initialization steps
+- **Maintained Functionality**: All room persistence and state management features remain fully functional
+
+```mermaid
+sequenceDiagram
+participant Server as "Server Startup"
+participant Redis as "Redis Service"
+participant DB as "PostgreSQL"
+Server->>Redis : Initialize Redis connection
+Redis->>Redis : Setup retry strategy
+Server->>DB : Test PostgreSQL connection
+DB-->>Server : Connection successful
+Server->>Redis : Load all rooms from Redis
+Redis-->>Server : Rooms loaded successfully
+Server->>Server : Resume room timers
+Server-->>Server : Server ready
+```
+
+**Diagram sources**
+- [src/server/index.ts](file://src/server/index.ts#L58-L67)
+- [src/server/repositories/redis-service.ts](file://src/server/repositories/redis-service.ts#L20)
+- [src/server/repositories/postgres-service.ts](file://src/server/repositories/postgres-service.ts#L72-L79)
+
+**Section sources**
+- [src/server/index.ts](file://src/server/index.ts#L58-L67)
+- [src/server/repositories/redis-service.ts](file://src/server/repositories/redis-service.ts#L20)
+- [src/server/repositories/postgres-service.ts](file://src/server/repositories/postgres-service.ts#L72-L79)
 
 ### Load Balancing Strategies
 - Reverse proxy or load balancer
   - Place a reverse proxy (e.g., Nginx, Traefik, or cloud LB) in front of multiple server instances.
-  - Enable sticky sessions if required, or rely on Redis adapter for event distribution.
+  - Enable sticky sessions if required, or rely on Redis direct connections for state persistence.
 - Health checks
-  - Use the server’s internal readiness signals (after Prisma initialization) and container health checks for dependent services.
+  - Use the server's internal readiness signals (after Prisma initialization) and container health checks for dependent services.
   - Expose a lightweight health endpoint for external probes if desired.
 
 **Section sources**
@@ -268,28 +311,28 @@ S2-->>C2 : broadcast "PLAYER_LIST_UPDATE"
 - Schema and migrations
   - Prisma schema defines the GameScore model with indexes; migrations path is configured.
 - Connection
-  - PostgresService constructs a Pool with DATABASE_URL and uses PrismaPg adapter.
+  - PostgresService constructs a Prisma client lazily with DATABASE_URL and uses PrismaPg adapter.
 
 ```mermaid
 flowchart TD
 Build["Build Image"] --> Gen["bunx prisma generate"]
 Gen --> Run["Runtime: Prisma Client"]
-Run --> Pool["Pool(connectionString)"]
-Pool --> Adapter["PrismaPg Adapter"]
-Adapter --> DB["PostgreSQL"]
+Run --> LazyInit["Lazy Initialization<br/>on First Use"]
+LazyInit --> Pool["PrismaPg Adapter"]
+Pool --> DB["PostgreSQL"]
 ```
 
 **Diagram sources**
 - [Dockerfile](file://Dockerfile#L12-L16)
 - [prisma.config.ts](file://prisma.config.ts#L4-L9)
 - [prisma/schema.prisma](file://prisma/schema.prisma#L10-L24)
-- [src/server/repositories/postgres-service.ts](file://src/server/repositories/postgres-service.ts#L14-L22)
+- [src/server/repositories/postgres-service.ts](file://src/server/repositories/postgres-service.ts#L15-L31)
 
 **Section sources**
 - [Dockerfile](file://Dockerfile#L12-L16)
 - [prisma.config.ts](file://prisma.config.ts#L1-L14)
 - [prisma/schema.prisma](file://prisma/schema.prisma#L1-L24)
-- [src/server/repositories/postgres-service.ts](file://src/server/repositories/postgres-service.ts#L1-L68)
+- [src/server/repositories/postgres-service.ts](file://src/server/repositories/postgres-service.ts#L15-L31)
 
 ### Client Proxy and Ports
 - Vite proxy
@@ -319,12 +362,12 @@ Adapter --> DB["PostgreSQL"]
 - Logging
   - Winston-based logger is used across server utilities; configure log levels via environment variables.
 - Health checks
-  - Postgres healthcheck uses pg_isready; Redis is monitored via ioredis events.
+  - Postgres healthcheck uses pg_isready; Redis uses enhanced connection monitoring.
 - Monitoring
   - Track CPU/memory/disk of containers; monitor Redis and Postgres metrics; instrument application logs for key events.
 
 **Section sources**
-- [src/server/repositories/redis-service.ts](file://src/server/repositories/redis-service.ts#L9-L15)
+- [src/server/repositories/redis-service.ts](file://src/server/repositories/redis-service.ts#L22-L36)
 - [docker-compose.yml](file://docker-compose.yml#L31-L35)
 
 ### Production Deployment Workflows and Rollback Procedures
@@ -335,8 +378,6 @@ Adapter --> DB["PostgreSQL"]
   - Keep previous image tags; redeploy with the prior tag and reverse proxy configuration.
   - For database changes, maintain migration safety and consider backup/restore procedures.
 
-[No sources needed since this section provides general guidance]
-
 ### Maintenance Tasks
 - Database maintenance
   - Regularly vacuum/analyze PostgreSQL; prune old data as needed; monitor indexes.
@@ -345,15 +386,13 @@ Adapter --> DB["PostgreSQL"]
 - Certificates and secrets rotation
   - Rotate TLS certificates at the reverse proxy; rotate DATABASE_URL and REDIS_URL secrets and redeploy.
 
-[No sources needed since this section provides general guidance]
-
 ## Dependency Analysis
-The server depends on Redis for inter-instance messaging and room persistence, and on PostgreSQL via Prisma for score persistence. The client depends on the server over Socket.io with Vite proxy routing.
+The server depends on Redis for room persistence and on PostgreSQL via Prisma for score persistence. The client depends on the server over Socket.io with Vite proxy routing.
 
 ```mermaid
 graph LR
 Client["Vite Client"] --> |"/socket.io"| Server["Bun Server"]
-Server --> |Redis Adapter| Redis["Redis"]
+Server --> |Direct Redis Connection| Redis["Redis"]
 Server --> |Prisma| Postgres["PostgreSQL"]
 ```
 
@@ -373,11 +412,9 @@ Server --> |Prisma| Postgres["PostgreSQL"]
 - Database tuning
   - Use connection pooling; optimize Prisma queries; add appropriate indexes.
 - Redis tuning
-  - Tune maxmemory and eviction policies; monitor latency; consider clustering for HA.
+  - Enhanced retry strategy reduces connection failures; monitor latency and memory usage.
 - Client delivery
   - Serve static assets via CDN or reverse proxy; enable compression and caching.
-
-[No sources needed since this section provides general guidance]
 
 ## Troubleshooting Guide
 - Database connectivity
@@ -385,7 +422,7 @@ Server --> |Prisma| Postgres["PostgreSQL"]
 - Redis connectivity
   - Confirm REDIS_URL and network reachability; check Redis logs for errors.
 - Socket.io scaling
-  - Ensure Redis adapter is configured and reachable; confirm pub/sub channels are active.
+  - Since Redis adapter is not used, ensure Redis direct connection is working properly.
 - Health checks failing
   - Review postgres healthcheck interval/timeout; check container logs for initialization errors.
 - Port conflicts
@@ -398,9 +435,7 @@ Server --> |Prisma| Postgres["PostgreSQL"]
 - [src/server/index.ts](file://src/server/index.ts#L47-L61)
 
 ## Conclusion
-Project ODYSSEY is designed for containerized deployment with clear separation of concerns between the Bun server, Vite client, Redis, and PostgreSQL. The provided docker-compose configuration, environment-driven settings, and Redis adapter enable horizontal scaling and robust operations. Adopt the recommended practices for secrets, security, monitoring, and maintenance to ensure reliable production deployments.
+Project ODYSSEY is designed for containerized deployment with clear separation of concerns between the Bun server, Vite client, Redis, and PostgreSQL. The enhanced Redis connection management with retry strategies and simplified server startup provide improved reliability and reduced operational complexity. The provided docker-compose configuration, environment-driven settings, and direct Redis connections enable robust operations. Adopt the recommended practices for secrets, security, monitoring, and maintenance to ensure reliable production deployments.
 
 ## Appendices
-- Quick reference: Ensure DATABASE_URL, REDIS_URL, SERVER_PORT, CLIENT_PORT are set; run docker-compose up; verify health checks; scale horizontally with Redis adapter.
-
-[No sources needed since this section provides general guidance]
+- Quick reference: Ensure DATABASE_URL, REDIS_URL, SERVER_PORT, CLIENT_PORT are set; run docker-compose up; verify health checks; leverage enhanced Redis retry strategies for improved reliability.

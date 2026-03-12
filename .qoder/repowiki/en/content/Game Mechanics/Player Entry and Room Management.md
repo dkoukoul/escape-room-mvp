@@ -19,6 +19,13 @@
 - [postgres-service.ts](file://src/server/repositories/postgres-service.ts)
 </cite>
 
+## Update Summary
+**Changes Made**
+- Updated Room Code Generation Details section to reflect the current CODE_WORDS array
+- Removed mention of "deplhi" from room code generation examples
+- Updated room code generation statistics to reflect the current 18-word array
+- Enhanced room code generation reliability section with current word count
+
 ## Table of Contents
 1. [Introduction](#introduction)
 2. [Project Structure](#project-structure)
@@ -256,7 +263,7 @@ Server-->>Client : "ROOM_JOINED"
 - [room-manager.ts](file://src/server/services/room-manager.ts#L111-L131)
 
 ### Late-Joiner Synchronization
-- When a player joins mid-game, the server detects the non-lobby phase and invokes syncPlayer to replay mission context, current phase, and puzzle state for that player’s role.
+- When a player joins mid-game, the server detects the non-lobby phase and invokes syncPlayer to replay mission context, current phase, and puzzle state for that player's role.
 
 ```mermaid
 sequenceDiagram
@@ -282,7 +289,7 @@ Engine-->>Client : "PUZZLE_START" with role-specific view
 - [game-engine.ts](file://src/server/services/game-engine.ts#L601-L665)
 
 ### Role Assignment and Puzzle Orchestration
-- Roles are assigned per puzzle using a shuffled player list and the puzzle’s layout definition. The last role may use “remaining” to capture all unassigned players.
+- Roles are assigned per puzzle using a shuffled player list and the puzzle's layout definition. The last role may use "remaining" to capture all unassigned players.
 - The game engine initializes puzzle state, broadcasts role assignments, and sends role-specific views to each player.
 
 ```mermaid
@@ -412,8 +419,6 @@ Server --> Events
 - Shuffling players for role assignment is O(n) per puzzle; keep player lists small for minimal overhead.
 - Game timers are per active room; ensure cleanup on victory/defeat to avoid resource leaks.
 
-[No sources needed since this section provides general guidance]
-
 ## Troubleshooting Guide
 - Room not found: Verify room code spelling and case normalization; ensure Redis connectivity.
 - Name already taken: Choose a different name; disconnected players can reclaim their seat automatically.
@@ -429,19 +434,21 @@ Server --> Events
 ## Conclusion
 The player entry system delivers a seamless no-registration experience with memorable 4-character room codes. Room Manager and Redis provide robust, scalable room state management, while the Game Engine orchestrates game phases and puzzle interactions. The client integrates tightly with Socket.IO to offer responsive UI updates and automatic session restoration. Together, these components support a smooth player journey from creation to completion, with resilient handling of disconnections and reconnections.
 
-[No sources needed since this section summarizes without analyzing specific files]
-
 ## Appendices
 
 ### Room Code Generation Details
-- Uses a curated list of Greek-themed words; if collision occurs, falls back to random 4-character alphanumeric codes.
-- Ensures uniqueness by checking presence in the in-memory Map before accepting a code.
+- Uses a curated list of 18 memorable Greek-themed words for room codes. The current CODE_WORDS array includes: zeus, hera, ares, iris, nike, echo, gaia, eros, ajax, orph, stoa, muse, sparta, athens, myth, aegean, crete, and minoan.
+- If a collision occurs with any of these words, the system falls back to generating random 4-character alphanumeric codes.
+- The system ensures uniqueness by checking presence in the in-memory Map before accepting a code.
+- Room code generation is highly reliable with 18 words providing 18 unique memorable codes, with fallback to 1.6 million possible alphanumeric combinations.
+
+**Updated** The CODE_WORDS array has been cleaned up to improve consistency in memorable room code naming conventions, removing any potentially confusing or non-standard entries while maintaining system functionality.
 
 **Section sources**
-- [room-manager.ts](file://src/server/services/room-manager.ts#L21-L42)
+- [room-manager.ts](file://src/server/services/room-manager.ts#L20-L41)
 
 ### Player Role Assignment Examples
-- Layout supports fixed counts and “remaining” roles; the assigner shuffles players to distribute roles fairly.
+- Layout supports fixed counts and "remaining" roles; the assigner shuffles players to distribute roles fairly.
 - Single-player scenarios are supported with appropriate debug behavior.
 
 **Section sources**

@@ -12,10 +12,21 @@
 - [rhythm-tap.ts](file://src/server/puzzles/rhythm-tap.ts)
 - [cipher-decode.ts](file://src/server/puzzles/cipher-decode.ts)
 - [collaborative-assembly.ts](file://src/server/puzzles/collaborative-assembly.ts)
-- [alphabet-wall.ts](file://src/server/puzzles/alphabet-wall.ts)
-- [level_01.yaml](file://config/level_01.yaml)
-- [level_02.yaml](file://config/level_02.yaml)
+- [tsconfig.json](file://tsconfig.json)
+- [.gitignore](file://.gitignore)
+- [package.json](file://package.json)
+- [vite.config.ts](file://vite.config.ts)
+- [vitest.config.ts](file://vitest.config.ts)
+- [prisma.config.ts](file://prisma.config.ts)
+- [bunfig.toml](file://bunfig.toml)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Updated ES module support section to document enhanced fileURLToPath conversion and dirname extraction
+- Added documentation for modern Node.js environment compatibility in configuration loader
+- Enhanced troubleshooting guide with ES module-related guidance
+- Updated TypeScript configuration section to reflect ES module compatibility improvements
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -57,7 +68,6 @@ PS1["src/server/puzzles/asymmetric-symbols.ts"]
 PS2["src/server/puzzles/rhythm-tap.ts"]
 PS3["src/server/puzzles/cipher-decode.ts"]
 PS4["src/server/puzzles/collaborative-assembly.ts"]
-PS5["src/server/puzzles/alphabet-wall.ts"]
 end
 Y1 --> L
 Y2 --> L
@@ -71,7 +81,6 @@ REG --> PS1
 REG --> PS2
 REG --> PS3
 REG --> PS4
-REG --> PS5
 ```
 
 **Diagram sources**
@@ -84,7 +93,6 @@ REG --> PS5
 - [rhythm-tap.ts](file://src/server/puzzles/rhythm-tap.ts#L19-L56)
 - [cipher-decode.ts](file://src/server/puzzles/cipher-decode.ts#L18-L53)
 - [collaborative-assembly.ts](file://src/server/puzzles/collaborative-assembly.ts#L31-L86)
-- [alphabet-wall.ts](file://src/server/puzzles/alphabet-wall.ts#L26-L81)
 
 **Section sources**
 - [config-loader.ts](file://src/server/utils/config-loader.ts#L12-L40)
@@ -94,7 +102,7 @@ REG --> PS5
 ## Core Components
 - Level configuration schema and top-level fields (id, title, story, min/max players, timer, glitch, theme_css, puzzles, audio_cues)
 - Puzzle configuration schema (id, type, title, briefing, layout, data, glitch_penalty, audio_cues)
-- Per-puzzle-type data schemas (asymmetric_symbols, rhythm_tap, collaborative_wiring, cipher_decode, collaborative_assembly, alphabet_wall)
+- Per-puzzle-type data schemas (asymmetric_symbols, rhythm_tap, collaborative_wiring, cipher_decode, collaborative_assembly)
 - Configuration loader that reads YAML files, stores in memory, and hot-reloads on change
 - Validator that checks presence of required fields, CSS availability, and audio availability
 - Role assignment service that distributes players into roles per puzzle layout
@@ -226,6 +234,34 @@ Change --> |No| Watch
 - [config-loader.ts](file://src/server/utils/config-loader.ts#L25-L40)
 - [config-loader.ts](file://src/server/utils/config-loader.ts#L69-L95)
 
+### Enhanced ES Module Support
+
+**Updated** The configuration loader now provides enhanced ES module support with proper file URL handling for modern Node.js environments.
+
+The loader includes sophisticated ES module compatibility features:
+
+- **fileURLToPath Conversion**: Uses `fileURLToPath(import.meta.url)` to convert the module's file URL to a filesystem path
+- **dirname Extraction**: Extracts the directory name from the converted file path for reliable path resolution
+- **Modern Node.js Compatibility**: Ensures proper operation in ES module environments with `type: "module"` in package.json
+- **Cross-Platform Path Resolution**: Resolves configuration directory paths reliably across different operating systems
+
+```mermaid
+flowchart TD
+ESModules["ES Modules Environment"] --> FileURL["import.meta.url"]
+FileURL --> Convert["fileURLToPath()"]
+Convert --> DirName["dirname()"]
+DirName --> Resolve["resolve()"]
+Resolve --> ConfigDir["CONFIG_DIR Path"]
+ConfigDir --> Load["Load YAML Files"]
+```
+
+**Diagram sources**
+- [config-loader.ts](file://src/server/utils/config-loader.ts#L13-L14)
+
+**Section sources**
+- [config-loader.ts](file://src/server/utils/config-loader.ts#L13-L14)
+- [package.json](file://package.json#L3)
+
 ### Validation Rules and Error Handling
 - Enforces required fields at top-level and per-puzzle.
 - Checks theme_css file existence under src/client/styles/.
@@ -256,14 +292,50 @@ CheckPuzzles --> Done(["Return ValidationResult"])
 ### Level Configuration Examples
 - Example levels demonstrate full configuration including glitch thresholds, timer, theme_css, puzzles with layouts, and global audio cues.
 - level_01.yaml defines five puzzles with asymmetric_symbols, collaborative_wiring, rhythm_tap, cipher_decode, and collaborative_assembly.
-- level_02.yaml introduces alphabet_wall and demogorgon_hunt, showcasing richer per-puzzle data and themes.
 
 **Section sources**
 - [level_01.yaml](file://config/level_01.yaml#L7-L226)
-- [level_02.yaml](file://config/level_02.yaml#L7-L348)
+
+### Automatic Property Name Transformation
+**Updated** The configuration loader now automatically transforms snake_case properties to camelCase to match TypeScript expected property names.
+
+The loader performs automatic property name transformation for glitch configuration objects:
+- YAML uses snake_case: `max`, `decay_rate`, `name`
+- TypeScript expects camelCase: `maxValue`, `decayRate`, `name`
+
+This transformation ensures backward compatibility while maintaining clean TypeScript property naming conventions.
+
+**Section sources**
+- [config-loader.ts](file://src/server/utils/config-loader.ts#L54-L65)
+
+### Glitch Configuration System
+**Updated** The glitch configuration system now supports both snake_case and camelCase property names through automatic transformation.
+
+- **Snake Case Properties (YAML)**: `max`, `decay_rate`, `name`
+- **Camel Case Properties (TypeScript)**: `maxValue`, `decayRate`, `name`
+- **Automatic Mapping**: The loader converts snake_case to camelCase during parsing
+- **Fallback Values**: If camelCase properties are missing, the loader falls back to snake_case equivalents
+- **Default Values**: If both variants are missing, defaults are applied (maxValue: 100, decayRate: 0)
+
+```mermaid
+flowchart TD
+YAML["YAML Input<br/>max, decay_rate, name"] --> Transform["Automatic Transformation"]
+Transform --> SnakeCase["Snake Case<br/>max, decay_rate, name"]
+Transform --> CamelCase["Camel Case<br/>maxValue, decayRate, name"]
+SnakeCase --> Merge["Merge with Defaults"]
+CamelCase --> Merge
+Merge --> Output["Final Glitch State<br/>name, value, maxValue, decayRate"]
+```
+
+**Diagram sources**
+- [config-loader.ts](file://src/server/utils/config-loader.ts#L54-L65)
+
+**Section sources**
+- [config-loader.ts](file://src/server/utils/config-loader.ts#L54-L65)
+- [types.ts](file://shared/types.ts#L51-L56)
 
 ### Puzzle Configuration System and Types
-- Registered puzzle types include asymmetric_symbols, rhythm_tap, collaborative_wiring, cipher_decode, collaborative_assembly, alphabet_wall, and demogorgon_hunt.
+- Registered puzzle types include asymmetric_symbols, rhythm_tap, collaborative_wiring, cipher_decode, collaborative_assembly.
 - Each handler consumes typed data from config.data and produces a typed PuzzleState with a status and runtime data.
 - Handlers implement initialization, action processing, win checking, and role-specific view rendering.
 
@@ -279,12 +351,10 @@ class AsymmetricSymbolsHandler
 class RhythmTapHandler
 class CipherDecodeHandler
 class CollaborativeAssemblyHandler
-class AlphabetWallHandler
 AsymmetricSymbolsHandler ..|> PuzzleHandler
 RhythmTapHandler ..|> PuzzleHandler
 CipherDecodeHandler ..|> PuzzleHandler
 CollaborativeAssemblyHandler ..|> PuzzleHandler
-AlphabetWallHandler ..|> PuzzleHandler
 ```
 
 **Diagram sources**
@@ -293,7 +363,6 @@ AlphabetWallHandler ..|> PuzzleHandler
 - [rhythm-tap.ts](file://src/server/puzzles/rhythm-tap.ts#L19-L56)
 - [cipher-decode.ts](file://src/server/puzzles/cipher-decode.ts#L18-L53)
 - [collaborative-assembly.ts](file://src/server/puzzles/collaborative-assembly.ts#L31-L86)
-- [alphabet-wall.ts](file://src/server/puzzles/alphabet-wall.ts#L26-L81)
 
 **Section sources**
 - [register.ts](file://src/server/puzzles/register.ts#L14-L20)
@@ -301,12 +370,11 @@ AlphabetWallHandler ..|> PuzzleHandler
 - [rhythm-tap.ts](file://src/server/puzzles/rhythm-tap.ts#L19-L56)
 - [cipher-decode.ts](file://src/server/puzzles/cipher-decode.ts#L18-L53)
 - [collaborative-assembly.ts](file://src/server/puzzles/collaborative-assembly.ts#L31-L86)
-- [alphabet-wall.ts](file://src/server/puzzles/alphabet-wall.ts#L26-L81)
 
 ### Role Assignment Logic and Asymmetric Views
 - Roles are assigned by shuffling players and distributing according to layout.roles definitions.
 - The last role may use count "remaining" to capture all unassigned players.
-- Handlers produce PlayerView tailored to each role’s perspective (e.g., Navigator sees solutions; Decoder sees only letters).
+- Handlers produce PlayerView tailored to each role's perspective (e.g., Navigator sees solutions; Decoder sees only letters).
 
 ```mermaid
 sequenceDiagram
@@ -361,8 +429,6 @@ GE-->>CL : "Send PlayerView"
   - Introduce a migration script to transform legacy YAML to new schema.
   - Validate migrated configs with the updated validator.
 
-[No sources needed since this section provides general guidance]
-
 ## Dependency Analysis
 - Loader depends on YAML parser and chokidar for hot-reload.
 - Validator depends on filesystem checks for CSS and audio paths.
@@ -395,30 +461,218 @@ RoleAssigner["role-assigner.ts"] --> Types
 - Keep theme_css minimal to reduce client load times.
 - Prefer concise puzzle data to minimize initialization overhead.
 
-[No sources needed since this section provides general guidance]
+## TypeScript Configuration and Development Environment
+
+**Updated** The project now uses modern TypeScript configuration with enhanced module resolution capabilities and comprehensive ES module support.
+
+### Enhanced Module Resolution Settings
+
+The TypeScript configuration has been updated with advanced module resolution settings:
+
+- **moduleResolution**: `"bundler"` - Uses the bundler's module resolution algorithm for optimal compatibility with modern bundlers
+- **moduleDetection**: `"force"` - Forces module detection regardless of file extensions, enabling seamless ES module usage
+- **verbatimModuleSyntax**: `true` - Preserves exact module syntax without transforming imports/exports
+- **allowImportingTsExtensions**: `true` - Allows importing TypeScript files with .ts extensions directly
+
+These settings provide:
+- Better compatibility with Vite and other modern bundlers
+- Seamless ES module support across the entire codebase
+- Improved type checking accuracy
+- Enhanced development experience with proper module resolution
+
+**Section sources**
+- [tsconfig.json](file://tsconfig.json#L1-L35)
+
+### ES Module Environment Support
+
+**Updated** The project now provides comprehensive ES module support for modern Node.js environments:
+
+- **package.json**: `"type": "module"` enables ES module mode globally
+- **fileURLToPath**: Converts module URLs to filesystem paths for reliable path resolution
+- **dirname Extraction**: Properly extracts directory names for cross-platform compatibility
+- **Modern Node.js**: Full compatibility with Node.js ESM features and best practices
+
+**Section sources**
+- [package.json](file://package.json#L3)
+- [config-loader.ts](file://src/server/utils/config-loader.ts#L13-L14)
+
+### Development Workflow Enhancements
+
+**Updated** The development workflow has been streamlined with simplified test commands:
+
+- **Development**: `bun run dev` - Concurrently runs server and client in watch mode
+- **Server Development**: `bun run dev:server` - Watches server-side TypeScript files
+- **Client Development**: `bun run dev:client` - Runs Vite development server
+- **Testing**: `bun test src/server` - Simplified server-side testing command
+- **Client Testing**: `vitest run` - Dedicated client-side testing with coverage
+- **Type Checking**: `bunx tsc --noEmit` - Fast TypeScript compilation without emitting files
+
+**Section sources**
+- [package.json](file://package.json#L5-L19)
+
+### Build Configuration
+
+**Updated** Modern build configuration with optimized settings:
+
+- **Target**: ESNext for latest JavaScript features
+- **Module**: ESNext for native module support
+- **Paths Aliases**: `@shared/*`, `@server/*`, `@client/*` for cleaner imports
+- **Strict Mode**: Enabled with additional safety checks
+- **Skip Lib Check**: Optimized compilation performance
+- **No Emit**: Development-focused configuration without output files
+
+**Section sources**
+- [tsconfig.json](file://tsconfig.json#L1-L35)
+
+### Generated Files Management
+
+**Updated** Enhanced `.gitignore` patterns for generated files:
+
+- **TypeScript Build Cache**: `*.tsbuildinfo` - Prevents committing TypeScript build artifacts
+- **Vite Cache**: `**/.vitepress/cache` - Ignores VitePress cache directories
+- **Prisma Generated**: `prisma/generated/*` - Excludes Prisma generated files
+- **Generated**: `generated/*` - Ignores all generated files
+- **Asset Caching**: `assets/audio/*`, `src/public/assets/audio/*` - Manages audio asset caching
+
+**Section sources**
+- [.gitignore](file://.gitignore#L48-L154)
+
+### Testing Infrastructure
+
+**Updated** Streamlined testing configuration:
+
+- **Vitest**: Client-side testing with `happy-dom` for fast DOM simulation
+- **Coverage**: Configured with `v8` provider and multiple reporters
+- **Bun Test**: Server-side testing with Bun's built-in test runner
+- **Playwright**: End-to-end testing separate from unit tests
+
+**Section sources**
+- [vitest.config.ts](file://vitest.config.ts#L1-L42)
+- [bunfig.toml](file://bunfig.toml#L1-L3)
 
 ## Troubleshooting Guide
 - Missing id/title/puzzles: Loader skips and logs warnings; fix by adding required fields.
 - Missing theme_css: Validator warns; ensure files exist under src/client/styles/.
 - Missing audio files: Validator warns; ensure files exist under src/client/public/assets/audio/.
 - Role assignment failures: Verify layout.roles counts sum to player count or use "remaining" for the last role.
+- **Property naming issues**: If glitch configuration isn't working, ensure you're using the correct property names. The loader automatically transforms snake_case to camelCase, so both formats are supported.
+- **ES module compatibility**: If import statements fail, verify that `type: "module"` is set in package.json and that `moduleResolution: "bundler"` is properly configured in tsconfig.json.
+- **File path issues**: If configuration files aren't loading, ensure that `fileURLToPath` and `dirname` extraction are working correctly in the configuration loader.
+- **Build errors**: Ensure all TypeScript files use proper ES module syntax with the new configuration settings.
+
+**Updated** Added troubleshooting guidance for enhanced ES module support and modern Node.js environment compatibility.
 
 **Section sources**
 - [config-loader.ts](file://src/server/utils/config-loader.ts#L45-L64)
 - [config-validator.ts](file://src/server/utils/config-validator.ts#L19-L68)
 - [role-assigner.ts](file://src/server/services/role-assigner.ts#L24-L77)
+- [tsconfig.json](file://tsconfig.json#L10-L12)
+- [package.json](file://package.json#L3)
 
 ## Conclusion
-The YAML configuration system provides a robust, schema-driven way to define levels and puzzles, validate correctness, and feed runtime game logic. With clear separation between schema, loader, validator, and handlers, it supports flexible level design and safe evolution through versioning and migration strategies.
+The YAML configuration system provides a robust, schema-driven way to define levels and puzzles, validate correctness, and feed runtime game logic. With clear separation between schema, loader, validator, and handlers, it supports flexible level design and safe evolution through versioning and migration strategies. The automatic property name transformation feature enhances developer experience by supporting both snake_case and camelCase property names seamlessly.
+
+The enhanced ES module support ensures compatibility with modern Node.js environments and provides reliable file path resolution across different platforms. The improved TypeScript configuration with modern module resolution settings provides better development experience, better bundler compatibility, and streamlined testing workflows. These improvements ensure the configuration system remains maintainable and efficient as the project evolves.
 
 ## Appendices
 
 ### Appendix A: Level and Puzzle Configuration Reference
-- Level fields: id, title, story, min_players, max_players, timer_seconds, glitch (max, decay_rate, name), theme_css, puzzles, audio_cues
+- Level fields: id, title, story, min_players, max_players, timer_seconds, glitch (maxValue, decayRate, name), theme_css, puzzles, audio_cues
 - Puzzle fields: id, type, title, briefing, layout (roles), data (per-type), glitch_penalty, audio_cues
-- Per-type data: asymmetric_symbols, rhythm_tap, collaborative_wiring, cipher_decode, collaborative_assembly, alphabet_wall
+- Per-type data: asymmetric_symbols, rhythm_tap, collaborative_wiring, cipher_decode, collaborative_assembly
+
+**Updated** Added camelCase property names to glitch configuration reference.
 
 **Section sources**
 - [SCHEMA.md](file://config/SCHEMA.md#L5-L31)
 - [SCHEMA.md](file://config/SCHEMA.md#L33-L44)
 - [SCHEMA.md](file://config/SCHEMA.md#L68-L117)
+
+### Appendix B: Property Name Transformation Reference
+**New** Complete reference for automatic property name transformations performed by the configuration loader.
+
+#### Glitch Configuration Properties
+| YAML (Snake Case) | TypeScript (Camel Case) | Description |
+|-------------------|------------------------|-------------|
+| `max` | `maxValue` | Maximum glitch value (game over threshold) |
+| `decay_rate` | `decayRate` | Natural decay rate per second |
+| `name` | `name` | Glitch system name |
+
+#### Transformation Behavior
+- **Priority**: If both snake_case and camelCase properties exist, camelCase takes precedence
+- **Fallback**: If camelCase is missing, loader attempts to use snake_case equivalent
+- **Defaults**: If both variants are missing, defaults are applied (maxValue: 100, decayRate: 0)
+- **Backward Compatibility**: Both property naming conventions are fully supported
+
+**Section sources**
+- [config-loader.ts](file://src/server/utils/config-loader.ts#L54-L65)
+
+### Appendix C: TypeScript Configuration Reference
+
+**New** Comprehensive reference for the enhanced TypeScript configuration.
+
+#### Module Resolution Settings
+- **moduleResolution**: `"bundler"` - Bundler-compatible module resolution
+- **moduleDetection**: `"force"` - Force module detection regardless of extensions
+- **verbatimModuleSyntax**: `true` - Preserve exact module syntax
+- **allowImportingTsExtensions**: `true` - Allow importing TypeScript files directly
+
+#### Compiler Options
+- **Target**: ESNext - Latest JavaScript features
+- **Module**: ESNext - Native ES module support
+- **Strict**: Enabled - Enhanced type safety
+- **SkipLibCheck**: Enabled - Faster compilation
+- **NoEmit**: Enabled - Development-focused
+
+#### Path Aliases
+- `@shared/*`: Points to `./shared/*`
+- `@server/*`: Points to `./src/server/*`
+- `@client/*`: Points to `./src/client/*`
+
+**Section sources**
+- [tsconfig.json](file://tsconfig.json#L1-L35)
+
+### Appendix D: ES Module Support Reference
+
+**New** Complete reference for ES module support in the configuration system.
+
+#### ES Module Configuration
+- **package.json**: `"type": "module"` - Enables ES module mode globally
+- **fileURLToPath**: Converts module URLs to filesystem paths
+- **dirname Extraction**: Properly extracts directory names for cross-platform compatibility
+- **Modern Node.js**: Full compatibility with Node.js ESM features
+
+#### Configuration Loader Features
+- **Dynamic Path Resolution**: Uses `fileURLToPath(import.meta.url)` for reliable path resolution
+- **Cross-Platform Compatibility**: Works consistently across Windows, macOS, and Linux
+- **Hot Reload Integration**: Maintains compatibility with chokidar file watching
+- **TypeScript Compatibility**: Works seamlessly with modern TypeScript configurations
+
+**Section sources**
+- [package.json](file://package.json#L3)
+- [config-loader.ts](file://src/server/utils/config-loader.ts#L13-L14)
+
+### Appendix E: Development Commands Reference
+
+**New** Complete reference for streamlined development commands.
+
+#### Basic Commands
+- `bun run dev`: Start development servers (server + client)
+- `bun run dev:server`: Watch server-side TypeScript files
+- `bun run dev:client`: Run Vite development server
+- `bun run build`: Build production client bundle
+- `bun run start`: Start production servers
+
+#### Testing Commands
+- `bun test src/server`: Run server-side tests
+- `bun run test:client`: Run client-side tests with Vitest
+- `bun run test:client:watch`: Watch client-side tests
+- `bun run test:client:coverage`: Run client-side tests with coverage
+- `bun run test:puzzles`: Run puzzle-specific tests
+
+#### Development Commands
+- `bun run typecheck`: Fast TypeScript compilation without emit
+- `bun run lint`: Code linting (if configured)
+
+**Section sources**
+- [package.json](file://package.json#L5-L19)

@@ -19,6 +19,13 @@
 - [src/client/puzzles/collaborative-assembly.ts](file://src/client/puzzles/collaborative-assembly.ts)
 </cite>
 
+## Update Summary
+**Changes Made**
+- Updated router API documentation to reflect the optional glitch parameter enhancement
+- Added documentation for the simplified showScreen() usage pattern
+- Updated screen initialization examples to show both old and new patterns
+- Enhanced visual effects management documentation for puzzle screens
+
 ## Table of Contents
 1. [Introduction](#introduction)
 2. [Project Structure](#project-structure)
@@ -32,6 +39,8 @@
 
 ## Introduction
 This document describes the screen management system that orchestrates the five major screens of the application: lobby, level intro, briefing, puzzle, and results. It explains initialization, event-driven rendering, DOM structure, state management, and transitions, and shows how screens integrate with the router and shared event types.
+
+**Updated** Enhanced router API now supports optional glitch parameter for improved developer experience and reduced boilerplate code.
 
 ## Project Structure
 The screen management system is implemented in the client with a small set of shared utilities:
@@ -75,10 +84,12 @@ Screens --> Puzzles["puzzles/*<br/>puzzle renderers"]
 - Screens: Each screen initializes on boot, registers server-side event listeners, renders UI, manages local state, and triggers transitions.
 
 Key integration points:
-- Screens call showScreen() to switch views.
+- Screens call showScreen() to switch views. The router now supports both patterns: `showScreen("screen-name")` and `showScreen("screen-name", glitchData)`.
 - Screens listen to ServerEvents to drive rendering and state updates.
 - Screens emit ClientEvents to send user actions to the server.
 - Global listeners in main.ts manage HUD, timers, glitch visuals, and theme application.
+
+**Updated** The router API now provides backward compatibility with simplified showScreen() calls while supporting enhanced glitch parameter functionality for puzzle screens.
 
 **Section sources**
 - [src/client/lib/router.ts](file://src/client/lib/router.ts#L10-L39)
@@ -92,6 +103,8 @@ The system follows a reactive pattern:
 - Each screen registers listeners for server events and renders UI accordingly.
 - Transitions occur when the server emits game-phase or puzzle-related events.
 - The router coordinates visibility and visual effects; the HUD displays global state.
+
+**Updated** The router now intelligently manages visual effects based on the glitch parameter, automatically controlling visual FX only during puzzle screens when glitch data is provided.
 
 ```mermaid
 sequenceDiagram
@@ -115,9 +128,9 @@ Sock-->>Intro : ServerEvents.GAME_STARTED
 Sock-->>Brief : ServerEvents.BRIEFING / PLAYER_READY_UPDATE
 Sock-->>Puz : ServerEvents.PUZZLE_START / PUZZLE_UPDATE
 Sock-->>Res : ServerEvents.VICTORY / DEFEAT
-Intro->>Router : showScreen("level-intro")
+Intro->>Router : showScreen("level-intro", glitchData)
 Brief->>Router : showScreen("briefing")
-Puz->>Router : showScreen("puzzle")
+Puz->>Router : showScreen("puzzle", glitchData)
 Res->>Router : showScreen("results")
 ```
 
@@ -132,6 +145,27 @@ Res->>Router : showScreen("results")
 - [src/client/screens/results.ts](file://src/client/screens/results.ts#L11-L19)
 
 ## Detailed Component Analysis
+
+### Router System
+**Updated** The router system now provides enhanced functionality with an optional glitch parameter for improved developer experience.
+
+API Enhancement:
+- `showScreen(name: ScreenName, glitch?: GlitchState): void` - Enhanced with optional glitch parameter
+- `getCurrentScreen(): ScreenName` - Returns current active screen
+- `showHUD(visible: boolean): void` - Controls HUD visibility
+
+Visual Effects Management:
+- Automatically manages visual FX only during puzzle screens when glitch data is provided
+- Supports multiple glitch types with automatic fallback to "matrix-glitch"
+- Integrates with visual-fx.ts for seamless effect transitions
+
+Backward Compatibility:
+- Simplified calls: `showScreen("screen-name")` work without glitch parameter
+- Enhanced calls: `showScreen("screen-name", glitchData)` enable visual effects
+- Maintains existing behavior for all non-puzzle screens
+
+**Section sources**
+- [src/client/lib/router.ts](file://src/client/lib/router.ts#L10-L39)
 
 ### Lobby Screen
 Purpose:
@@ -202,6 +236,8 @@ DOM structure:
 Transition logic:
 - On completion, emits INTRO_COMPLETE and expects server to advance to briefing.
 
+**Updated** Enhanced screen initialization now uses the new router API with glitch parameter support.
+
 ```mermaid
 sequenceDiagram
 participant Intro as "level-intro.ts"
@@ -209,7 +245,7 @@ participant Router as "router.ts"
 participant Sock as "socket.ts"
 participant Audio as "audio-manager.ts"
 Intro->>Sock : on(GAME_STARTED)
-Intro->>Router : showScreen("level-intro")
+Intro->>Router : showScreen("level-intro", glitchData)
 Intro->>Audio : loadSound(levelIntroAudio)
 Intro->>Audio : playAudioFile(levelIntroAudio)
 Intro->>Intro : typewriterEffect(storyText)
@@ -244,6 +280,8 @@ DOM structure:
 
 Transition logic:
 - On ready, server advances to puzzle start; client does not switch screen here.
+
+**Updated** Uses simplified showScreen() without glitch parameter for cleaner code.
 
 ```mermaid
 flowchart TD
@@ -285,6 +323,8 @@ DOM structure:
 Renderer integration:
 - Switches on puzzle type and delegates to puzzle-specific render/update functions.
 
+**Updated** Enhanced with glitch parameter support for automatic visual effects management during puzzle gameplay.
+
 ```mermaid
 sequenceDiagram
 participant Puz as "puzzle.ts"
@@ -292,7 +332,7 @@ participant Router as "router.ts"
 participant Puzzles as "puzzles/*"
 participant Sock as "socket.ts"
 Puz->>Sock : on(PUZZLE_START)
-Puz->>Router : showScreen("puzzle")
+Puz->>Router : showScreen("puzzle", glitchData)
 Puz->>Puz : renderPuzzle() switch on puzzleType
 Puz->>Puzzles : render*(container, view, roles?)
 Puz->>Sock : on(PUZZLE_UPDATE)
@@ -329,6 +369,8 @@ DOM structure:
 Transition logic:
 - On either outcome, hides HUD and offers reload to start over.
 
+**Updated** Uses simplified showScreen() without glitch parameter for cleaner code.
+
 ```mermaid
 flowchart TD
 Init["initResults()"] --> Victory["on(VICTORY)"]
@@ -359,8 +401,11 @@ Shared patterns across screens:
 - All screens rely on shared event names and payload types for interoperability.
 
 Integration with router:
-- Each screen’s init function registers server listeners; upon receiving data, it calls showScreen("screen-name") to become visible.
+- Each screen's init function registers server listeners; upon receiving data, it calls showScreen("screen-name") to become visible.
 - The router toggles visual effects based on glitch state during puzzle screens.
+- **Updated** The router now supports both simplified and enhanced showScreen() patterns for improved developer experience.
+
+**Updated** Enhanced router integration patterns:
 
 ```mermaid
 graph LR
@@ -414,18 +459,21 @@ Router --> Res
 - Efficient rendering: puzzle screen defers to specialized puzzle renderers that update only changed elements.
 - Debounced audio loading: intro and briefing load audio asynchronously alongside typewriter rendering to reduce perceived latency.
 - Visual FX control: router starts/stops visual effects only during puzzle screens to minimize overhead.
+- **Updated** Enhanced router performance: automatic visual effect management reduces boilerplate code and improves consistency across screens.
 
 ## Troubleshooting Guide
 Common issues and remedies:
-- Screen not switching: Verify showScreen() is called after receiving the expected ServerEvents in each screen’s listener.
+- Screen not switching: Verify showScreen() is called after receiving the expected ServerEvents in each screen's listener.
 - Missing events: Ensure on() registrations occur in init functions and that connect() is called before any emits.
 - Stuck UI: Confirm that error handlers update DOM elements (e.g., lobby error display) and that timers/intervals are cleared in cleanup.
 - Session restoration: If auto-join fails, clear stale session keys and retry; verify saved timestamps are within the allowed window.
+- **Updated** Glitch parameter issues: Ensure glitch data is properly structured when using enhanced showScreen() calls.
 
 Operational checks:
 - Router logs screen transitions; inspect logs for unexpected switches.
 - Socket wrapper logs connection/disconnection and errors; ensure reconnection behavior is observed.
 - HUD visibility toggles are centralized; confirm showHUD is called appropriately in transitions.
+- **Updated** Visual effects debugging: Check router logs for glitch effect management and visual FX control.
 
 **Section sources**
 - [src/client/lib/router.ts](file://src/client/lib/router.ts#L17-L27)
@@ -434,4 +482,4 @@ Operational checks:
 - [src/client/screens/lobby.ts](file://src/client/screens/lobby.ts#L337-L340)
 
 ## Conclusion
-The screen management system is a cohesive, event-driven pipeline that leverages typed events, a simple router, and minimal DOM helpers to orchestrate five distinct screens. Each screen encapsulates its own initialization, rendering, and state updates while integrating seamlessly with the router and shared types. The result is a maintainable, testable architecture that cleanly separates concerns across screens and supports robust transitions driven by server events.
+The screen management system is a cohesive, event-driven pipeline that leverages typed events, a simple router, and minimal DOM helpers to orchestrate five distinct screens. Each screen encapsulates its own initialization, rendering, and state updates while integrating seamlessly with the router and shared types. The enhanced router API with optional glitch parameter provides improved developer experience while maintaining backward compatibility, allowing teams to choose between simplified and enhanced patterns based on their needs. The result is a maintainable, testable architecture that cleanly separates concerns across screens and supports robust transitions driven by server events.
