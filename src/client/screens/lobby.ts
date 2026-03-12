@@ -37,6 +37,7 @@ let selectedLevelId: string | null = null;
 let selectedPuzzleIndex: number | null = null;
 let leaderboard: LeaderboardEntry[] = [];
 let activeTooltip: "join" | "create" | null = null;
+let isJoiningRoom = false; // Guard to prevent duplicate join attempts
 
 export function clearSavedSession() {
   localStorage.removeItem("odyssey_room_code");
@@ -75,8 +76,9 @@ export function initLobby(): void {
     }
 
     // Auto-join if we have both and NO query params (or if we want to support it with query params)
-    if (savedName && savedRoom && !currentRoomCode) {
+    if (savedName && savedRoom && !currentRoomCode && !isJoiningRoom) {
       logger.info(`[Lobby] Attempting auto-join: ${savedRoom}`);
+      isJoiningRoom = true;
       emit(ClientEvents.JOIN_ROOM, { roomCode: savedRoom, playerName: savedName });
     }
   }, 100);
@@ -311,13 +313,19 @@ function handleJoin(): void {
       showError("Enter a room code.");
       return;
     }
+    if (isJoiningRoom) {
+      logger.debug("[Lobby] Join already in progress, ignoring duplicate request");
+      return;
+    }
     localStorage.setItem("odyssey_player_name", name);
     localStorage.setItem("odyssey_room_code", code);
     localStorage.setItem("odyssey_room_created_time", Date.now().toString());
     logger.info("[Lobby] Joining room", { roomCode: code, playerName: name });
+    isJoiningRoom = true;
     emit(ClientEvents.JOIN_ROOM, { roomCode: code, playerName: name });
   } catch (err) {
     logger.error("Error joining room", { err });
+    isJoiningRoom = false;
   }
 }
 
@@ -386,8 +394,9 @@ function setupSocketListeners(): void {
         }
         const savedName = localStorage.getItem("odyssey_player_name");
         const savedRoom = localStorage.getItem("odyssey_room_code");
-        if (savedName && savedRoom) {
+        if (savedName && savedRoom && !isJoiningRoom) {
           logger.info(`[Lobby] Socket reconnected, re-joining room: ${savedRoom}`);
+          isJoiningRoom = true;
           emit(ClientEvents.JOIN_ROOM, { roomCode: savedRoom, playerName: savedName });
         }
       } catch (err) {
@@ -397,6 +406,7 @@ function setupSocketListeners(): void {
 
     on(ServerEvents.ROOM_JOINED, (data: RoomJoinedPayload) => {
       logger.debug("Room joined", { data });
+      isJoiningRoom = false; // Reset guard on successful join
       currentRoomCode = data.roomCode;
       isHost = data.player.isHost;
       players = data.players;
@@ -418,6 +428,7 @@ function setupSocketListeners(): void {
     });
 
     on(ServerEvents.ROOM_ERROR, (data: RoomErrorPayload) => {
+      isJoiningRoom = false; // Reset guard on error so user can retry
       showError(data.message);
     });
 
