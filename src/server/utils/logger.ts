@@ -18,7 +18,7 @@ class TelegramTransport extends Transport {
 
   log(info: any, callback: () => void) {
     const { level, message, timestamp, ...meta } = info;
-    console.log('Logging info:', info.level);
+
     // Only send ERROR level logs
     if (level.includes('error') || level.includes('ERROR') || level.includes('Error')) {
       const now = Date.now();
@@ -29,13 +29,9 @@ class TelegramTransport extends Transport {
       this.lastErrorTime = now;
       
       const metaString = Object.keys(meta).length ? JSON.stringify(meta, null, 2) : '';
-      const text = `🚨 *ODYSSEY ERROR*\n\n` +
-        `*Time:* ${timestamp}\n` +
-        `*Message:* ${message}\n` +
+      const text = `*Message:* ${message}\n` +
         `${metaString ? `*Details:* \`\`\`${metaString}\`\`\`` : ''}`;
       const url = `https://api.telegram.org/bot${this.botToken}/sendMessage`;
-      console.log('Sending Telegram notification to:', url);
-      console.log('Chat ID:', this.chatId);
 
       fetch(url, {
         method: 'POST',
@@ -47,7 +43,6 @@ class TelegramTransport extends Transport {
         }),
       }).then(async (response) => {
         const data = await response.json();
-        console.log('Telegram API response:', data);
         if (!response.ok) {
           console.error('Telegram API error:', data);
         }
