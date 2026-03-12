@@ -531,6 +531,37 @@ body {
   transform: none;
 }
 
+/* Lobby Choice View Styles */
+.choice-btn-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.choice-btn-label {
+  font-size: 0.9rem;
+  letter-spacing: 2px;
+}
+
+.choice-btn-description {
+  font-size: 0.7rem;
+  opacity: 0.7;
+  letter-spacing: 1px;
+  text-transform: none;
+  font-weight: 400;
+}
+
+/* Back button styling */
+.btn-back {
+  border-color: var(--text-secondary);
+  color: var(--text-secondary);
+}
+
+.btn-back:hover {
+  border-color: var(--neon-cyan);
+  color: var(--neon-cyan);
+  background: rgba(0, 240, 255, 0.05);
+}
+
 /* Inputs */
 .input {
   font-family: var(--font-mono);

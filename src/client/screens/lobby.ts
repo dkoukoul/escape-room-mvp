@@ -38,6 +38,7 @@ let selectedPuzzleIndex: number | null = null;
 let leaderboard: LeaderboardEntry[] = [];
 let activeTooltip: "join" | "create" | null = null;
 let isJoiningRoom = false; // Guard to prevent duplicate join attempts
+let currentView: "choice" | "create" | "join" = "choice"; // Current lobby view state
 
 export function clearSavedSession() {
   localStorage.removeItem("odyssey_room_code");
@@ -65,15 +66,7 @@ export function initLobby(): void {
     
     const urlParams = new URLSearchParams(window.location.search);
 
-    // Fill input fields if saved
-    if (savedName) {
-      const nameInput = $("#input-name") as HTMLInputElement;
-      if (nameInput) nameInput.value = savedName;
-    }
-    if (savedRoom) {
-      const roomInput = $("#input-room") as HTMLInputElement;
-      if (roomInput) roomInput.value = savedRoom;
-    }
+    // Note: Saved values are now handled in render functions via value attributes
 
     // Auto-join if we have both and NO query params (or if we want to support it with query params)
     if (savedName && savedRoom && !currentRoomCode && !isJoiningRoom) {
@@ -107,46 +100,155 @@ function renderJoinView(container: HTMLElement): void {
         )
       ),
 
-      h("div", { className: "mt-lg flex-col gap-md items-center w-full" },
-        h("input", {
-          id: "input-name",
-          className: "input w-full",
-          type: "text",
-          placeholder: "Your callsign",
-          maxlength: "16",
-          autocomplete: "off",
-          style: "letter-spacing: 2px; text-transform: none;",
-        }),
-        h("input", {
-          id: "input-room",
-          className: "input w-full",
-          type: "text",
-          placeholder: "room code",
-          maxlength: "8",
-          autocomplete: "off",
-        }),
-        h("div", { className: "flex-row gap-sm mt-sm tooltip-container", style: "position: relative;" },
-          h("button", {
-            id: "btn-join",
-            className: "btn btn-primary tooltip-trigger",
-            onClick: handleJoin,
-            onMouseEnter: () => showTooltip("join"),
-            onMouseLeave: hideTooltip,
-          }, "Join"),
-          h("button", {
-            id: "btn-create",
-            className: "btn tooltip-trigger",
-            onClick: handleCreate,
-            onMouseEnter: () => showTooltip("create"),
-            onMouseLeave: hideTooltip,
-          }, "Create Room"),
-        ),
-        h("p", { id: "lobby-error", className: "subtitle", style: "color: var(--neon-red); min-height: 1.4em;" }),
+      // Dynamic content based on current view
+      h("div", { id: "lobby-dynamic-content", className: "mt-lg flex-col gap-md items-center w-full" },
+        renderCurrentView()
       ),
+      
       renderLeaderboard(),
     ),
     renderFooter(),
   );
+}
+
+function renderCurrentView(): HTMLElement {
+  const errorEl = h("p", { id: "lobby-error", className: "subtitle", style: "color: var(--neon-red); min-height: 1.4em;" });
+  
+  switch (currentView) {
+    case "choice":
+      return renderChoiceView(errorEl);
+    case "create":
+      return renderCreateView(errorEl);
+    case "join":
+      return renderJoinFormView(errorEl);
+    default:
+      return renderChoiceView(errorEl);
+  }
+}
+
+function renderChoiceView(errorEl: HTMLElement): HTMLElement {
+  return h("div", { className: "flex-col gap-md items-center w-full" },
+    h("div", { className: "flex-row gap-md mt-sm", style: "width: 100%;" },
+      h("button", {
+        id: "btn-create-choice",
+        className: "btn flex-1",
+        style: "min-height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;",
+        onClick: () => {
+          currentView = "create";
+          refreshDynamicContent();
+        },
+      }, 
+        h("span", {}, "CREATE ROOM")
+      ),
+      h("button", {
+        id: "btn-join-choice",
+        className: "btn btn-primary flex-1",
+        style: "min-height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;",
+        onClick: () => {
+          currentView = "join";
+          refreshDynamicContent();
+        },
+      }, 
+        h("span", {}, "Join Room")
+      )
+    ),
+    h("p", { className: "subtitle", style: "font-size: 0.75rem; opacity: 0.7; margin-top: var(--space-md);" }, 
+      "Choose to host a new game or connect to an existing room"
+    ),
+    errorEl
+  );
+}
+
+function renderCreateView(errorEl: HTMLElement): HTMLElement {
+  // Restore saved name if available
+  const savedName = localStorage.getItem("odyssey_player_name") || "";
+  
+  return h("div", { className: "flex-col gap-md items-center w-full fade-in" },
+    h("p", { className: "subtitle", style: "color: var(--neon-cyan);" }, "Enter your callsign to create a room"),
+    h("input", {
+      id: "input-name",
+      className: "input w-full",
+      type: "text",
+      placeholder: "Your callsign",
+      maxlength: "16",
+      autocomplete: "off",
+      value: savedName,
+      style: "letter-spacing: 2px; text-transform: none;",
+    }),
+    h("div", { className: "flex-row gap-sm mt-sm w-full" },
+      h("button", {
+        id: "btn-back-create",
+        className: "btn",
+        style: "flex: 1;",
+        onClick: () => {
+          currentView = "choice";
+          refreshDynamicContent();
+        },
+      }, "← Back"),
+      h("button", {
+        id: "btn-create-submit",
+        className: "btn btn-primary",
+        style: "flex: 2;",
+        onClick: handleCreate,
+      }, "CREATE ROOM")
+    ),
+    errorEl
+  );
+}
+
+function renderJoinFormView(errorEl: HTMLElement): HTMLElement {
+  // Restore saved values if available
+  const savedName = localStorage.getItem("odyssey_player_name") || "";
+  const savedRoom = localStorage.getItem("odyssey_room_code") || "";
+  
+  return h("div", { className: "flex-col gap-md items-center w-full fade-in" },
+    h("p", { className: "subtitle", style: "color: var(--neon-cyan);" }, "Enter room code and your callsign"),
+    h("input", {
+      id: "input-room",
+      className: "input w-full",
+      type: "text",
+      placeholder: "room code",
+      maxlength: "8",
+      autocomplete: "off",
+      value: savedRoom,
+    }),
+    h("input", {
+      id: "input-name",
+      className: "input w-full",
+      type: "text",
+      placeholder: "Your callsign",
+      maxlength: "16",
+      autocomplete: "off",
+      value: savedName,
+      style: "letter-spacing: 2px; text-transform: none;",
+    }),
+    h("div", { className: "flex-row gap-sm mt-sm w-full" },
+      h("button", {
+        id: "btn-back-join",
+        className: "btn",
+        style: "flex: 1;",
+        onClick: () => {
+          currentView = "choice";
+          refreshDynamicContent();
+        },
+      }, "← Back"),
+      h("button", {
+        id: "btn-join-submit",
+        className: "btn btn-primary",
+        style: "flex: 2;",
+        onClick: handleJoin,
+      }, "Join Room 🔗")
+    ),
+    errorEl
+  );
+}
+
+function refreshDynamicContent(): void {
+  const container = $("#lobby-dynamic-content");
+  if (container) {
+    clear(container);
+    mount(container, renderCurrentView());
+  }
 }
 
 function renderLeaderboard(): HTMLElement {
@@ -287,7 +389,8 @@ function renderRoomView(container: HTMLElement): void {
 function handleCreate(): void {
   try {
     hideTooltip();
-    const name = ($("#input-name") as HTMLInputElement)?.value.trim();
+    const nameInput = $("#input-name") as HTMLInputElement;
+    const name = nameInput?.value.trim();
     if (!name) {
       showError("Enter your callsign.");
       return;
@@ -358,6 +461,7 @@ function handleLeave(): void {
     players = [];
     availableLevels = [];
     selectedLevelId = null;
+    currentView = "choice"; // Reset to choice view
     localStorage.removeItem("odyssey_room_code");
     const screen = $("#screen-lobby")!;
     renderJoinView(screen);
@@ -430,6 +534,12 @@ function setupSocketListeners(): void {
     on(ServerEvents.ROOM_ERROR, (data: RoomErrorPayload) => {
       isJoiningRoom = false; // Reset guard on error so user can retry
       showError(data.message);
+      // Reset to choice view on error for better UX
+      if (data.message.includes("not found") || data.message.includes("full")) {
+        currentView = "choice";
+        const screen = $("#screen-lobby")!;
+        renderJoinView(screen);
+      }
     });
 
     on(ServerEvents.LEVEL_LIST, (data: LevelListPayload) => {
