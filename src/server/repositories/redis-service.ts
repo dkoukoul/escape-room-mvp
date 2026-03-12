@@ -4,10 +4,31 @@ import type { Room, Player } from "../../../shared/types.ts";
 import logger from "../utils/logger.ts";
 
 const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
-const redis = new Redis(REDIS_URL);
+
+// Redis reconnection options: retry every 10 seconds, max 10 retries
+const redisOptions = {
+  retryStrategy: (times: number) => {
+    if (times > 10) {
+      logger.error("❌ [Redis] Max reconnection attempts reached");
+      return null; // Stop retrying
+    }
+    return Math.min(times * 1000, 10000); // Max 10 seconds between retries
+  },
+  maxRetriesPerRequest: 3,
+};
+
+const redis = new Redis(REDIS_URL, redisOptions);
+
+// Track last error time to prevent spam (shared with other Redis clients)
+let lastRedisErrorTime = 0;
+const REDIS_ERROR_COOLDOWN = 30000; // 30 seconds between logged errors
 
 redis.on("error", (err) => {
-  logger.error("❌ [Redis] Error:", { message: err.message });
+  const now = Date.now();
+  if (now - lastRedisErrorTime > REDIS_ERROR_COOLDOWN) {
+    logger.error("❌ [Redis] Service error", { error: err.message });
+    lastRedisErrorTime = now;
+  }
 });
 
 redis.on("connect", () => {

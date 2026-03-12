@@ -26,8 +26,6 @@ import {
 } from "./services/room-manager.ts";
 import { getLevelSummaries } from "./utils/config-loader.ts";
 import { startGame, handlePuzzleAction, getAllPlayerViews, jumpToPuzzle, handlePlayerReady, handleLevelIntroComplete, syncPlayer, resumeRoomTimers } from "./services/game-engine.ts";
-import Redis from "ioredis";
-import { createAdapter } from "@socket.io/redis-adapter";
 import {
   ClientEvents,
   ServerEvents,
@@ -44,15 +42,10 @@ import { PostgresService } from "./repositories/postgres-service.ts";
 import logger from "./utils/logger.ts";
 import { GamePhase } from "@shared/types.ts";
 
-// ---- Redis Setup for Multi-instance sync ----
-const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
-const pubClient = new Redis(REDIS_URL);
-const subClient = pubClient.duplicate();
-
 const PORT = parseInt(process.env.SERVER_PORT || "3000");
 
 // CORS configuration - allow all origins in production or specific dev origin
-const corsOrigin = process.env.CORS_ORIGIN || 
+const corsOrigin = process.env.CORS_ORIGIN ||
   (process.env.NODE_ENV === "production" ? true : `http://localhost:${process.env.CLIENT_PORT || "5173"}`);
 
 const io = new Server(PORT, {
@@ -61,8 +54,6 @@ const io = new Server(PORT, {
     methods: ["GET", "POST"],
   },
 });
-
-io.adapter(createAdapter(pubClient, subClient));
 
 // ---- Load existing rooms and configs ----
 try {
