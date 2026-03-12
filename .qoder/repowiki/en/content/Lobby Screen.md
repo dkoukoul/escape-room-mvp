@@ -11,6 +11,8 @@
 - [types.ts](file://shared/types.ts)
 - [index.html](file://src/client/index.html)
 - [style.css](file://src/client/styles/style.css)
+- [cyberpunk-greek.css](file://src/client/styles/themes/cyberpunk-greek.css)
+- [glitch.css](file://src/client/styles/glitch.css)
 - [level-intro.ts](file://src/client/screens/level-intro.ts)
 - [theme-engine.ts](file://src/client/lib/theme-engine.ts)
 - [visual-fx.ts](file://src/client/lib/visual-fx.ts)
@@ -20,11 +22,13 @@
 
 ## Update Summary
 **Changes Made**
-- Added comprehensive race condition prevention with `isJoiningRoom` state management flag
-- Enhanced error handling with proper flag reset logic for duplicate join detection
-- Improved socket reconnection logic to prevent duplicate room joining operations
-- Added detailed logging for duplicate join detection and race condition prevention
-- Enhanced auto-join functionality with proper state guards during session restoration
+- Complete rewrite of lobby interface with new three-state view management system (choice/create/join)
+- Enhanced UI with larger buttons and improved styling including cyberpunk aesthetic
+- Dynamic content rendering with `refreshDynamicContent()` function
+- Robust error handling improvements with comprehensive race condition prevention
+- Advanced tooltip system with contextual guidance
+- Enhanced leaderboard display with cyberpunk styling
+- Improved session persistence with 30-minute timeout handling
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -32,18 +36,22 @@
 3. [Core Components](#core-components)
 4. [Architecture Overview](#architecture-overview)
 5. [Detailed Component Analysis](#detailed-component-analysis)
-6. [Race Condition Prevention System](#race-condition-prevention-system)
-7. [Help System Implementation](#help-system-implementation)
-8. [Dependency Analysis](#dependency-analysis)
-9. [Performance Considerations](#performance-considerations)
-10. [Troubleshooting Guide](#troubleshooting-guide)
-11. [Conclusion](#conclusion)
+6. [Three-State View Management System](#three-state-view-management-system)
+7. [Enhanced UI and Styling](#enhanced-ui-and-styling)
+8. [Dynamic Content Rendering](#dynamic-content-rendering)
+9. [Advanced Tooltip System](#advanced-tooltip-system)
+10. [Race Condition Prevention System](#race-condition-prevention-system)
+11. [Help System Implementation](#help-system-implementation)
+12. [Dependency Analysis](#dependency-analysis)
+13. [Performance Considerations](#performance-considerations)
+14. [Troubleshooting Guide](#troubleshooting-guide)
+15. [Conclusion](#conclusion)
 
 ## Introduction
 
 The Lobby Screen is the primary entry point for the Project ODYSSEY escape room experience. It serves as the central hub where players create or join rooms, manage their player roster, select missions, and access the leaderboard. Built with a cyberpunk aesthetic, the lobby provides a seamless transition into the digital adventure while maintaining intuitive controls for room management and mission preparation.
 
-**Updated** The lobby now features a comprehensive race condition prevention system implemented through the `isJoiningRoom` state management flag. This enhancement eliminates duplicate room joining operations and prevents race conditions during socket reconnection, manual joins, and auto-joins. The system includes proper flag reset logic, improved error handling, and detailed logging for duplicate join detection, ensuring reliable room management across all user scenarios.
+**Updated** The lobby now features a complete rewrite with a sophisticated three-state view management system that replaces the previous two-view approach. The new system includes choice, create, and join states, providing enhanced user experience with larger, more intuitive buttons and comprehensive error handling. The interface now features dynamic content rendering, advanced tooltip guidance, and robust race condition prevention to ensure reliable room management across all user scenarios.
 
 The lobby implements a sophisticated real-time communication system using Socket.io, enabling dynamic updates to player lists, level selections, and game state synchronization across multiple clients. Its design emphasizes accessibility with automatic session restoration, responsive error handling, and visual feedback mechanisms that enhance the immersive gaming experience.
 
@@ -94,47 +102,50 @@ Socket --> Types
 ```
 
 **Diagram sources**
-- [index.html](file://src/client/index.html#L24-L38)
-- [main.ts](file://src/client/main.ts#L37-L72)
-- [lobby.ts](file://src/client/screens/lobby.ts#L14-L30)
+- [index.html:24-38](file://src/client/index.html#L24-L38)
+- [main.ts:37-72](file://src/client/main.ts#L37-L72)
+- [lobby.ts:14-30](file://src/client/screens/lobby.ts#L14-L30)
 
 **Section sources**
-- [ARCHITECTURE.md](file://ARCHITECTURE.md#L68-L96)
-- [index.html](file://src/client/index.html#L1-L69)
+- [ARCHITECTURE.md:68-96](file://ARCHITECTURE.md#L68-L96)
+- [index.html:1-69](file://src/client/index.html#L1-L69)
 
 ## Core Components
 
 The lobby screen consists of several interconnected components that work together to provide a comprehensive room management experience:
 
-### State Management System
+### Three-State View Management System
+The lobby maintains a sophisticated three-state view system that replaces the previous two-view approach:
+- **Choice View**: Primary selection screen with CREATE ROOM and JOIN ROOM options
+- **Create View**: Form-based room creation interface with callsign input
+- **Join View**: Form-based room joining interface with room code and callsign inputs
+
+### Enhanced State Management
 The lobby maintains module-level state variables that track room information, player data, available levels, and leaderboard entries. This centralized state management enables efficient updates and renders across different views.
 
 **Updated** A new race condition prevention mechanism has been added through the `isJoiningRoom` boolean flag that acts as a guard to prevent duplicate room joining operations across all user scenarios.
 
-### View Rendering Engine
-Two distinct rendering modes handle different user scenarios:
-- **Join View**: For new players or those not currently in a room
-- **Room View**: For players who have joined or created a room
+### Dynamic Content Rendering Engine
+The lobby features a dynamic content rendering system that allows seamless switching between different view states without full page reloads. The `refreshDynamicContent()` function efficiently updates only the necessary DOM elements.
 
-### Socket Communication Layer
+### Advanced Socket Communication Layer
 Real-time bidirectional communication enables live updates to player lists, level selections, and game state changes without requiring page refreshes.
 
-### Session Persistence
-Automatic session restoration allows players to return to ongoing games seamlessly, with intelligent timeout handling for abandoned sessions.
+### Enhanced Session Persistence
+Automatic session restoration allows players to return to ongoing games seamlessly, with intelligent timeout handling for abandoned sessions and comprehensive error recovery.
 
-### Race Condition Prevention System
-**New** The lobby now includes a comprehensive race condition prevention system featuring:
-- `isJoiningRoom` state flag to prevent duplicate join attempts
-- Proper flag reset logic on successful joins and errors
-- Enhanced logging for duplicate join detection
-- Improved socket reconnection handling with state guards
-- Robust error handling with proper flag cleanup
+### Comprehensive Error Handling System
+**New** The lobby now includes robust error handling with:
+- Contextual error messages for different failure scenarios
+- Automatic view state recovery on errors
+- Proper flag reset logic for race condition prevention
+- Enhanced logging for debugging and monitoring
 
 **Section sources**
-- [lobby.ts](file://src/client/screens/lobby.ts#L32-L41)
-- [lobby.ts](file://src/client/screens/lobby.ts#L84-L126)
-- [lobby.ts](file://src/client/screens/lobby.ts#L184-L261)
-- [style.css](file://src/client/styles/style.css#L461-L526)
+- [lobby.ts:32-41](file://src/client/screens/lobby.ts#L32-L41)
+- [lobby.ts:84-126](file://src/client/screens/lobby.ts#L84-L126)
+- [lobby.ts:184-261](file://src/client/screens/lobby.ts#L184-L261)
+- [style.css:461-526](file://src/client/styles/style.css#L461-L526)
 
 ## Architecture Overview
 
@@ -144,16 +155,21 @@ The lobby screen operates within a broader client-server architecture that empha
 sequenceDiagram
 participant User as Player
 participant Lobby as Lobby Screen
+participant ViewManager as View Manager
 participant RaceGuard as Race Condition Guard
 participant Socket as Socket Client
 participant Server as Game Server
 participant Router as Screen Router
-User->>Lobby : Enter callsign & room code
+User->>Lobby : Click CREATE ROOM
+Lobby->>ViewManager : Switch to create view
+ViewManager->>Lobby : Render create form
+User->>Lobby : Enter callsign
+User->>Lobby : Click CREATE ROOM
 Lobby->>RaceGuard : Check isJoiningRoom flag
 RaceGuard-->>Lobby : Flag = false, proceed
-Lobby->>Socket : Emit JOIN_ROOM
-Socket->>Server : Send room join request
-Server->>Socket : ROOM_JOINED event
+Lobby->>Socket : Emit CREATE_ROOM
+Socket->>Server : Send room creation request
+Server->>Socket : ROOM_CREATED event
 Socket->>Lobby : Receive room data
 Lobby->>RaceGuard : Reset isJoiningRoom flag
 Lobby->>Lobby : Update state & render room view
@@ -172,19 +188,19 @@ Router->>Router : Show level-intro screen
 ```
 
 **Diagram sources**
-- [lobby.ts](file://src/client/screens/lobby.ts#L263-L335)
-- [socket.ts](file://src/client/lib/socket.ts#L51-L65)
-- [router.ts](file://src/client/lib/router.ts#L17-L39)
+- [lobby.ts:263-335](file://src/client/screens/lobby.ts#L263-L335)
+- [socket.ts:51-65](file://src/client/lib/socket.ts#L51-L65)
+- [router.ts:17-39](file://src/client/lib/router.ts#L17-L39)
 
 The architecture ensures smooth transitions between lobby functionality and subsequent game screens, with proper state cleanup and resource management throughout the process.
 
 **Section sources**
-- [ARCHITECTURE.md](file://ARCHITECTURE.md#L113-L122)
-- [main.ts](file://src/client/main.ts#L164-L177)
+- [ARCHITECTURE.md:113-122](file://ARCHITECTURE.md#L113-L122)
+- [main.ts:164-177](file://src/client/main.ts#L164-L177)
 
 ## Detailed Component Analysis
 
-### Lobby State Management
+### Enhanced State Management
 
 The lobby employs a clean module-level state architecture that separates concerns between room data, player information, and level configurations. This design enables efficient updates and maintains data consistency across different user interactions.
 
@@ -202,6 +218,7 @@ class LobbyState {
 +LeaderboardEntry[] leaderboard
 +string activeTooltip
 +boolean isJoiningRoom
++currentView : "choice" | "create" | "join"
 +clearSavedSession() void
 +initLobby() void
 }
@@ -239,12 +256,12 @@ LobbyState --> LeaderboardEntry : displays
 ```
 
 **Diagram sources**
-- [lobby.ts](file://src/client/screens/lobby.ts#L32-L41)
-- [types.ts](file://shared/types.ts#L7-L22)
-- [types.ts](file://shared/types.ts#L117-L127)
-- [types.ts](file://shared/types.ts#L174-L182)
+- [lobby.ts:32-41](file://src/client/screens/lobby.ts#L32-L41)
+- [types.ts:7-22](file://shared/types.ts#L7-L22)
+- [types.ts:117-127](file://shared/types.ts#L117-L127)
+- [types.ts:174-182](file://shared/types.ts#L174-L182)
 
-### Socket Event Handling
+### Enhanced Socket Event Handling
 
 The lobby implements comprehensive socket event listeners that handle various room management scenarios, from initial connection to game state transitions. Each event type triggers specific state updates and UI rendering logic.
 
@@ -260,7 +277,7 @@ EventType --> |LEVEL_LIST| LoadLevels["Store available levels<br/>Render room vi
 EventType --> |LEVEL_SELECTED| SelectLevel["Update selected level<br/>Render room view"]
 EventType --> |GAME_STARTED| Transition["Show HUD<br/>Prepare for level intro"]
 EventType --> |LEADERBOARD_LIST| UpdateLeaderboard["Display leaderboard data"]
-EventType --> |ROOM_ERROR| ShowError["Display error message<br/>Reset isJoiningRoom flag"]
+EventType --> |ROOM_ERROR| ShowError["Display error message<br/>Reset isJoiningRoom flag<br/>Reset to choice view"]
 CreateRoom --> RenderRoom["Render room view"]
 JoinRoom --> RenderRoom
 UpdatePlayers --> RenderRoom
@@ -268,15 +285,16 @@ LoadLevels --> RenderRoom
 SelectLevel --> RenderRoom
 Transition --> End([Complete])
 UpdateLeaderboard --> End
-ShowError --> End
+ShowError --> ResetView["Reset to choice view"]
+ResetView --> End
 RenderRoom --> End
 ```
 
 **Diagram sources**
-- [lobby.ts](file://src/client/screens/lobby.ts#L342-L434)
-- [events.ts](file://shared/events.ts#L54-L90)
+- [lobby.ts:342-434](file://src/client/screens/lobby.ts#L342-L434)
+- [events.ts:54-90](file://shared/events.ts#L54-L90)
 
-### User Interaction Flow
+### Enhanced User Interaction Flow
 
 The lobby handles various user interaction patterns with robust validation and error handling mechanisms. The system provides immediate feedback for all user actions while maintaining session continuity.
 
@@ -285,19 +303,23 @@ The lobby handles various user interaction patterns with robust validation and e
 ```mermaid
 sequenceDiagram
 participant User as User
+participant ViewManager as View Manager
 participant Input as Input Validation
 participant RaceGuard as Race Condition Guard
-participant HelpSystem as Help System
+participant TooltipSystem as Tooltip System
 participant Storage as Local Storage
 participant Socket as Socket Client
 participant Server as Game Server
+User->>ViewManager : Click CREATE ROOM
+ViewManager->>ViewManager : Set currentView = "create"
+ViewManager->>ViewManager : refreshDynamicContent()
 User->>Input : Enter callsign
 Input->>Input : Validate non-empty
 Input-->>User : Show error if invalid
 User->>RaceGuard : Check isJoiningRoom flag
 RaceGuard-->>User : Flag = false, proceed
-User->>HelpSystem : Hover over buttons
-HelpSystem->>User : Show tooltip guidance
+User->>TooltipSystem : Hover over buttons
+TooltipSystem->>User : Show tooltip guidance
 User->>Input : Enter room code
 Input->>Input : Validate format
 Input-->>User : Show error if invalid
@@ -314,23 +336,233 @@ Note over User,Server : Auto-join on reconnect<br/>with session restoration<br/>
 ```
 
 **Diagram sources**
-- [lobby.ts](file://src/client/screens/lobby.ts#L263-L298)
-- [lobby.ts](file://src/client/screens/lobby.ts#L354-L372)
+- [lobby.ts:263-298](file://src/client/screens/lobby.ts#L263-L298)
+- [lobby.ts:354-372](file://src/client/screens/lobby.ts#L354-L372)
 
 **Section sources**
-- [lobby.ts](file://src/client/screens/lobby.ts#L263-L335)
-- [lobby.ts](file://src/client/screens/lobby.ts#L342-L434)
+- [lobby.ts:263-335](file://src/client/screens/lobby.ts#L263-L335)
+- [lobby.ts:342-434](file://src/client/screens/lobby.ts#L342-L434)
 
-### DOM Manipulation and Rendering
+### Enhanced DOM Manipulation and Rendering
 
 The lobby utilizes a lightweight DOM manipulation library that provides efficient element creation and updates without the overhead of a full framework. This approach ensures optimal performance while maintaining clean, readable code.
 
-The rendering system supports two primary view modes with dynamic content updates based on room state and user permissions. The join view focuses on room creation and joining functionality, while the room view emphasizes player management and mission selection.
+The rendering system supports three primary view modes with dynamic content updates based on room state and user permissions. The choice view focuses on primary navigation, while the create and join views emphasize form-based interactions with enhanced styling and user guidance.
 
 **Section sources**
-- [dom.ts](file://src/client/lib/dom.ts#L11-L44)
-- [lobby.ts](file://src/client/screens/lobby.ts#L84-L126)
-- [lobby.ts](file://src/client/screens/lobby.ts#L184-L261)
+- [dom.ts:11-44](file://src/client/lib/dom.ts#L11-L44)
+- [lobby.ts:84-126](file://src/client/screens/lobby.ts#L84-L126)
+- [lobby.ts:184-261](file://src/client/screens/lobby.ts#L184-L261)
+
+## Three-State View Management System
+
+**New Section** The lobby now features a sophisticated three-state view management system that provides enhanced user experience and better organization of room management functionality.
+
+### View State Architecture
+
+The `currentView` state variable manages the active view with three distinct states:
+
+```mermaid
+stateDiagram-v2
+[*] --> ChoiceView : Initial State
+ChoiceView --> CreateView : Click CREATE ROOM
+ChoiceView --> JoinView : Click JOIN ROOM
+CreateView --> ChoiceView : Click BACK
+CreateView --> JoinView : Switch to join view
+JoinView --> ChoiceView : Click BACK
+JoinView --> CreateView : Switch to create view
+```
+
+**Diagram sources**
+- [lobby.ts](file://src/client/screens/lobby.ts#L41)
+- [lobby.ts:114-127](file://src/client/screens/lobby.ts#L114-L127)
+
+### Choice View Implementation
+
+The choice view serves as the primary navigation interface with enhanced button styling and larger interactive elements:
+
+```mermaid
+flowchart TD
+ChoiceView[Choice View] --> CreateButton[CREATE ROOM Button]
+ChoiceView --> JoinButton[JOIN ROOM Button]
+CreateButton --> CreateView[Create View]
+JoinButton --> JoinFormView[Join Form View]
+CreateButton --> Tooltip1[Tooltip Guidance]
+JoinButton --> Tooltip2[Tooltip Guidance]
+```
+
+**Diagram sources**
+- [lobby.ts:129-160](file://src/client/screens/lobby.ts#L129-L160)
+- [style.css:534-551](file://src/client/styles/style.css#L534-L551)
+
+### Enhanced Create and Join Views
+
+Both create and join views feature comprehensive form validation, session persistence, and enhanced user guidance through the tooltip system.
+
+**Section sources**
+- [lobby.ts:129-160](file://src/client/screens/lobby.ts#L129-L160)
+- [lobby.ts:162-197](file://src/client/screens/lobby.ts#L162-L197)
+- [lobby.ts:199-244](file://src/client/screens/lobby.ts#L199-L244)
+
+## Enhanced UI and Styling
+
+**New Section** The lobby features a complete visual overhaul with cyberpunk aesthetics, larger interactive elements, and comprehensive styling system.
+
+### Cyberpunk Aesthetic Integration
+
+The lobby implements a cohesive cyberpunk design language with neon accents, glowing elements, and futuristic typography:
+
+```mermaid
+classDiagram
+class CyberpunkTheme {
++string --neon-cyan : #00f0ff
++string --neon-magenta : #ff00aa
++string --neon-gold : #ffd700
++string --bg-panel : rgba(13, 13, 26, 0.85)
++string --bg-card : rgba(20, 20, 40, 0.9)
++string --font-display : Orbitron
++string --font-mono : Share Tech Mono
+}
+class EnhancedButtons {
++min-height : 80px
++letter-spacing : 2px
++text-transform : uppercase
++border : 2px solid var(--neon-cyan)
++background : transparent
++box-shadow : var(--glow-cyan)
+}
+class GlitchEffects {
++glitch-text class
++glitch-overlay
++scanlines
++screen-shake
+}
+CyberpunkTheme --> EnhancedButtons
+EnhancedButtons --> GlitchEffects
+```
+
+**Diagram sources**
+- [style.css:6-59](file://src/client/styles/style.css#L6-L59)
+- [cyberpunk-greek.css:8-34](file://src/client/styles/themes/cyberpunk-greek.css#L8-L34)
+- [glitch.css:102-169](file://src/client/styles/glitch.css#L102-L169)
+
+### Enhanced Button System
+
+The button system features larger, more intuitive interactive elements with comprehensive hover states and visual feedback:
+
+- **Choice Buttons**: 80px minimum height with centered layout
+- **Form Buttons**: Primary and secondary button differentiation
+- **Back Buttons**: Secondary styling with neutral color scheme
+- **Danger Buttons**: Red accent for destructive actions
+
+### Comprehensive Styling System
+
+The styling system includes:
+- **Typography**: Orbitron for headings, Share Tech Mono for code-like elements
+- **Color Scheme**: Neon cyan, magenta, and gold accents against dark backgrounds
+- **Visual Effects**: Glitch animations, scanlines, and screen distortion effects
+- **Responsive Design**: Flexible layouts that adapt to different screen sizes
+
+**Section sources**
+- [style.css:6-59](file://src/client/styles/style.css#L6-L59)
+- [style.css:214-276](file://src/client/styles/style.css#L214-L276)
+- [style.css:534-551](file://src/client/styles/style.css#L534-L551)
+- [cyberpunk-greek.css:8-34](file://src/client/styles/themes/cyberpunk-greek.css#L8-L34)
+- [glitch.css:102-169](file://src/client/styles/glitch.css#L102-L169)
+
+## Dynamic Content Rendering
+
+**New Section** The lobby features a sophisticated dynamic content rendering system that enables seamless view switching without full page reloads.
+
+### Dynamic Content Architecture
+
+The `refreshDynamicContent()` function provides efficient content updates:
+
+```mermaid
+flowchart TD
+DynamicContent[Dynamic Content Container] --> ChoiceView[Choice View]
+DynamicContent --> CreateView[Create View]
+DynamicContent --> JoinFormView[Join Form View]
+ChoiceView --> RenderCurrentView[renderCurrentView Function]
+CreateView --> RenderCurrentView
+JoinFormView --> RenderCurrentView
+RenderCurrentView --> SwitchStatement[Switch Statement]
+SwitchStatement --> ChoiceCase[case "choice"]
+SwitchStatement --> CreateCase[case "create"]
+SwitchStatement --> JoinCase[case "join"]
+ChoiceCase --> ChoiceView
+CreateCase --> CreateView
+JoinCase --> JoinFormView
+```
+
+**Diagram sources**
+- [lobby.ts:246-252](file://src/client/screens/lobby.ts#L246-L252)
+- [lobby.ts:114-127](file://src/client/screens/lobby.ts#L114-L127)
+
+### Performance Optimization
+
+The dynamic rendering system includes several performance optimizations:
+- **Selective DOM Updates**: Only the dynamic content area is refreshed
+- **Efficient State Management**: View state changes trigger minimal DOM manipulation
+- **Memory Management**: Proper cleanup of event listeners and temporary elements
+- **Animation Support**: Smooth transitions between view states
+
+### Enhanced Error Handling
+
+The dynamic system includes comprehensive error handling:
+- **Error Display**: Contextual error messages in dedicated error containers
+- **State Recovery**: Automatic fallback to choice view on critical errors
+- **Graceful Degradation**: Partial functionality even when components fail
+
+**Section sources**
+- [lobby.ts:246-252](file://src/client/screens/lobby.ts#L246-L252)
+- [lobby.ts:114-127](file://src/client/screens/lobby.ts#L114-L127)
+- [lobby.ts:473-476](file://src/client/screens/lobby.ts#L473-L476)
+
+## Advanced Tooltip System
+
+**New Section** The lobby features a sophisticated tooltip system designed to provide contextual guidance for first-time users and enhance the overall user experience.
+
+### Tooltip Architecture
+
+The tooltip system provides immediate, non-intrusive guidance for critical actions:
+
+```mermaid
+flowchart TD
+TooltipTrigger[Tooltip Trigger] --> ShowTooltip[showTooltip Function]
+ShowTooltip --> RenderTooltip[renderTooltip Function]
+RenderTooltip --> GetPosition[Get Button Position]
+GetPosition --> CreateElement[Create Tooltip Element]
+CreateElement --> AddStyles[Apply Cyberpunk Styles]
+AddStyles --> AppendToBody[Append to Document Body]
+MouseLeave[Mouse Leave Button] --> HideTooltip[hideTooltip Function]
+HideTooltip --> RemoveElement[Remove Tooltip Element]
+ButtonClick[Button Click] --> HideTooltip
+```
+
+**Diagram sources**
+- [lobby.ts:581-621](file://src/client/screens/lobby.ts#L581-L621)
+- [style.css:461-526](file://src/client/styles/style.css#L461-L526)
+
+### Tooltip Content Management
+
+The system manages tooltip content dynamically based on user interactions:
+- **Contextual Guidance**: Different tooltips for create vs join actions
+- **Position Tracking**: Real-time positioning relative to target elements
+- **Lifecycle Management**: Proper creation and cleanup of tooltip elements
+- **Styling Integration**: Full integration with cyberpunk design system
+
+### Enhanced User Experience
+
+The tooltip system enhances user experience through:
+- **Non-Intrusive Design**: Tooltips appear only on hover and disappear on leave
+- **Clear Messaging**: Concise, actionable guidance for complex actions
+- **Visual Consistency**: Styling that matches the overall cyberpunk aesthetic
+- **Accessibility**: Proper keyboard navigation and screen reader support
+
+**Section sources**
+- [lobby.ts:581-621](file://src/client/screens/lobby.ts#L581-L621)
+- [style.css:461-526](file://src/client/styles/style.css#L461-L526)
 
 ## Race Condition Prevention System
 
@@ -354,9 +586,9 @@ Error --> Idle : isJoiningRoom = false
 ```
 
 **Diagram sources**
-- [lobby.ts](file://src/client/screens/lobby.ts#L40-L41)
-- [lobby.ts](file://src/client/screens/lobby.ts#L316-L330)
-- [lobby.ts](file://src/client/screens/lobby.ts#L397-L405)
+- [lobby.ts](file://src/client/screens/lobby.ts#L40)
+- [lobby.ts:316-330](file://src/client/screens/lobby.ts#L316-L330)
+- [lobby.ts:397-405](file://src/client/screens/lobby.ts#L397-L405)
 
 ### Duplicate Join Detection Logic
 
@@ -383,8 +615,8 @@ ResetFlag --> End
 ```
 
 **Diagram sources**
-- [lobby.ts](file://src/client/screens/lobby.ts#L316-L330)
-- [lobby.ts](file://src/client/screens/lobby.ts#L408-L432)
+- [lobby.ts:316-330](file://src/client/screens/lobby.ts#L316-L330)
+- [lobby.ts:408-432](file://src/client/screens/lobby.ts#L408-L432)
 
 ### Enhanced Error Handling and Flag Reset Logic
 
@@ -396,9 +628,9 @@ The system includes comprehensive error handling with proper flag reset logic to
 - **Logging**: Provides detailed logging for duplicate join detection and race condition prevention
 
 **Section sources**
-- [lobby.ts](file://src/client/screens/lobby.ts#L316-L330)
-- [lobby.ts](file://src/client/screens/lobby.ts#L397-L405)
-- [lobby.ts](file://src/client/screens/lobby.ts#L408-L432)
+- [lobby.ts:316-330](file://src/client/screens/lobby.ts#L316-L330)
+- [lobby.ts:397-405](file://src/client/screens/lobby.ts#L397-L405)
+- [lobby.ts:408-432](file://src/client/screens/lobby.ts#L408-L432)
 
 ## Help System Implementation
 
@@ -414,8 +646,8 @@ HowToPlay[HOW TO PLAY Section] --> Instructions[Game Instructions]
 Instructions --> RoomCreation[Room Creation Guidance]
 Instructions --> RoomJoining[Room Joining Guidance]
 Instructions --> CoopMechanics[Cooperative Gameplay]
-RoomCreation --> CreateButton[Create Room Button]
-RoomJoining --> JoinButton[Join Button]
+RoomCreation --> CreateButton[CREATE ROOM Button]
+RoomJoining --> JoinButton[JOIN ROOM Button]
 CreateButton --> Tooltip[Tooltip Guidance]
 JoinButton --> Tooltip
 Tooltip --> Lifecycle[Improved Lifecycle Management]
@@ -423,31 +655,10 @@ Lifecycle --> Cleanup[Proper Tooltip Cleanup]
 ```
 
 **Diagram sources**
-- [lobby.ts](file://src/client/screens/lobby.ts#L92-L106)
-- [style.css](file://src/client/styles/style.css#L92-L106)
+- [lobby.ts:92-106](file://src/client/screens/lobby.ts#L92-L106)
+- [style.css:92-106](file://src/client/styles/style.css#L92-L106)
 
-### Tooltip System
-
-The tooltip system provides immediate, non-intrusive guidance for critical actions like room creation and joining. The system uses a lightweight approach that creates and positions tooltips dynamically without requiring full re-renders.
-
-```mermaid
-flowchart TD
-MouseEnter[Mouse Enter Button] --> ShowTooltip[showTooltip Function]
-ShowTooltip --> CreateBubble[renderTooltip Function]
-CreateBubble --> GetPosition[Get Button Position]
-GetPosition --> CreateElement[Create Tooltip Element]
-CreateElement --> AddStyles[Apply Cyberpunk Styles]
-AddStyles --> AppendToBody[Append to Document Body]
-MouseLeave[Mouse Leave Button] --> HideTooltip[hideTooltip Function]
-HideTooltip --> RemoveElement[Remove Tooltip Element]
-ButtonClick[Button Click] --> HideTooltip
-```
-
-**Diagram sources**
-- [lobby.ts](file://src/client/screens/lobby.ts#L441-L481)
-- [style.css](file://src/client/styles/style.css#L470-L526)
-
-### Help Panel Implementation
+### Enhanced Help Panel Implementation
 
 The help panel provides comprehensive guidance with cyberpunk styling that maintains the game's aesthetic while delivering useful information to users.
 
@@ -488,20 +699,20 @@ HelpExample --> ExampleContent : contains
 ```
 
 **Diagram sources**
-- [style.css](file://src/client/styles/style.css#L277-L459)
+- [style.css:277-459](file://src/client/styles/style.css#L277-L459)
 
 ### Cyberpunk Styling Integration
 
 The help system maintains consistency with the game's cyberpunk aesthetic through:
-- Neon cyan and gold color schemes
-- Glowing borders and effects
-- Glass-morphism with backdrop blur
-- Smooth animations and transitions
-- Monospace typography for technical content
+- **Neon Cyan and Gold Color Schemes**: Primary accent colors throughout
+- **Glowing Borders and Effects**: Subtle glow effects on interactive elements
+- **Glass-Morphism with Backdrop Blur**: Modern UI component styling
+- **Smooth Animations and Transitions**: Fluid motion graphics
+- **Monospace Typography for Technical Content**: Consistent font family usage
 
 **Section sources**
-- [lobby.ts](file://src/client/screens/lobby.ts#L441-L481)
-- [style.css](file://src/client/styles/style.css#L277-L526)
+- [lobby.ts:441-481](file://src/client/screens/lobby.ts#L441-L481)
+- [style.css:277-526](file://src/client/styles/style.css#L277-L526)
 
 ## Dependency Analysis
 
@@ -518,7 +729,8 @@ Router[router.ts]
 DOM[dom.ts]
 Events[events.ts]
 Types[types.ts]
-HelpSystem[Help System]
+ThemeEngine[theme-engine.ts]
+VisualFX[visual-fx.ts]
 Logger[logger.ts]
 End
 subgraph "External Dependencies"
@@ -527,20 +739,20 @@ End
 subgraph "Shared Resources"
 HTML[index.html]
 CSS[style.css]
-Theme[theme-engine.ts]
-FX[visual-fx.ts]
+Theme[cyberpunk-greek.css]
+GlitchFX[glitch.css]
 ```
 
 **Diagram sources**
-- [lobby.ts](file://src/client/screens/lobby.ts#L14-L30)
-- [socket.ts](file://src/client/lib/socket.ts#L5-L8)
-- [router.ts](file://src/client/lib/router.ts#L6-L8)
+- [lobby.ts:14-30](file://src/client/screens/lobby.ts#L14-L30)
+- [socket.ts:5-8](file://src/client/lib/socket.ts#L5-L8)
+- [router.ts:6-8](file://src/client/lib/router.ts#L6-L8)
 
-The dependency structure reveals a clean separation of concerns where the lobby focuses on presentation logic while delegating networking, routing, and DOM manipulation to specialized modules. The help system and race condition prevention are integrated as cohesive components that enhance rather than complicate the core functionality.
+The dependency structure reveals a clean separation of concerns where the lobby focuses on presentation logic while delegating networking, routing, and DOM manipulation to specialized modules. The help system, race condition prevention, and dynamic content rendering are integrated as cohesive components that enhance rather than complicate the core functionality.
 
 **Section sources**
-- [lobby.ts](file://src/client/screens/lobby.ts#L14-L30)
-- [socket.ts](file://src/client/lib/socket.ts#L1-L85)
+- [lobby.ts:14-30](file://src/client/screens/lobby.ts#L14-L30)
+- [socket.ts:1-85](file://src/client/lib/socket.ts#L1-L85)
 
 ## Performance Considerations
 
@@ -558,23 +770,29 @@ Socket communication is designed to minimize bandwidth usage while maintaining r
 ### Resource Loading
 Assets are loaded asynchronously to prevent blocking the user interface. The lobby defers non-critical operations like leaderboard loading until after the initial room view is established.
 
-### Race Condition Prevention Performance
+### Enhanced Race Condition Prevention Performance
 **New** The race condition prevention system is optimized for performance through:
-- Lightweight boolean flag checks
-- Minimal DOM manipulation for flag state
-- Efficient event handling for socket reconnection
-- Cached button positions to minimize layout calculations
-- Proper flag lifecycle management preventing memory leaks
-- Optimized logging with conditional debug statements
+- **Lightweight Boolean Flag Checks**: Minimal computational overhead
+- **Efficient DOM Manipulation**: Targeted updates for flag state changes
+- **Optimized Event Handling**: Streamlined socket reconnection logic
+- **Cached Button Positions**: Reduced layout calculation overhead
+- **Proper Flag Lifecycle Management**: Prevents memory leaks through cleanup
+- **Conditional Debug Logging**: Optimized logging with environment-based filtering
 
-### Help System Performance
-**New** The help system is optimized for performance through:
-- Lightweight tooltip creation and destruction
-- CSS-based animations instead of JavaScript animations
-- Minimal DOM manipulation for tooltip positioning
-- Efficient event handling for hover interactions
-- Cached button positions to minimize layout calculations
-- Proper tooltip lifecycle management preventing memory leaks
+### Dynamic Content Rendering Performance
+**New** The dynamic content system is optimized for performance through:
+- **Selective DOM Updates**: Only the dynamic content area is refreshed
+- **Efficient State Management**: Minimal state changes trigger updates
+- **Memory-Efficient Rendering**: Proper cleanup of old content
+- **Animation Optimization**: Hardware-accelerated CSS transitions
+
+### Enhanced Tooltip System Performance
+**New** The tooltip system is optimized for performance through:
+- **Lightweight Tooltip Creation**: Minimal DOM manipulation for tooltip positioning
+- **CSS-Based Animations**: Hardware-accelerated animations instead of JavaScript
+- **Efficient Event Handling**: Optimized hover interaction management
+- **Proper Lifecycle Management**: Prevents memory leaks through cleanup
+- **Cached Position Calculations**: Reduced layout recalculation overhead
 
 ### Network Optimization
 Socket communication is designed to minimize bandwidth usage while maintaining real-time responsiveness. Event-driven updates reduce unnecessary polling and server requests.
@@ -606,7 +824,7 @@ Common issues and their solutions when working with the lobby screen:
 - **Problem**: Missing visual effects or glitch animations
 - **Solution**: Verify that the visual effects system is properly initialized and that CSS classes are being applied correctly. Check browser console for JavaScript errors.
 
-### Race Condition Prevention Issues
+### Enhanced Race Condition Prevention Issues
 **New** Common race condition prevention problems:
 - **Problem**: Duplicate room joining operations despite user input
 - **Solution**: Check that the `isJoiningRoom` flag is being properly set and reset. Verify that all join operations check the flag before proceeding and that the flag is reset on both success and error conditions.
@@ -617,7 +835,14 @@ Common issues and their solutions when working with the lobby screen:
 - **Problem**: Flag state inconsistencies
 - **Solution**: Implement proper flag cleanup in all error paths and ensure that the flag is reset in both success and failure scenarios to prevent long-term state corruption.
 
-### Help System Issues
+### Dynamic Content Rendering Issues
+**New** Common dynamic content problems:
+- **Problem**: View switching not working or content not updating
+- **Solution**: Check that the `refreshDynamicContent()` function is being called correctly. Verify that the dynamic content container exists and that the `currentView` state is properly managed.
+- **Problem**: Error messages not displaying
+- **Solution**: Ensure that the error container exists and that the `showError()` function is properly implemented and called.
+
+### Enhanced Tooltip System Issues
 **New** Common help system problems:
 - **Problem**: Tooltips not appearing on hover
 - **Solution**: Check that the tooltip trigger classes are properly applied to buttons. Verify that the showTooltip/hideTooltip functions are being called correctly and that the activeTooltip state is managed properly.
@@ -629,18 +854,20 @@ Common issues and their solutions when working with the lobby screen:
 - **Solution**: Ensure that hideTooltip is called on mouse leave and button click events. Check that the activeTooltip state is properly cleared and that tooltips are removed from the DOM to prevent memory leaks.
 
 **Section sources**
-- [lobby.ts](file://src/client/screens/lobby.ts#L354-L372)
-- [lobby.ts](file://src/client/screens/lobby.ts#L423-L430)
-- [lobby.ts](file://src/client/screens/lobby.ts#L441-L481)
+- [lobby.ts:354-372](file://src/client/screens/lobby.ts#L354-L372)
+- [lobby.ts:423-430](file://src/client/screens/lobby.ts#L423-L430)
+- [lobby.ts:441-481](file://src/client/screens/lobby.ts#L441-L481)
 
 ## Conclusion
 
 The Lobby Screen represents a sophisticated yet maintainable implementation of a real-time multiplayer gaming interface. Its modular architecture, comprehensive state management, and efficient socket communication provide a solid foundation for the Project ODYSSEY experience.
 
-**Updated** The addition of the comprehensive race condition prevention system significantly enhances the reliability and user experience of the lobby functionality. The `isJoiningRoom` state management flag effectively prevents duplicate room joining operations and eliminates race conditions during socket reconnection, manual joins, and auto-joins. This enhancement demonstrates how thoughtful state management can improve system reliability without compromising performance or user experience.
+**Updated** The addition of the comprehensive three-state view management system, enhanced UI with cyberpunk styling, dynamic content rendering, and robust race condition prevention system significantly enhances the reliability and user experience of the lobby functionality. The new architecture provides better organization, improved user guidance, and more intuitive interactions while maintaining the performance and reliability standards of the original implementation.
 
 The screen successfully balances functionality with performance, offering intuitive room management capabilities while maintaining responsive interactions and graceful error handling. The prominent HOW TO PLAY section with cyberpunk styling immediately communicates game mechanics to new users, while the improved tooltip lifecycle management ensures smooth operation without memory leaks.
 
 The race condition prevention system provides robust protection against concurrent room joining operations, with proper flag reset logic, enhanced error handling, and detailed logging for duplicate join detection. This system ensures that users can reliably create and join rooms regardless of network conditions or timing variations.
 
-Future enhancements could include expanded help content, improved accessibility features, additional social interaction capabilities, and further optimization of the race condition prevention system. The current architecture supports these extensions through its modular design and clean separation of concerns, with the race condition prevention system and help system serving as models for future feature integrations.
+The dynamic content rendering system enables seamless view switching without full page reloads, while the enhanced tooltip system provides contextual guidance for complex actions. The comprehensive error handling system ensures that users receive meaningful feedback and can recover from various failure scenarios.
+
+Future enhancements could include expanded help content, improved accessibility features, additional social interaction capabilities, and further optimization of the race condition prevention system. The current architecture supports these extensions through its modular design and clean separation of concerns, with the three-state view management system, dynamic content rendering, race condition prevention, and enhanced tooltip system serving as models for future feature integrations.
